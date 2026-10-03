@@ -1,7 +1,7 @@
 @echo off
-:: PM Tool — Release Build Script
-:: Run this from the repository root (where main.py lives).
-:: Requires: Python 3.11/3.13 venv, Node.js, npm
+rem PM Tool - Release Build Script
+rem Run this from the repository root (where main.py lives).
+rem Requires: Python 3.11/3.13, Node.js, npm
 
 setlocal enabledelayedexpansion
 
@@ -11,7 +11,10 @@ echo  PM Tool Build
 echo ========================================
 echo.
 
-:: ── Step 1: Activate Python venv ─────────────────────────────────────────────
+set "SCRIPT_DIR=%~dp0"
+cd /d "%SCRIPT_DIR%"
+
+rem Step 1: Activate Python venv if present
 echo [1/4] Checking Python environment...
 if exist "venv311\Scripts\activate.bat" (
     call venv311\Scripts\activate.bat
@@ -23,36 +26,36 @@ if exist "venv311\Scripts\activate.bat" (
     echo Note: No local virtual environment found, using system Python...
 )
 
-:: ── Step 2: Build Flask executable with PyInstaller ───────────────────────────
+rem Step 2: Build Flask backend with PyInstaller
 echo [2/4] Building Flask backend with PyInstaller...
 if exist flask-dist rmdir /s /q flask-dist
 if exist dist\flask rmdir /s /q dist\flask
-pyinstaller flask.spec --noconfirm
+python -m PyInstaller flask.spec --noconfirm
 if errorlevel 1 (
     echo ERROR: PyInstaller build failed.
-    pause & exit /b 1
+    exit /b 1
 )
-echo Flask backend built -> dist\flask\
+echo Flask backend built -^> dist\flask\
 
-:: ── Step 3: Install Electron dependencies ────────────────────────────────────
+rem Step 3: Install Electron dependencies
 echo [3/4] Installing Electron dependencies...
-cd electron
+pushd "%SCRIPT_DIR%electron"
 call npm install
 if errorlevel 1 (
     echo ERROR: npm install failed.
-    cd ..
-    pause & exit /b 1
+    popd
+    exit /b 1
 )
 
-:: ── Step 4: Package with electron-builder ─────────────────────────────────────
+rem Step 4: Package with electron-builder
 echo [4/4] Packaging desktop application with electron-builder...
 call npm run build
 if errorlevel 1 (
     echo ERROR: electron-builder failed.
-    cd ..
-    pause & exit /b 1
+    popd
+    exit /b 1
 )
-cd ..
+popd
 
 echo.
 echo ========================================
@@ -60,4 +63,3 @@ echo  Build complete!
 echo  Output: release\
 echo ========================================
 echo.
-pause

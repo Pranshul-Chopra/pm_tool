@@ -5,9 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>AI Copilot &mdash; PM Tool</title>
   <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+  <link rel="stylesheet" href="/static/dialogs.css"/>
+  <script src="/static/dialogs.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2, #3a3835) transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3a3835;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7a5820;
+    }
     :root {
       --bg: #111110;
       --surface: #1a1918;
@@ -26,6 +46,225 @@
       --radius: 8px;
       --mono: 'IBM Plex Mono', monospace;
       --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    /* ── Slash Suggestions Menu ── */
+    .slash-popup-container {
+      position: relative;
+      max-width: 840px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .slash-suggestions-popup {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.85);
+      padding: 6px;
+      flex-direction: column;
+      gap: 3px;
+      z-index: 999;
+      animation: slashPopIn 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .slash-suggestions-popup.visible {
+      display: flex;
+    }
+
+    @keyframes slashPopIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slash-sugg-header {
+      font-family: var(--mono);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text3);
+      padding: 4px 8px 2px;
+    }
+
+    .slash-sugg-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .slash-sugg-item:hover, .slash-sugg-item.active {
+      background: var(--surface2);
+      border-color: var(--border2);
+    }
+
+    .slash-sugg-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .slash-sugg-badge {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .slash-sugg-badge.mode-search {
+      background: rgba(56, 189, 248, 0.16);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .slash-sugg-badge.mode-doc {
+      background: rgba(168, 129, 216, 0.16);
+      color: #bfa3f0;
+      border: 1px solid rgba(168, 129, 216, 0.3);
+    }
+
+    .slash-sugg-badge.mode-plan {
+      background: rgba(232, 168, 76, 0.16);
+      color: var(--amber);
+      border: 1px solid var(--amber-dim);
+    }
+
+    .slash-sugg-badge.mode-chat {
+      background: rgba(91, 155, 213, 0.16);
+      color: #5b9bd5;
+      border: 1px solid rgba(91, 155, 213, 0.3);
+    }
+
+    .slash-sugg-desc {
+      font-size: 12px;
+      color: var(--text2);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .slash-sugg-hint {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text3);
+      flex-shrink: 0;
+    }
+
+    /* ── Active Command Buttonish Container ── */
+    .active-command-pill {
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+      user-select: none;
+      align-self: flex-start;
+      margin-top: 3px;
+      animation: pillFadeIn 0.15s ease-out;
+    }
+
+    @keyframes pillFadeIn {
+      from { opacity: 0; transform: scale(0.92); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .active-command-tag {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      line-height: 1.2;
+      user-select: none;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    }
+
+    .active-command-tag.mode-search {
+      background: rgba(56, 189, 248, 0.16);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .active-command-tag.mode-doc {
+      background: rgba(168, 129, 216, 0.16);
+      color: #bfa3f0;
+      border: 1px solid rgba(168, 129, 216, 0.35);
+    }
+
+    .active-command-tag.mode-plan {
+      background: rgba(232, 168, 76, 0.16);
+      color: var(--amber);
+      border: 1px solid var(--amber-dim);
+    }
+
+    .active-command-tag.mode-chat {
+      background: rgba(91, 155, 213, 0.16);
+      color: #5b9bd5;
+      border: 1px solid rgba(91, 155, 213, 0.35);
+    }
+
+    .active-command-remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      background: transparent;
+      border: none;
+      color: inherit;
+      opacity: 0.7;
+      cursor: pointer;
+      font-size: 10px;
+      line-height: 1;
+      padding: 0;
+      margin-left: 2px;
+      transition: all 0.12s ease;
+    }
+
+    .active-command-remove:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    /* ── Status Toast ── */
+    .chat-toast {
+      position: fixed;
+      bottom: 84px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface2);
+      border: 1px solid var(--amber);
+      color: var(--amber);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 9999;
+    }
+    .chat-toast.visible {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
     }
 
     body {
@@ -637,25 +876,35 @@
     <!-- Chat Input Bar -->
     <div class="chat-input-container">
       <div class="quick-commands-bar">
-        <span class="quick-cmd-chip" onclick="insertCommand('/prd ')">📝 /prd</span>
-        <span class="quick-cmd-chip" onclick="insertCommand('/metrics ')">🎯 /metrics</span>
-        <span class="quick-cmd-chip" onclick="insertCommand('/roadmap ')">🗺️ /roadmap</span>
-        <span class="quick-cmd-chip" onclick="insertCommand('/user-stories ')">👥 /user-stories</span>
-        <span class="quick-cmd-chip" onclick="insertCommand('/risks ')">⚠️ /risks</span>
+        <span class="quick-cmd-chip" onclick="selectSlashCommand('prd')">📝 /prd</span>
+        <span class="quick-cmd-chip" onclick="selectSlashCommand('search')">🌐 /search</span>
+        <span class="quick-cmd-chip" onclick="selectSlashCommand('plan')">⚡ /plan</span>
+        <span class="quick-cmd-chip" onclick="selectSlashCommand('metrics')">🎯 /metrics</span>
+        <span class="quick-cmd-chip" onclick="selectSlashCommand('summarize')">📑 /summarize</span>
+        <span class="quick-cmd-chip" onclick="selectSlashCommand('chat')">💬 /chat</span>
       </div>
-      <div class="chat-input-box">
-        <textarea
-          id="chat-input"
-          class="chat-textarea"
-          rows="1"
-          placeholder="Ask PM Copilot or type /prd, /metrics, /roadmap..."
-          onkeydown="handleKey(event)"
-          oninput="autoResize(this)"
-        ></textarea>
-        <button id="btn-send" class="btn-send" onclick="sendMessage()">➤</button>
+      <div class="slash-popup-container">
+        <div id="slash-suggestions-popup" class="slash-suggestions-popup">
+          <div class="slash-sugg-header">PM Copilot Modes &amp; Slash Commands</div>
+          <div id="slash-suggestions-list" style="display:flex; flex-direction:column; gap:2px;"></div>
+        </div>
+        <div class="chat-input-box">
+          <div id="active-command-pill" class="active-command-pill" style="display:none;"></div>
+          <textarea
+            id="chat-input"
+            class="chat-textarea"
+            rows="1"
+            placeholder="Ask PM Copilot or type /search, /prd, /plan, /metrics, /summarize, /chat..."
+            onkeydown="handleKey(event)"
+            oninput="handleChatInput(this)"
+          ></textarea>
+          <button id="btn-send" class="btn-send" onclick="sendMessage()">➤</button>
+        </div>
       </div>
     </div>
   </main>
+
+  <div class="chat-toast" id="chat-toast"></div>
 
   <script>
     let activeConversationId = null;
@@ -812,7 +1061,7 @@
         if (isUser) {
           return `
             <div class="message-row user">
-              <div class="message-bubble">${escapeHtml(m.content)}</div>
+              <div class="message-bubble">${renderUserBubbleHtml(m.content)}</div>
             </div>
           `;
         }
@@ -837,6 +1086,7 @@
 
     function startNewChat() {
       activeConversationId = null;
+      removeActiveCommand();
       document.getElementById('active-chat-title').textContent = 'New Conversation';
       document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
       document.getElementById('messages-container').innerHTML = `
@@ -853,7 +1103,15 @@
 
     async function deleteConversation(e, convId) {
       e.stopPropagation();
-      if (!confirm('Delete this conversation thread?')) return;
+      const confirmed = await showConfirmDialog({
+        title: 'Delete Conversation',
+        message: 'Delete this conversation thread? Message history will be permanently cleared.',
+        confirmText: 'Delete Thread',
+        cancelText: 'Cancel',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!confirmed) return;
       try {
         await fetch(`/api/conversations/${convId}`, { method: 'DELETE' });
         if (activeConversationId === convId) {
@@ -861,7 +1119,7 @@
         }
         await loadConversations();
       } catch (err) {
-        alert('Failed to delete: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to delete: ' + err.message, icon: '⚠️' });
       }
     }
 
@@ -875,9 +1133,271 @@
       // Retains project_id context for next message in active thread
     }
 
+    // ── Slash Commands & Active Mode Pill ──
+    let activeCommand = null;
+
+    const slashCommands = [
+      {
+        cmd: '/search',
+        mode: 'search',
+        icon: '🌐',
+        label: '/search',
+        name: 'Knowledge Search',
+        desc: 'Search indexed documents & knowledge base chunks via BM25',
+        badgeClass: 'mode-search',
+        placeholder: 'Search indexed documents & knowledge base chunks...'
+      },
+      {
+        cmd: '/prd',
+        mode: 'prd',
+        icon: '📝',
+        label: '/prd',
+        name: 'PRD Studio',
+        desc: 'Draft comprehensive Product Requirement Document',
+        badgeClass: 'mode-doc',
+        placeholder: 'Describe feature or system requirements to draft PRD...'
+      },
+      {
+        cmd: '/plan',
+        mode: 'plan',
+        icon: '⚡',
+        label: '/plan',
+        name: 'Sprint & Roadmap',
+        desc: 'Schedule sprint milestones, roadmap & backlog breakdown',
+        badgeClass: 'mode-plan',
+        placeholder: 'Describe sprint goals, roadmap milestones, or backlog tasks...'
+      },
+      {
+        cmd: '/metrics',
+        mode: 'metrics',
+        icon: '🎯',
+        label: '/metrics',
+        name: 'KPIs & Telemetry',
+        desc: 'Define North Star metric, telemetry spec & guardrail KPIs',
+        badgeClass: 'mode-plan',
+        placeholder: 'Describe feature or objective to generate North Star & guardrail KPIs...'
+      },
+      {
+        cmd: '/summarize',
+        mode: 'summarize',
+        icon: '📑',
+        label: '/summarize',
+        name: 'Document Summarizer',
+        desc: 'Summarize document into structured Markdown file on local disk',
+        badgeClass: 'mode-doc',
+        placeholder: 'Enter document path or name to generate executive brief (e.g. spec.md)...'
+      },
+      {
+        cmd: '/chat',
+        mode: 'chat',
+        icon: '💬',
+        label: '/chat',
+        name: 'PM Advisory',
+        desc: 'Read-only product advisory, coding Q&A, and trade-off analysis',
+        badgeClass: 'mode-chat',
+        placeholder: 'Ask PM Copilot advisory, architecture trade-offs, or review code...'
+      }
+    ];
+
+    const DEFAULT_INPUT_PLACEHOLDER = "Ask PM Copilot or type /search, /prd, /plan, /metrics, /summarize, /chat...";
+
+    function renderUserBubbleHtml(rawText) {
+      if (!rawText || typeof rawText !== 'string') return '';
+      const trimmed = rawText.trim();
+      if (trimmed.startsWith('/')) {
+        const firstWord = trimmed.split(/\s+/)[0];
+        const matched = slashCommands.find(c => c.cmd.toLowerCase() === firstWord.toLowerCase());
+        if (matched) {
+          const remainder = trimmed.substring(firstWord.length).trim();
+          return `<span class="slash-sugg-badge ${matched.badgeClass}" style="margin-right: 6px; vertical-align: middle;">${matched.icon} ${matched.label}</span><span>${escapeHtml(remainder || trimmed)}</span>`;
+        }
+      }
+      return escapeHtml(rawText);
+    }
+
+    function setActiveCommand(cmd) {
+      if (!cmd) {
+        removeActiveCommand();
+        return;
+      }
+      activeCommand = cmd;
+      const pill = document.getElementById('active-command-pill');
+      if (pill) {
+        pill.innerHTML = `
+          <div class="active-command-tag ${cmd.badgeClass}">
+            <span>${cmd.icon} ${cmd.label}</span>
+            <button type="button" class="active-command-remove" onclick="removeActiveCommand(event)" title="Remove command (Backspace)">✕</button>
+          </div>
+        `;
+        pill.style.display = 'inline-flex';
+      }
+      const input = document.getElementById('chat-input');
+      if (input) {
+        const currentVal = input.value;
+        const firstToken = currentVal.trim().split(/\s+/)[0];
+        if (firstToken && firstToken.toLowerCase() === cmd.cmd.toLowerCase()) {
+          input.value = currentVal.trim().substring(firstToken.length).trimStart();
+        }
+        input.placeholder = cmd.placeholder || `Type ${cmd.label} prompt...`;
+        autoResize(input);
+        input.focus();
+      }
+    }
+
+    function removeActiveCommand(e) {
+      if (e) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+      activeCommand = null;
+      const pill = document.getElementById('active-command-pill');
+      if (pill) {
+        pill.innerHTML = '';
+        pill.style.display = 'none';
+      }
+      const input = document.getElementById('chat-input');
+      if (input) {
+        input.placeholder = DEFAULT_INPUT_PLACEHOLDER;
+        autoResize(input);
+        input.focus();
+      }
+    }
+
+    let slashActiveIndex = 0;
+    let slashMatchingItems = [];
+
+    function handleChatInput(textarea) {
+      autoResize(textarea);
+
+      // If no active command, check if user finished typing a command with space
+      if (!activeCommand) {
+        const val = textarea.value;
+        if (val.startsWith('/')) {
+          const firstToken = val.split(/\s+/)[0].toLowerCase();
+          if (val.length > firstToken.length && (val.includes(' ') || val.includes('\t') || val.includes('\n'))) {
+            const matched = slashCommands.find(c => c.cmd.toLowerCase() === firstToken);
+            if (matched) {
+              hideSlashPopup();
+              const remainder = val.substring(firstToken.length).trimStart();
+              textarea.value = remainder;
+              setActiveCommand(matched);
+              return;
+            }
+          }
+        }
+      }
+
+      checkSlashAutocomplete(textarea);
+    }
+
+    function checkSlashAutocomplete(textarea) {
+      if (activeCommand) {
+        hideSlashPopup();
+        return;
+      }
+
+      const val = textarea.value;
+      const popup = document.getElementById('slash-suggestions-popup');
+      const list = document.getElementById('slash-suggestions-list');
+      if (!popup || !list) return;
+
+      if (val.startsWith('/')) {
+        const token = val.split(/\s+/)[0].toLowerCase();
+        // If user already typed past command word, hide popup
+        if (val.includes(' ') && val.length > token.length + 1) {
+          hideSlashPopup();
+          return;
+        }
+
+        slashMatchingItems = slashCommands.filter(c => c.cmd.startsWith(token));
+
+        if (slashMatchingItems.length > 0) {
+          slashActiveIndex = Math.min(slashActiveIndex, slashMatchingItems.length - 1);
+          if (slashActiveIndex < 0) slashActiveIndex = 0;
+
+          list.innerHTML = slashMatchingItems.map((item, idx) => `
+            <div class="slash-sugg-item ${idx === slashActiveIndex ? 'active' : ''}" onclick="selectSlashCommand('${item.mode}')">
+              <div class="slash-sugg-left">
+                <span class="slash-sugg-badge ${item.badgeClass}">${item.icon} ${item.label}</span>
+                <span class="slash-sugg-desc">${item.desc}</span>
+              </div>
+              <span class="slash-sugg-hint">Tab ↵</span>
+            </div>
+          `).join('');
+          popup.classList.add('visible');
+        } else {
+          hideSlashPopup();
+        }
+      } else {
+        hideSlashPopup();
+      }
+    }
+
+    function hideSlashPopup() {
+      const popup = document.getElementById('slash-suggestions-popup');
+      if (popup) popup.classList.remove('visible');
+      slashMatchingItems = [];
+      slashActiveIndex = 0;
+    }
+
+    function selectSlashCommand(mode) {
+      const cmd = slashCommands.find(c => c.mode === mode || c.cmd === mode || c.cmd === '/' + mode);
+      if (!cmd) return;
+      hideSlashPopup();
+      setActiveCommand(cmd);
+    }
+
+    function updateSlashActiveDOM() {
+      const items = document.querySelectorAll('.slash-sugg-item');
+      items.forEach((el, idx) => {
+        el.classList.toggle('active', idx === slashActiveIndex);
+      });
+    }
+
     function handleKey(e) {
+      const textarea = document.getElementById('chat-input');
+      const popup = document.getElementById('slash-suggestions-popup');
+      const isPopupVisible = popup && popup.classList.contains('visible');
+
+      // 1. Popup arrow keys & selection
+      if (isPopupVisible && slashMatchingItems.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          slashActiveIndex = (slashActiveIndex + 1) % slashMatchingItems.length;
+          updateSlashActiveDOM();
+          return;
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          slashActiveIndex = (slashActiveIndex - 1 + slashMatchingItems.length) % slashMatchingItems.length;
+          updateSlashActiveDOM();
+          return;
+        } else if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          const selected = slashMatchingItems[slashActiveIndex];
+          if (selected) {
+            selectSlashCommand(selected.mode);
+          }
+          return;
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          hideSlashPopup();
+          return;
+        }
+      }
+
+      // 2. Backspace deletes active command pill when input is empty
+      if (e.key === 'Backspace' && activeCommand) {
+        if (textarea && textarea.selectionStart === 0 && textarea.selectionEnd === 0 && textarea.value === '') {
+          e.preventDefault();
+          removeActiveCommand();
+          return;
+        }
+      }
+
+      // 3. Enter sends message
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
+        hideSlashPopup();
         sendMessage();
       }
     }
@@ -887,10 +1407,23 @@
       el.style.height = Math.min(el.scrollHeight, 140) + 'px';
     }
 
+    function showChatToast(msg) {
+      const toast = document.getElementById('chat-toast');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('visible');
+      setTimeout(() => {
+        toast.classList.remove('visible');
+      }, 2400);
+    }
+
     async function sendMessage() {
       const input = document.getElementById('chat-input');
       const text = input.value.trim();
       if (!text || isWaiting) return;
+
+      const currentCommand = activeCommand;
+      const fullMessage = currentCommand ? `${currentCommand.cmd} ${text}` : text;
 
       isWaiting = true;
       document.getElementById('btn-send').disabled = true;
@@ -902,7 +1435,7 @@
 
       container.innerHTML += `
         <div class="message-row user">
-          <div class="message-bubble">${escapeHtml(text)}</div>
+          <div class="message-bubble">${renderUserBubbleHtml(fullMessage)}</div>
         </div>
       `;
 
@@ -919,6 +1452,8 @@
       container.appendChild(thinkingEl);
       container.scrollTop = container.scrollHeight;
 
+      // Reset command & input
+      removeActiveCommand();
       input.value = '';
       input.style.height = 'auto';
 
@@ -929,7 +1464,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            message: text,
+            message: fullMessage,
             conversation_id: activeConversationId,
             project_id: projectId ? parseInt(projectId, 10) : null
           })
@@ -1013,16 +1548,21 @@
     }
 
     function insertCommand(cmd) {
-      const input = document.getElementById('chat-input');
-      input.value = cmd;
-      input.focus();
-      autoResize(input);
+      if (cmd && cmd.startsWith('/')) {
+        const mode = cmd.replace(/^\//, '').trim();
+        selectSlashCommand(mode);
+      } else {
+        const input = document.getElementById('chat-input');
+        input.value = cmd;
+        input.focus();
+        autoResize(input);
+      }
     }
 
     async function exportDocx(msgId) {
       const content = lastAssistantResponses[msgId];
       if (!content) {
-        alert('No document content found to export.');
+        await showAlertDialog({ title: 'Export Notice', message: 'No document content found to export.', icon: 'ℹ️' });
         return;
       }
       const title = document.getElementById('active-chat-title').textContent || 'Product Document';
@@ -1051,8 +1591,9 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
+        showChatToast('DOCX exported successfully!');
       } catch (err) {
-        alert('Export error: ' + err.message);
+        await showAlertDialog({ title: 'Export Error', message: 'Export error: ' + err.message, icon: '⚠️' });
       }
     }
 
@@ -1061,7 +1602,7 @@
       if (!content) return;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(content).then(() => {
-          alert('Copied response text to clipboard!');
+          showChatToast('Copied response text to clipboard!');
         }).catch(() => {
           fallbackCopy(content);
         });
@@ -1077,7 +1618,7 @@
       ta.select();
       document.execCommand('copy');
       ta.remove();
-      alert('Copied response text to clipboard!');
+      showChatToast('Copied response text to clipboard!');
     }
 
     function formatMarkdown(text) {

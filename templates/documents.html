@@ -5,9 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Knowledge Base &mdash; PM Tool</title>
   <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+  <link rel="stylesheet" href="/static/dialogs.css"/>
+  <script src="/static/dialogs.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2, #3a3835) transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3a3835;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7a5820;
+    }
     :root {
       --bg: #111110;
       --surface: #1a1918;
@@ -315,6 +335,8 @@
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .table-toolbar {
@@ -323,6 +345,8 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      background: var(--surface);
+      z-index: 6;
     }
 
     .table-title {
@@ -335,13 +359,43 @@
       gap: 8px;
     }
 
+    .table-scroll-wrap {
+      width: 100%;
+      overflow-x: auto;
+      overflow-y: auto;
+      max-height: 480px;
+      scrollbar-gutter: stable;
+      background: var(--surface);
+    }
+
+    .table-scroll-wrap::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    .table-scroll-wrap::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.25);
+    }
+    .table-scroll-wrap::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 4px;
+    }
+    .table-scroll-wrap::-webkit-scrollbar-thumb:hover {
+      background: var(--amber-dim);
+    }
+
     table {
       width: 100%;
+      min-width: 860px;
       border-collapse: collapse;
       text-align: left;
     }
 
     th {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: var(--surface);
+      box-shadow: 0 1px 0 var(--border);
       font-family: var(--mono);
       font-size: 11px;
       color: var(--text3);
@@ -349,7 +403,6 @@
       letter-spacing: 0.05em;
       padding: 10px 16px;
       border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, 0.15);
     }
 
     td {
@@ -627,26 +680,28 @@
       <button class="btn-secondary btn-sm" onclick="loadDocuments()">↻ Refresh</button>
     </div>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Document</th>
-          <th>File Type</th>
-          <th>Size</th>
-          <th>Indexed Chunks</th>
-          <th>Last Scanned</th>
-          <th style="text-align:right;">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="documents-tbody">
-        <tr>
-          <td colspan="6" class="empty-state">
-            <div class="empty-icon">📚</div>
-            <p>No documents indexed yet. Drop a document or scan a directory above!</p>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-scroll-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Document</th>
+            <th>File Type</th>
+            <th>Size</th>
+            <th>Indexed Chunks</th>
+            <th>Last Scanned</th>
+            <th style="text-align:right;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="documents-tbody">
+          <tr>
+            <td colspan="6" class="empty-state">
+              <div class="empty-icon">📚</div>
+              <p>No documents indexed yet. Drop a document or scan a directory above!</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Scan Folder Modal -->
@@ -694,6 +749,68 @@
       </div>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeChunksModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Summarizer Modal -->
+  <div class="modal-overlay" id="summarize-modal">
+    <div class="modal" style="max-width:760px;">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title">📑 Deterministic Document Summarizer</h2>
+          <div style="font-family:var(--mono); font-size:11px; color:var(--amber);" id="summarize-modal-sub">
+            Synthesize structured Markdown and persist deterministically to local disk
+          </div>
+        </div>
+        <button class="modal-close" onclick="closeSummarizeModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="summarize-doc-id" value=""/>
+        <input type="hidden" id="summarize-doc-path" value=""/>
+
+        <div class="form-group">
+          <label class="form-label">Source Document</label>
+          <div id="summarize-doc-info" style="font-family:var(--mono); font-size:12px; color:var(--text); background:var(--surface2); padding:10px 12px; border-radius:6px; border:1px solid var(--border2); word-break:break-all;"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Target Output Markdown Path (Saved Deterministically)</label>
+          <input type="text" id="summarize-output-path" class="form-control" placeholder="e.g. C:\Users\...\summary.md"/>
+          <div style="font-size:11px; color:var(--text3); margin-top:4px;">
+            The AI generates strict structured Markdown, and a backend tool saves it directly to this path.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Analytical Focus</label>
+          <select id="summarize-focus" class="form-control" style="background:var(--surface2); color:var(--text); border:1px solid var(--border2); height:36px;">
+            <option value="executive">Comprehensive Executive Brief &amp; Architecture (Standard)</option>
+            <option value="technical">Deep Technical Architecture &amp; System Specs</option>
+            <option value="roadmap">Sprint Roadmap, Milestones &amp; Actionable Tasks</option>
+            <option value="risks">Failure Modes, Security &amp; Risk Mitigation</option>
+          </select>
+        </div>
+
+        <div id="summarize-progress" style="display:none; padding:16px; background:var(--surface2); border:1px solid var(--border2); border-radius:6px; margin-top:12px; text-align:center;">
+          <div style="display:flex; align-items:center; justify-content:center; gap:8px; font-family:var(--mono); font-size:12px; color:var(--amber);">
+            <span>⚡</span> Synthesizing document with AI &amp; writing deterministic Markdown file...
+          </div>
+        </div>
+
+        <div id="summarize-result-card" style="display:none; margin-top:16px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <span style="font-family:var(--mono); font-size:11px; color:var(--green); font-weight:600;" id="summarize-result-meta">
+              ✓ Successfully saved to disk
+            </span>
+            <button class="btn-secondary btn-sm" onclick="copySummarizerResult()">📋 Copy Markdown</button>
+          </div>
+          <pre style="background:rgba(0,0,0,0.5); border:1px solid var(--border2); border-radius:6px; padding:12px; max-height:260px; overflow-y:auto; font-family:var(--mono); font-size:12px; color:var(--text); white-space:pre-wrap;" id="summarize-result-text"></pre>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeSummarizeModal()">Close</button>
+        <button class="btn" id="btn-do-summarize" onclick="submitDocumentSummarize()">⚡ Generate &amp; Save MD</button>
       </div>
     </div>
   </div>
@@ -797,7 +914,8 @@
               <span style="font-family:var(--mono); font-size:12px; color:var(--amber);">${d.chunk_count || 0} chunks</span>
             </td>
             <td style="font-family:var(--mono); font-size:11px; color:var(--text3);">${dateStr}</td>
-            <td style="text-align:right;">
+            <td style="text-align:right; white-space:nowrap;">
+              <button class="btn-secondary btn-sm" onclick="openSummarizeModal(${d.id})" title="Summarize document into structured Markdown file">📑 Summarize</button>
               <button class="btn-secondary btn-sm" onclick="inspectChunks(${d.id})">🔍 Chunks</button>
               <button class="btn-secondary btn-sm" style="color:var(--red);" onclick="deleteDoc(${d.id})" title="Delete">🗑️</button>
             </td>
@@ -824,7 +942,7 @@
       const btn = document.getElementById('btn-do-scan');
 
       if (!path) {
-        alert('Please enter a directory path.');
+        await showAlertDialog({ title: 'Input Required', message: 'Please enter a valid directory path.', icon: '⚠️' });
         return;
       }
 
@@ -857,10 +975,10 @@
             window.parent.postMessage({ action: 'documents_updated' }, '*');
           } catch (_) {}
         } else {
-          alert('Scan failed: ' + (data.error || 'Unknown error'));
+          await showAlertDialog({ title: 'Scan Failed', message: data.error || 'Unknown scan error.', icon: '⚠️' });
         }
       } catch (err) {
-        alert('Network error: ' + err.message);
+        await showAlertDialog({ title: 'Network Error', message: err.message, icon: '⚠️' });
       } finally {
         btn.disabled = false;
         btn.textContent = 'Start Ingestion';
@@ -880,16 +998,16 @@
           showToast(`Rescan finished! ${data.scanned_count} files processed.`);
           await loadDocuments();
         } else {
-          alert('Rescan error: ' + data.error);
+          await showAlertDialog({ title: 'Rescan Error', message: data.error, icon: '⚠️' });
         }
       } catch (err) {
-        alert('Failed to rescan: ' + err.message);
+        await showAlertDialog({ title: 'Rescan Failed', message: err.message, icon: '⚠️' });
       }
     }
 
     async function rescanAllFolders() {
       if (registeredFolders.length === 0) {
-        alert('No folders registered yet.');
+        await showAlertDialog({ title: 'No Folders', message: 'No folders registered yet.', icon: 'ℹ️' });
         return;
       }
       for (const f of registeredFolders) {
@@ -898,17 +1016,33 @@
     }
 
     async function deleteFolder(folderId) {
-      if (!confirm('Remove this folder from registered paths? (Indexed documents will remain)')) return;
+      const confirmed = await showConfirmDialog({
+        title: 'Remove Folder',
+        message: 'Remove this folder from registered paths? Indexed documents will remain in knowledge base.',
+        confirmText: 'Remove Folder',
+        cancelText: 'Cancel',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!confirmed) return;
       try {
         await fetch(`/api/documents/folders/${folderId}`, { method: 'DELETE' });
         await loadFolders();
       } catch (err) {
-        alert('Failed to remove folder: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to remove folder: ' + err.message, icon: '⚠️' });
       }
     }
 
     async function deleteDoc(docId) {
-      if (!confirm('Delete this document and all its indexed chunks?')) return;
+      const confirmed = await showConfirmDialog({
+        title: 'Delete Document',
+        message: 'Delete this document and all its indexed chunks from the knowledge base?',
+        confirmText: 'Delete Document',
+        cancelText: 'Cancel',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!confirmed) return;
       try {
         await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
         showToast('Document removed from knowledge base.');
@@ -917,7 +1051,112 @@
           window.parent.postMessage({ action: 'documents_updated' }, '*');
         } catch (_) {}
       } catch (err) {
-        alert('Failed to delete document: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to delete document: ' + err.message, icon: '⚠️' });
+      }
+    }
+
+    // ── Document Summarizer ──
+    let currentSummarizedText = '';
+
+    function openSummarizeModal(docId) {
+      const doc = allDocuments.find(d => d.id === docId);
+      if (!doc) return;
+
+      document.getElementById('summarize-doc-id').value = doc.id;
+      document.getElementById('summarize-doc-path').value = doc.file_path;
+      document.getElementById('summarize-doc-info').textContent = `${doc.filename} (${(doc.file_size / 1024).toFixed(1)} KB) — ${doc.file_path}`;
+
+      let defaultOut = doc.file_path;
+      const lastDot = defaultOut.lastIndexOf('.');
+      if (lastDot > 0) {
+        defaultOut = defaultOut.substring(0, lastDot) + '_summary.md';
+      } else {
+        defaultOut += '_summary.md';
+      }
+      document.getElementById('summarize-output-path').value = defaultOut;
+
+      document.getElementById('summarize-progress').style.display = 'none';
+      document.getElementById('summarize-result-card').style.display = 'none';
+      document.getElementById('btn-do-summarize').disabled = false;
+      document.getElementById('btn-do-summarize').textContent = '⚡ Generate & Save MD';
+      currentSummarizedText = '';
+
+      document.getElementById('summarize-modal').style.display = 'flex';
+    }
+
+    function closeSummarizeModal() {
+      document.getElementById('summarize-modal').style.display = 'none';
+    }
+
+    async function submitDocumentSummarize() {
+      const docId = document.getElementById('summarize-doc-id').value;
+      const docPath = document.getElementById('summarize-doc-path').value;
+      const outPath = document.getElementById('summarize-output-path').value.trim();
+      const focus = document.getElementById('summarize-focus').value;
+      const btn = document.getElementById('btn-do-summarize');
+      const progress = document.getElementById('summarize-progress');
+      const resultCard = document.getElementById('summarize-result-card');
+
+      if (!outPath) {
+        await showAlertDialog({ title: 'Input Required', message: 'Please specify a target output .md file path.', icon: '⚠️' });
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Summarizing...';
+      progress.style.display = 'block';
+      resultCard.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/documents/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            doc_id: docId ? parseInt(docId) : null,
+            file_path: docPath,
+            output_path: outPath,
+            focus: focus
+          })
+        });
+
+        const data = await res.json();
+        progress.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '⚡ Generate & Save MD';
+
+        if (res.ok && data.success) {
+          currentSummarizedText = data.summary;
+          document.getElementById('summarize-result-meta').textContent =
+            `✓ Successfully saved to ${data.output_filename} (${data.bytes_written} bytes · SHA256: ${data.sha256.substring(0, 10)}...)`;
+          document.getElementById('summarize-result-text').textContent = data.summary;
+          resultCard.style.display = 'block';
+          showToast(`Summary generated and written to ${data.output_filename}!`);
+        } else {
+          await showAlertDialog({
+            title: 'Summarization Failed',
+            message: data.error || 'Failed to synthesize document summary.',
+            icon: '⚠️'
+          });
+        }
+      } catch (err) {
+        progress.style.display = 'none';
+        btn.disabled = false;
+        btn.textContent = '⚡ Generate & Save MD';
+        await showAlertDialog({
+          title: 'Execution Error',
+          message: 'Network or execution error: ' + err.message,
+          icon: '⚠️'
+        });
+      }
+    }
+
+    async function copySummarizerResult() {
+      if (!currentSummarizedText) return;
+      try {
+        await navigator.clipboard.writeText(currentSummarizedText);
+        showToast('Summary copied to clipboard!');
+      } catch (err) {
+        await showAlertDialog({ title: 'Clipboard', message: 'Summary copied to clipboard!', icon: '✓' });
       }
     }
 
@@ -978,10 +1217,10 @@
             window.parent.postMessage({ action: 'documents_updated' }, '*');
           } catch (_) {}
         } else {
-          alert('Upload failed: ' + (data.error || 'Server error'));
+          await showAlertDialog({ title: 'Upload Failed', message: data.error || 'Server error', icon: '⚠️' });
         }
       } catch (err) {
-        alert('Network error: ' + err.message);
+        await showAlertDialog({ title: 'Network Error', message: err.message, icon: '⚠️' });
       }
     }
 
@@ -1013,7 +1252,7 @@
 
         document.getElementById('chunks-modal').style.display = 'flex';
       } catch (err) {
-        alert('Failed to load chunks: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to load chunks: ' + err.message, icon: '⚠️' });
       }
     }
 

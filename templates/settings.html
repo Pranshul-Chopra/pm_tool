@@ -5,9 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Settings &mdash; PM Tool</title>
   <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+  <link rel="stylesheet" href="/static/dialogs.css"/>
+  <script src="/static/dialogs.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2, #3a3835) transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3a3835;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7a5820;
+    }
     :root {
       --bg: #111110;
       --surface: #1a1918;

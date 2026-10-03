@@ -5,9 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Projects &mdash; PM Tool</title>
   <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+  <link rel="stylesheet" href="/static/dialogs.css"/>
+  <script src="/static/dialogs.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2, #3a3835) transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #3a3835;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #7a5820;
+    }
     :root {
       --bg: #111110;
       --surface: #1a1918;
@@ -750,16 +770,24 @@
           } catch (_) {}
         } else {
           const err = await res.json();
-          alert('Failed to create: ' + (err.error || 'Unknown error'));
+          await showAlertDialog({ title: 'Creation Failed', message: err.error || 'Unknown error occurred.', icon: '⚠️' });
         }
       } catch (err) {
-        alert('Network error: ' + err.message);
+        await showAlertDialog({ title: 'Network Error', message: err.message, icon: '⚠️' });
       }
     }
 
     async function deleteProject(e, id) {
       e.stopPropagation();
-      if (!confirm('Are you sure you want to delete this project and all its tasks?')) return;
+      const confirmed = await showConfirmDialog({
+        title: 'Delete Project',
+        message: 'Are you sure you want to delete this project and all its tasks? This action cannot be undone.',
+        confirmText: 'Delete Project',
+        cancelText: 'Cancel',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!confirmed) return;
       try {
         await fetch(`/api/projects/${id}`, { method: 'DELETE' });
         await loadProjects();
@@ -767,7 +795,7 @@
           window.parent.postMessage({ action: 'projects_updated' }, '*');
         } catch (_) {}
       } catch (err) {
-        alert('Failed to delete: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to delete: ' + err.message, icon: '⚠️' });
       }
     }
 
@@ -837,7 +865,7 @@
 
         document.getElementById('project-detail-modal').style.display = 'flex';
       } catch (err) {
-        alert('Failed to load project details: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to load project details: ' + err.message, icon: '⚠️' });
       }
     }
 
@@ -864,7 +892,7 @@
           await loadProjects();
         }
       } catch (err) {
-        alert('Failed to add task: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to add task: ' + err.message, icon: '⚠️' });
       }
     }
 
@@ -878,17 +906,26 @@
         await openProjectDetail(projectId);
         await loadProjects();
       } catch (err) {
-        alert('Failed to update task: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to update task: ' + err.message, icon: '⚠️' });
       }
     }
 
     async function deleteTask(taskId, projectId) {
+      const confirmed = await showConfirmDialog({
+        title: 'Delete Task',
+        message: 'Are you sure you want to remove this task item?',
+        confirmText: 'Delete Task',
+        cancelText: 'Cancel',
+        isDanger: true,
+        icon: '🗑️'
+      });
+      if (!confirmed) return;
       try {
         await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
         await openProjectDetail(projectId);
         await loadProjects();
       } catch (err) {
-        alert('Failed to delete task: ' + err.message);
+        await showAlertDialog({ title: 'Error', message: 'Failed to delete task: ' + err.message, icon: '⚠️' });
       }
     }
 

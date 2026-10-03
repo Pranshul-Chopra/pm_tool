@@ -6,7 +6,15 @@ import db
 import ai_db
 from llm import gateway as llm_gateway
 
-bp = Blueprint("main", __name__, template_folder="templates")
+import sys
+from pathlib import Path
+
+def _get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return Path(__file__).resolve().parent
+
+bp = Blueprint("main", __name__, template_folder=str(_get_base_dir() / "templates"), static_folder=str(_get_base_dir() / "static"))
 
 
 @bp.before_request
@@ -492,14 +500,51 @@ def api_chat():
     target_proj_id = conv.get("project_id") or project_id
     system_prompt = _build_pm_system_prompt(project_id=target_proj_id)
 
-    # 4b. Retrieve verified evidence from local company documents (RAG)
+    # 4b. Command-specific directive injection
+    lower_msg = message.lower().strip()
+    clean_query = message
+    if lower_msg.startswith("/search"):
+        clean_query = message[7:].strip() or message
+        system_prompt += (
+            "\n\n### SPECIAL DIRECTIVE: /search (Knowledge Base Retrieval Mode)\n"
+            "Analyze the retrieved document chunks below. Present the relevant evidence, "
+            "document sources, key technical quotes, and an executive answer grounded in company knowledge."
+        )
+    elif lower_msg.startswith("/prd"):
+        system_prompt += (
+            "\n\n### SPECIAL DIRECTIVE: /prd (PRD Studio Mode)\n"
+            "Draft a comprehensive, executive-ready Product Requirement Document covering: "
+            "Problem Statement, Target Personas, Goals & Non-Goals, Detailed User Stories with Acceptance Criteria (Gherkin format), "
+            "Technical Architecture, Security Considerations, and Success KPIs."
+        )
+    elif lower_msg.startswith("/plan"):
+        system_prompt += (
+            "\n\n### SPECIAL DIRECTIVE: /plan (Sprint & Roadmap Mode)\n"
+            "Structure the response into release phases (Phase 1 MVP, Phase 2 Enhancement, Phase 3 Scale). "
+            "Break down sprint backlog tickets with MoSCoW prioritization, dependencies, and estimation."
+        )
+    elif lower_msg.startswith("/metrics"):
+        system_prompt += (
+            "\n\n### SPECIAL DIRECTIVE: /metrics (KPI & Telemetry Mode)\n"
+            "Define the Primary North Star Metric, secondary funnel metrics, and 2 guardrail metrics. "
+            "Provide an exact analytics tracking specification with event names, triggers, and payload properties."
+        )
+    elif lower_msg.startswith("/summarize"):
+        system_prompt += (
+            "\n\n### SPECIAL DIRECTIVE: /summarize (Document Summarizer Mode)\n"
+            "Synthesize an executive-ready document summary structured into: "
+            "1. Executive Summary & Objective, 2. Core Architecture & Specs, 3. Decisions & Trade-Offs, "
+            "4. Success Metrics, 5. Identified Risks, and 6. Actionable Next Steps."
+        )
+
+    # 4c. Retrieve verified evidence from local company documents (RAG)
     retrieved_chunks = []
     try:
         from rag import engine as rag_engine
         retrieved_chunks = rag_engine.retrieve_context(
-            query=message,
+            query=clean_query,
             project_id=target_proj_id,
-            top_k=4,
+            top_k=6 if lower_msg.startswith("/search") else 4,
         )
         if retrieved_chunks:
             system_prompt += "\n" + rag_engine.format_retrieved_context_for_prompt(retrieved_chunks)
@@ -689,6 +734,45 @@ def api_documents_upload():
         return jsonify(result), 400
 
     return jsonify(result), 201
+
+
+@bp.route("/api/documents/summarize", methods=["POST"])
+def api_documents_summarize():
+    """
+    Deterministic Document Summarization API:
+    Receives { doc_id? or file_path, output_path, focus?, project_id? },
+    summarizes the document, saves to output_path as Markdown, logs in tool_runs,
+    and returns metadata and summary preview.
+    """
+    data = request.get_json(force=True) or {}
+    file_path = (data.get("file_path") or "").strip()
+    doc_id = data.get("doc_id")
+    output_path = (data.get("output_path") or "").strip()
+    focus = (data.get("focus") or "").strip()
+    project_id = data.get("project_id")
+
+    if not file_path and doc_id:
+        doc = db.get_document(int(doc_id))
+        if doc and doc.get("file_path"):
+            file_path = doc["file_path"]
+            if not project_id:
+                project_id = doc.get("project_id")
+
+    if not file_path:
+        return jsonify({"error": "Either file_path or valid doc_id must be provided."}), 400
+
+    from tools.summarizer import summarize_document
+    result = summarize_document(
+        file_path=file_path,
+        output_path=output_path,
+        focus=focus,
+        project_id=project_id,
+    )
+
+    if not result.get("success"):
+        return jsonify(result), 400
+
+    return jsonify(result), 200
 
 
 @bp.route("/api/export/docx", methods=["POST"])

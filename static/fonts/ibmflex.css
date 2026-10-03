@@ -221,3 +221,26 @@
   font-display: swap;
   src: url('/static/fonts/zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxeKYY.woff2') format('woff2');
 }
+
+/* ── Global Dark Theme Scrollbars ── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3835 transparent;
+}
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a3835;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #7a5820;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

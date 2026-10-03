@@ -90,8 +90,17 @@ FLASK_PORT = find_available_port(FLASK_HOST)
 FLASK_PING_URL = f"http://{FLASK_HOST}:{FLASK_PORT}/api/ping"
 
 
+def _get_base_dir() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return Path(__file__).resolve().parent
+
+
 def create_app() -> Flask:
-    app = Flask(__name__, template_folder="templates", static_folder="static")
+    base_dir = _get_base_dir()
+    templates_dir = str(base_dir / "templates")
+    static_dir = str(base_dir / "static")
+    app = Flask(__name__, template_folder=templates_dir, static_folder=static_dir)
     app.config["MAX_CONTENT_LENGTH"] = 32 * 1024 * 1024
     app.config["TEMPLATES_AUTO_RELOAD"] = True
 
