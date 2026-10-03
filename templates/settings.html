@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Settings &mdash; PM Tool</title>
+  <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #111110;
+      --surface: #1a1918;
+      --surface2: #222120;
+      --border: #2e2c2a;
+      --border2: #3a3835;
+      --text: #edeae4;
+      --text2: #9b9690;
+      --text3: #5c5955;
+      --amber: #e8a84c;
+      --amber-dim: #7a5820;
+      --amber-faint: rgba(232, 168, 76, 0.08);
+      --green: #5aab7f;
+      --blue: #4c97e8;
+      --red: #e85c4c;
+      --radius: 8px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      padding: 28px 32px;
+      overflow-y: auto;
+    }
+
+    .view-header {
+      margin-bottom: 24px;
+    }
+
+    .view-title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+
+    .view-subtitle {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    /* ── Active Status Banner ── */
+    .status-banner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .status-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text3);
+    }
+    .status-indicator.online {
+      background: var(--green);
+      box-shadow: 0 0 10px var(--green);
+    }
+    .status-indicator.warning {
+      background: var(--amber);
+      box-shadow: 0 0 10px var(--amber);
+    }
+
+    .status-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .status-desc {
+      font-size: 12px;
+      color: var(--text2);
+      font-family: var(--mono);
+    }
+
+    /* ── Cards & Sections ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Form Controls ── */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .form-control {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      width: 100%;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--amber);
+    }
+
+    .form-hint {
+      font-size: 11px;
+      color: var(--text3);
+      line-height: 1.4;
+    }
+
+    /* ── Radio Pill Selector ── */
+    .radio-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .radio-card {
+      border: 1px solid var(--border2);
+      background: var(--surface2);
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .radio-card:hover {
+      border-color: var(--amber-dim);
+    }
+
+    .radio-card.active {
+      border-color: var(--amber);
+      background: var(--amber-faint);
+    }
+
+    .radio-card-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .radio-card-desc {
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      background: var(--amber);
+      color: #111;
+      border: none;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s ease;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2);
+      padding: 8px 14px;
+      font-size: 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 11px;
+    }
+
+    .badge-pill {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+    }
+    .badge-pill.success {
+      background: rgba(90, 171, 127, 0.12);
+      border-color: var(--green);
+      color: var(--green);
+    }
+    .badge-pill.warning {
+      background: var(--amber-faint);
+      border-color: var(--amber-dim);
+      color: var(--amber);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* ── Toast Feedback ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--amber);
+      color: var(--text);
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      font-size: 13px;
+      display: none;
+      z-index: 1000;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="view-header">
+    <h1 class="view-title">Settings & AI Configuration</h1>
+    <p class="view-subtitle">Manage local Ollama models, cloud LLM providers, and encrypted credential storage</p>
+  </div>
+
+  <!-- Live Status Banner -->
+  <div class="status-banner">
+    <div class="status-left">
+      <div class="status-indicator" id="status-indicator"></div>
+      <div>
+        <div class="status-title" id="status-title">Checking AI Status...</div>
+        <div class="status-desc" id="status-desc">Probing providers...</div>
+      </div>
+    </div>
+    <div id="status-badge" class="badge-pill">Initializing</div>
+  </div>
+
+  <!-- 1. Provider Mode Selection -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">1. Provider Preference</span>
+    </div>
+    <div class="card-body">
+      <div class="radio-grid">
+        <div class="radio-card active" data-provider="auto" onclick="selectProvider('auto')">
+          <div class="radio-card-title">Auto (Recommended)</div>
+          <div class="radio-card-desc">Uses local Ollama if available; falls back to configured Cloud API</div>
+        </div>
+        <div class="radio-card" data-provider="ollama" onclick="selectProvider('ollama')">
+          <div class="radio-card-title">Ollama Local</div>
+          <div class="radio-card-desc">100% offline private local inference on your GPU/CPU</div>
+        </div>
+        <div class="radio-card" data-provider="api" onclick="selectProvider('api')">
+          <div class="radio-card-title">Cloud API</div>
+          <div class="radio-card-desc">Google Gemini or OpenAI-compatible hosted models</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Local Ollama Settings -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">2. Local Ollama Settings</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span id="ollama-badge" class="badge-pill">Checking...</span>
+        <button class="btn-secondary btn-sm" onclick="probeOllama()">Probe Server</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Available Local Models</label>
+        <select id="ollama-model-select" class="form-control" onchange="onOllamaModelChange()">
+          <option value="">(No models detected)</option>
+        </select>
+        <span class="form-hint" id="ollama-hint">
+          Connects to <code>http://127.0.0.1:11434</code>. Run <code>ollama pull llama3.2</code> in PowerShell to install a model.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Cloud API Settings -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">3. Cloud API Configuration</span>
+      <span class="badge-pill" id="key-state-badge">No Key Stored</span>
+    </div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <div class="input-row">
+          <input type="password" id="api-key-input" class="form-control" placeholder="Enter Google Gemini or OpenAI API Key..." />
+          <button type="button" class="btn-secondary btn-sm" onclick="togglePasswordVisibility()">Show</button>
+        </div>
+        <span class="form-hint">
+          Keys are stored in SQLite encrypted with a machine-bound hardware cipher (PBKDF2-HMAC-SHA256).
+        </span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Model Identifier</label>
+        <div class="input-row">
+          <input type="text" id="api-model-input" class="form-control" placeholder="e.g. gemini-flash-lite-latest, gpt-4o-mini" />
+          <button type="button" class="btn-secondary btn-sm" onclick="discoverGeminiModels()">Discover Gemini</button>
+        </div>
+        <select id="gemini-discovered-select" class="form-control" style="display:none; margin-top:6px;" onchange="applyDiscoveredModel()">
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Custom API Base URL (Optional)</label>
+        <div class="input-row">
+          <input type="text" id="api-base-input" class="form-control" placeholder="Leave empty for Google Gemini native, or enter http://localhost:1234/v1" />
+          <button type="button" class="btn-secondary btn-sm" onclick="probeCustomEndpoint()">Probe</button>
+        </div>
+        <span class="form-hint">
+          Leave blank for default Google Gemini. For LM Studio, LocalAI, or Groq, enter their compatible v1 URL.
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom: 40px;">
+    <button class="btn" onclick="saveConfiguration()">Save AI Settings</button>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast"></div>
+
+  <script>
+    let currentProvider = 'auto';
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    function selectProvider(prov) {
+      currentProvider = prov;
+      document.querySelectorAll('.radio-card').forEach(el => {
+        el.classList.toggle('active', el.getAttribute('data-provider') === prov);
+      });
+    }
+
+    function togglePasswordVisibility() {
+      const inp = document.getElementById('api-key-input');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/llm/status');
+        const data = await res.json();
+
+        // Update banner
+        const indicator = document.getElementById('status-indicator');
+        const title = document.getElementById('status-title');
+        const desc = document.getElementById('status-desc');
+        const badge = document.getElementById('status-badge');
+
+        if (data.setup_required) {
+          indicator.className = 'status-indicator warning';
+          title.textContent = 'AI Setup Required';
+          desc.textContent = 'Configure Ollama or enter a Cloud API key below to enable PM Copilot';
+          badge.className = 'badge-pill warning';
+          badge.textContent = 'Setup Needed';
+        } else {
+          indicator.className = 'status-indicator online';
+          title.textContent = `Active Provider: ${data.active_provider.toUpperCase()}`;
+          desc.textContent = `Model: ${data.active_model || 'Default'}`;
+          badge.className = 'badge-pill success';
+          badge.textContent = 'Ready';
+        }
+
+        // Provider pref
+        if (data.saved_provider_pref) {
+          selectProvider(data.saved_provider_pref);
+        }
+
+        // Ollama info
+        updateOllamaUI(data.ollama, data.saved_model);
+
+        // Key info
+        const keyBadge = document.getElementById('key-state-badge');
+        if (data.api_configured) {
+          keyBadge.className = 'badge-pill success';
+          keyBadge.textContent = `Saved (${data.api_key_display})`;
+        } else {
+          keyBadge.className = 'badge-pill';
+          keyBadge.textContent = 'No Key Stored';
+        }
+
+        if (data.saved_model && data.active_provider === 'api') {
+          document.getElementById('api-model-input').value = data.saved_model;
+        }
+
+        if (data.api_base && !data.api_base.includes('Gemini native')) {
+          document.getElementById('api-base-input').value = data.api_base;
+        }
+
+      } catch (err) {
+        console.error('Failed to load LLM status:', err);
+      }
+    }
+
+    function updateOllamaUI(ollama, savedModel) {
+      const badge = document.getElementById('ollama-badge');
+      const select = document.getElementById('ollama-model-select');
+      const hint = document.getElementById('ollama-hint');
+
+      if (ollama && ollama.available) {
+        badge.className = 'badge-pill success';
+        badge.textContent = `Online (${ollama.models.length} models)`;
+
+        if (ollama.models.length > 0) {
+          select.innerHTML = ollama.models.map(m =>
+            `<option value="${m}" ${m === (savedModel || ollama.selected_model) ? 'selected' : ''}>${m}</option>`
+          ).join('');
+          hint.textContent = `Ollama detected. Selected default: ${ollama.selected_model || ollama.models[0]}`;
+        } else {
+          select.innerHTML = '<option value="">(No models installed)</option>';
+          hint.textContent = 'Ollama server running, but no models found. Run `ollama pull llama3.2` in your terminal.';
+        }
+      } else {
+        badge.className = 'badge-pill';
+        badge.textContent = 'Offline';
+        select.innerHTML = '<option value="">(Ollama server unreachable)</option>';
+        hint.textContent = 'Ollama is offline. Start the service or run `ollama serve`.';
+      }
+    }
+
+    async function probeOllama() {
+      try {
+        const res = await fetch('/api/llm/ollama/probe');
+        const data = await res.json();
+        updateOllamaUI(data);
+        showToast(data.available ? `Ollama online! Found ${data.models.length} model(s).` : 'Ollama is not running.');
+      } catch (err) {
+        showToast('Probe failed: ' + err.message);
+      }
+    }
+
+    function onOllamaModelChange() {
+      const sel = document.getElementById('ollama-model-select');
+      if (sel.value) {
+        document.getElementById('api-model-input').value = sel.value;
+      }
+    }
+
+    async function discoverGeminiModels() {
+      const key = document.getElementById('api-key-input').value.trim();
+      try {
+        showToast('Discovering Gemini models...');
+        const res = await fetch('/api/llm/gemini/models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ api_key: key })
+        });
+        const data = await res.json();
+        if (data.models && data.models.length > 0) {
+          const sel = document.getElementById('gemini-discovered-select');
+          sel.innerHTML = '<option value="">-- Pick Discovered Model --</option>' +
+            data.models.map(m => `<option value="${m}">${m}</option>`).join('');
+          sel.style.display = 'block';
+          showToast(`Discovered ${data.models.length} Gemini model(s)!`);
+        } else {
+          showToast('No models discovered. Check your API key.');
+        }
+      } catch (err) {
+        showToast('Discovery failed: ' + err.message);
+      }
+    }
+
+    function applyDiscoveredModel() {
+      const val = document.getElementById('gemini-discovered-select').value;
+      if (val) {
+        document.getElementById('api-model-input').value = val;
+      }
+    }
+
+    async function probeCustomEndpoint() {
+      const url = document.getElementById('api-base-input').value.trim();
+      if (!url) {
+        showToast('Enter a custom URL first (e.g. http://localhost:1234/v1)');
+        return;
+      }
+      try {
+        const res = await fetch('/api/llm/custom/probe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        showToast(data.message);
+      } catch (err) {
+        showToast('Probe failed: ' + err.message);
+      }
+    }
+
+    async function saveConfiguration() {
+      const key = document.getElementById('api-key-input').value.trim();
+      const model = document.getElementById('api-model-input').value.trim();
+      const base = document.getElementById('api-base-input').value.trim();
+
+      const payload = {
+        provider: currentProvider,
+        model_name: model || undefined,
+        api_base: base || undefined,
+      };
+      if (key) {
+        payload.api_key = key;
+      }
+
+      try {
+        const res = await fetch('/api/llm/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          showToast('AI Settings saved successfully!');
+          document.getElementById('api-key-input').value = '';
+          await loadStatus();
+          // Broadcast config update to shell and other tabs
+          try {
+            window.parent.postMessage({ action: 'llm_config_updated' }, '*');
+          } catch (_) {}
+        } else {
+          const err = await res.json();
+          showToast('Save error: ' + (err.error || 'Failed'));
+        }
+      } catch (err) {
+        showToast('Error saving: ' + err.message);
+      }
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.data && (event.data.action === 'tab_activated' || event.data.action === 'llm_config_updated')) {
+        loadStatus();
+      }
+    });
+
+    window.addEventListener('focus', () => loadStatus());
+
+    loadStatus();
+  </script>
+</body>
+</html>

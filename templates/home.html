@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Projects &mdash; PM Tool</title>
+  <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #111110;
+      --surface: #1a1918;
+      --surface2: #222120;
+      --border: #2e2c2a;
+      --border2: #3a3835;
+      --text: #edeae4;
+      --text2: #9b9690;
+      --text3: #5c5955;
+      --amber: #e8a84c;
+      --amber-dim: #7a5820;
+      --amber-faint: rgba(232, 168, 76, 0.08);
+      --green: #5aab7f;
+      --blue: #4c97e8;
+      --purple: #9d7cd8;
+      --red: #e85c4c;
+      --radius: 8px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    /* ── Header ── */
+    .view-header {
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .view-title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+    }
+
+    .view-subtitle {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .btn {
+      background: var(--amber);
+      color: #111;
+      border: none;
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: opacity 0.15s ease;
+    }
+
+    .btn:hover { opacity: 0.9; }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2);
+      padding: 8px 14px;
+      font-size: 12px;
+      border-radius: var(--radius);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .btn-secondary:hover { background: var(--border); }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+
+    /* ── Metric Cards ── */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .metric-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .metric-val {
+      font-size: 26px;
+      font-weight: 600;
+      font-family: var(--mono);
+      color: var(--text);
+    }
+
+    /* ── Search & Filter Toolbar ── */
+    .toolbar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .search-box {
+      flex: 1;
+      min-width: 200px;
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      padding: 7px 12px;
+      border-radius: var(--radius);
+      outline: none;
+    }
+    .search-input:focus { border-color: var(--amber); }
+
+    .filter-select {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 12px;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      outline: none;
+    }
+
+    /* ── Projects Grid ── */
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+
+    .project-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.15s ease;
+      position: relative;
+    }
+
+    .project-card:hover { border-color: var(--border2); }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .project-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .project-title:hover { color: var(--amber); }
+
+    .badge-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-domain {
+      background: rgba(76, 151, 232, 0.12);
+      color: var(--blue);
+      border: 1px solid rgba(76, 151, 232, 0.25);
+    }
+
+    .badge-prio-critical { background: rgba(232, 92, 76, 0.15); color: var(--red); border: 1px solid var(--red); }
+    .badge-prio-high { background: rgba(232, 168, 76, 0.15); color: var(--amber); border: 1px solid var(--amber-dim); }
+    .badge-prio-medium { background: rgba(76, 151, 232, 0.12); color: var(--blue); border: 1px solid rgba(76, 151, 232, 0.3); }
+    .badge-prio-low { background: var(--surface2); color: var(--text2); border: 1px solid var(--border2); }
+
+    .health-pill {
+      font-size: 11px;
+      font-family: var(--mono);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text2);
+    }
+    .health-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    .health-on_track .health-dot { background: var(--green); }
+    .health-at_risk .health-dot { background: var(--amber); }
+    .health-blocked .health-dot { background: var(--red); }
+    .health-planning .health-dot { background: var(--blue); }
+    .health-completed .health-dot { background: var(--purple); }
+
+    .project-desc {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      color: var(--text3);
+      font-family: var(--mono);
+      padding-top: 4px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .progress-bar-bg {
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--amber);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text3);
+    }
+
+    .card-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 4px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Empty State ── */
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 48px;
+      text-align: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text2);
+    }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(2px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 580px;
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+
+    .modal-title {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .form-group.full { grid-column: span 2; }
+
+    .form-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .form-control {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      outline: none;
+    }
+    .form-control:focus { border-color: var(--amber); }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    /* ── Task Checklist in Drawer ── */
+    .task-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--surface2);
+      margin-bottom: 6px;
+    }
+    .task-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+    }
+    .task-title {
+      font-size: 13px;
+    }
+    .task-title.done {
+      text-decoration: line-through;
+      color: var(--text3);
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="view-header">
+    <div>
+      <h1 class="view-title">Product Workspace</h1>
+      <p class="view-subtitle">Manage enterprise projects, roadmaps, goals, and sprint backlog</p>
+    </div>
+    <button class="btn" onclick="openNewProjectModal()">+ New Project</button>
+  </div>
+
+  <!-- Metric Grid -->
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-label">Active Projects</div>
+      <div class="metric-val" id="stat-projects">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">On Track</div>
+      <div class="metric-val" id="stat-ontrack" style="color: var(--green);">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">At Risk / Blocked</div>
+      <div class="metric-val" id="stat-atrisk" style="color: var(--amber);">0</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total Backlog Tasks</div>
+      <div class="metric-val" id="stat-tasks">0</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" id="search-input" class="search-input" placeholder="Search projects by name, goals, or description..." oninput="filterProjects()"/>
+    </div>
+    <select id="filter-domain" class="filter-select" onchange="filterProjects()">
+      <option value="all">All Domains</option>
+      <option value="Platform">Platform</option>
+      <option value="Growth">Growth</option>
+      <option value="Security">Security</option>
+      <option value="Infrastructure">Infrastructure</option>
+      <option value="Mobile">Mobile</option>
+      <option value="Enterprise">Enterprise</option>
+      <option value="AI/ML">AI/ML</option>
+    </select>
+    <select id="filter-health" class="filter-select" onchange="filterProjects()">
+      <option value="all">All Health</option>
+      <option value="on_track">🟢 On Track</option>
+      <option value="at_risk">🟡 At Risk</option>
+      <option value="blocked">🔴 Blocked</option>
+      <option value="planning">🔵 Planning</option>
+      <option value="completed">🟣 Completed</option>
+    </select>
+  </div>
+
+  <!-- Projects Grid -->
+  <div class="projects-grid" id="projects-container">
+    <div class="empty-state">
+      <p>Loading projects...</p>
+    </div>
+  </div>
+
+  <!-- Create Project Modal -->
+  <div class="modal-overlay" id="new-project-modal">
+    <div class="modal">
+      <h2 class="modal-title">
+        <span>Create Enterprise Project</span>
+        <button class="btn-secondary btn-sm" onclick="closeNewProjectModal()">✕</button>
+      </h2>
+
+      <!-- Quick PM Presets -->
+      <div style="margin-bottom: 16px;">
+        <label class="form-label">Quick PM Presets (Click to autofill initiative)</label>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button type="button" class="btn-secondary btn-sm" onclick="applyProjectPreset('saas')">🚀 SaaS Hub</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="applyProjectPreset('ai')">🤖 AI Copilot</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="applyProjectPreset('mobile')">📱 Mobile App</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="applyProjectPreset('security')">🛡️ Security & IAM</button>
+          <button type="button" class="btn-secondary btn-sm" onclick="applyProjectPreset('infra')">⚡ High-Scale Infra</button>
+        </div>
+      </div>
+
+      <form id="project-form" onsubmit="handleCreateProject(event)">
+        <div class="form-group">
+          <label class="form-label">Project Name *</label>
+          <input type="text" id="p-name" class="form-control" placeholder="e.g. Enterprise SSO & IAM Federation" required autofocus />
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Domain / Category</label>
+            <select id="p-domain" class="form-control">
+              <option value="Platform">Platform</option>
+              <option value="Growth">Growth</option>
+              <option value="Security">Security</option>
+              <option value="Infrastructure">Infrastructure</option>
+              <option value="Mobile">Mobile</option>
+              <option value="Enterprise">Enterprise</option>
+              <option value="AI/ML">AI/ML</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Priority</label>
+            <select id="p-priority" class="form-control">
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Health Status</label>
+            <select id="p-health" class="form-control">
+              <option value="planning">🔵 Planning</option>
+              <option value="on_track" selected>🟢 On Track</option>
+              <option value="at_risk">🟡 At Risk</option>
+              <option value="blocked">🔴 Blocked</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Launch Date / Quarter</label>
+            <input type="text" id="p-target-date" class="form-control" placeholder="e.g. Q4 2026 or 2026-12-01" />
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Lead PM / Owner</label>
+            <input type="text" id="p-owner" class="form-control" placeholder="e.g. Pranshul Chopra" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Strategic Goals & OKRs</label>
+          <textarea id="p-goals" class="form-control" rows="2" placeholder="What key metric or user outcome defines success for this initiative?"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Architecture / Tech Stack Notes</label>
+          <input type="text" id="p-tech" class="form-control" placeholder="e.g. OAuth2, SAML 2.0, FastAPI, Postgres" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Overview & Problem Statement</label>
+          <textarea id="p-desc" class="form-control" rows="3" placeholder="Brief executive summary of problem context and target personas..."></textarea>
+        </div>
+
+        <div class="form-group" style="display:flex; align-items:center; gap:8px; margin: 12px 0 16px;">
+          <input type="checkbox" id="p-seed-tasks" checked style="cursor:pointer;" />
+          <label for="p-seed-tasks" style="font-size:12px; color:var(--text); cursor:pointer;">
+            Initialize with standard PM roadmap backlog (PRD, Tech Spec, Telemetry, Security Review, Beta QA)
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="closeNewProjectModal()">Cancel</button>
+          <button type="submit" class="btn">Create Project</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Project Detail & Backlog Modal -->
+  <div class="modal-overlay" id="project-detail-modal">
+    <div class="modal" style="width: 680px;">
+      <h2 class="modal-title">
+        <span id="detail-title">Project Overview</span>
+        <button class="btn-secondary btn-sm" onclick="closeDetailModal()">✕</button>
+      </h2>
+
+      <div id="detail-content">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allProjects = [];
+    let currentDetailProjectId = null;
+
+    async function init() {
+      await loadProjects();
+    }
+
+    async function loadProjects() {
+      try {
+        const res = await fetch('/api/projects');
+        const data = await res.json();
+        allProjects = data.projects || [];
+        renderProjects(allProjects);
+        updateMetrics(allProjects);
+      } catch (err) {
+        console.error('Failed to load projects:', err);
+      }
+    }
+
+    function updateMetrics(projects) {
+      document.getElementById('stat-projects').textContent = projects.length;
+      let onTrack = 0;
+      let atRisk = 0;
+      let totalTasks = 0;
+
+      projects.forEach(p => {
+        if (p.health === 'on_track') onTrack++;
+        if (p.health === 'at_risk' || p.health === 'blocked') atRisk++;
+        totalTasks += (p.task_count || 0);
+      });
+
+      document.getElementById('stat-ontrack').textContent = onTrack;
+      document.getElementById('stat-atrisk').textContent = atRisk;
+      document.getElementById('stat-tasks').textContent = totalTasks;
+    }
+
+    function filterProjects() {
+      const q = document.getElementById('search-input').value.toLowerCase().trim();
+      const domain = document.getElementById('filter-domain').value;
+      const health = document.getElementById('filter-health').value;
+
+      const filtered = allProjects.filter(p => {
+        const matchesQ = !q ||
+          p.name.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q)) ||
+          (p.goals && p.goals.toLowerCase().includes(q));
+
+        const matchesDomain = domain === 'all' || p.domain === domain;
+        const matchesHealth = health === 'all' || p.health === health;
+
+        return matchesQ && matchesDomain && matchesHealth;
+      });
+
+      renderProjects(filtered);
+    }
+
+    function renderProjects(projects) {
+      const container = document.getElementById('projects-container');
+      if (!projects || projects.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div style="font-size:32px; margin-bottom:12px;">📂</div>
+            <div style="font-size:15px; font-weight:600; color:var(--text); margin-bottom:4px;">No projects found</div>
+            <p>Create your first project to organize PRDs, backlog tasks, and goals.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = projects.map(p => {
+        const healthLabels = {
+          'on_track': 'On Track',
+          'at_risk': 'At Risk',
+          'blocked': 'Blocked',
+          'planning': 'Planning',
+          'completed': 'Completed'
+        };
+        const hLabel = healthLabels[p.health] || p.health;
+
+        return `
+          <div class="project-card">
+            <div class="card-top">
+              <div class="project-title" onclick="openProjectDetail(${p.id})">${escapeHtml(p.name)}</div>
+              <div class="health-pill health-${p.health}">
+                <span class="health-dot"></span>
+                <span>${hLabel}</span>
+              </div>
+            </div>
+
+            <div class="badge-group">
+              <span class="badge badge-domain">${escapeHtml(p.domain || 'Platform')}</span>
+              <span class="badge badge-prio-${p.priority || 'medium'}">${escapeHtml(p.priority || 'medium')}</span>
+              ${p.target_date ? `<span class="badge" style="background:var(--surface2); color:var(--text2); border:1px solid var(--border2);">🗓️ ${escapeHtml(p.target_date)}</span>` : ''}
+            </div>
+
+            <div class="project-desc">${escapeHtml(p.description || 'No description provided.')}</div>
+
+            <div class="progress-wrap">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" style="width: ${p.progress_pct || 0}%;"></div>
+              </div>
+              <div class="progress-labels">
+                <span>${p.done_task_count || 0}/${p.task_count || 0} tasks done</span>
+                <span>${p.progress_pct || 0}%</span>
+              </div>
+            </div>
+
+            <div class="meta-row">
+              <span>Owner: ${escapeHtml(p.owner || 'Unassigned')}</span>
+              <span>Updated: ${p.updated_at ? p.updated_at.slice(0, 10) : ''}</span>
+            </div>
+
+            <div class="card-actions">
+              <div style="display:flex; gap:6px;">
+                <button class="btn-secondary btn-sm" onclick="openProjectDetail(${p.id})">📋 Backlog (${p.task_count || 0})</button>
+                <button class="btn-secondary btn-sm" onclick="discussInCopilot(${p.id})">💬 Copilot</button>
+                <button class="btn-secondary btn-sm" style="color:var(--amber);" onclick="generatePRDInCopilot(${p.id}, '${escapeJs(p.name)}', '${escapeJs(p.goals || '')}')">📝 PRD</button>
+              </div>
+              <button class="btn-secondary btn-sm" style="color:var(--red);" onclick="deleteProject(event, ${p.id})" title="Delete">🗑️</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openNewProjectModal() {
+      document.getElementById('new-project-modal').style.display = 'flex';
+      document.getElementById('p-name').focus();
+    }
+
+    function closeNewProjectModal() {
+      document.getElementById('new-project-modal').style.display = 'none';
+      document.getElementById('project-form').reset();
+    }
+
+    async function handleCreateProject(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('p-name').value.trim(),
+        domain: document.getElementById('p-domain').value,
+        priority: document.getElementById('p-priority').value,
+        health: document.getElementById('p-health').value,
+        target_date: document.getElementById('p-target-date').value.trim(),
+        owner: document.getElementById('p-owner').value.trim(),
+        goals: document.getElementById('p-goals').value.trim(),
+        tech_stack: document.getElementById('p-tech').value.trim(),
+        description: document.getElementById('p-desc').value.trim(),
+        seed_tasks: document.getElementById('p-seed-tasks').checked,
+      };
+
+      try {
+        const res = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          closeNewProjectModal();
+          await loadProjects();
+          // Broadcast to chat so project dropdown refreshes
+          try {
+            window.parent.postMessage({ action: 'projects_updated' }, '*');
+          } catch (_) {}
+        } else {
+          const err = await res.json();
+          alert('Failed to create: ' + (err.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
+    }
+
+    async function deleteProject(e, id) {
+      e.stopPropagation();
+      if (!confirm('Are you sure you want to delete this project and all its tasks?')) return;
+      try {
+        await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+        await loadProjects();
+        try {
+          window.parent.postMessage({ action: 'projects_updated' }, '*');
+        } catch (_) {}
+      } catch (err) {
+        alert('Failed to delete: ' + err.message);
+      }
+    }
+
+    async function openProjectDetail(id) {
+      currentDetailProjectId = id;
+      try {
+        const res = await fetch(`/api/projects/${id}`);
+        const data = await res.json();
+        const p = data.project;
+        const tasks = data.tasks || [];
+
+        document.getElementById('detail-title').textContent = p.name;
+        document.getElementById('detail-content').innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:16px;">
+            <div class="badge-group">
+              <span class="badge badge-domain">${escapeHtml(p.domain || 'Platform')}</span>
+              <span class="badge badge-prio-${p.priority}">${escapeHtml(p.priority)}</span>
+              <span class="badge" style="background:var(--surface2); color:var(--text);">${escapeHtml(p.health.toUpperCase())}</span>
+              ${p.target_date ? `<span class="badge" style="background:var(--surface2); color:var(--text2);">🗓️ ${escapeHtml(p.target_date)}</span>` : ''}
+              ${p.owner ? `<span class="badge" style="background:var(--surface2); color:var(--text2);">Lead: ${escapeHtml(p.owner)}</span>` : ''}
+            </div>
+
+            ${p.description ? `<div><div class="metric-label">Overview</div><div style="font-size:13px; line-height:1.5;">${escapeHtml(p.description)}</div></div>` : ''}
+            ${p.goals ? `<div><div class="metric-label">Strategic Goals / OKRs</div><div style="font-size:13px; line-height:1.5; color:var(--amber);">${escapeHtml(p.goals)}</div></div>` : ''}
+            ${p.tech_stack ? `<div><div class="metric-label">Architecture / Tech Stack</div><div style="font-size:12px; font-family:var(--mono); color:var(--text2);">${escapeHtml(p.tech_stack)}</div></div>` : ''}
+
+            <!-- Task Backlog Section -->
+            <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:16px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div class="metric-label" style="margin:0;">Project Tasks (${tasks.length})</div>
+                <div style="display:flex; gap:6px;">
+                  <button class="btn-secondary btn-sm" style="color:var(--amber);" onclick="generatePRDInCopilot(${p.id}, '${escapeJs(p.name)}', '${escapeJs(p.goals || '')}')">📝 Draft PRD</button>
+                  <button class="btn btn-sm" onclick="discussInCopilot(${p.id})">💬 Discuss in Copilot</button>
+                </div>
+              </div>
+
+              <!-- Quick Task Creator -->
+              <div style="display:flex; gap:8px; margin-bottom:14px;">
+                <input type="text" id="quick-task-title" class="form-control" placeholder="Add a new task (e.g. Write architecture decision record)..." style="flex:1;" onkeydown="if(event.key==='Enter') quickAddTask(${p.id})"/>
+                <select id="quick-task-priority" class="filter-select">
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                  <option value="low">Low</option>
+                </select>
+                <button class="btn btn-sm" onclick="quickAddTask(${p.id})">Add</button>
+              </div>
+
+              <!-- Tasks List -->
+              <div id="detail-tasks-list">
+                ${tasks.length === 0 ? '<div style="font-size:12px; color:var(--text3); padding:8px;">No tasks yet. Add one above!</div>' : tasks.map(t => `
+                  <div class="task-item">
+                    <div class="task-left">
+                      <input type="checkbox" ${t.status === 'done' ? 'checked' : ''} onchange="toggleTaskDone(${t.id}, this.checked, ${p.id})"/>
+                      <span class="task-title ${t.status === 'done' ? 'done' : ''}">${escapeHtml(t.title)}</span>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                      <span class="badge badge-prio-${t.priority}">${escapeHtml(t.priority)}</span>
+                      <button class="btn-secondary btn-sm" style="color:var(--red);" onclick="deleteTask(${t.id}, ${p.id})">✕</button>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('project-detail-modal').style.display = 'flex';
+      } catch (err) {
+        alert('Failed to load project details: ' + err.message);
+      }
+    }
+
+    function closeDetailModal() {
+      document.getElementById('project-detail-modal').style.display = 'none';
+      currentDetailProjectId = null;
+    }
+
+    async function quickAddTask(projectId) {
+      const inp = document.getElementById('quick-task-title');
+      const title = inp.value.trim();
+      const prio = document.getElementById('quick-task-priority').value;
+      if (!title) return;
+
+      try {
+        const res = await fetch(`/api/projects/${projectId}/tasks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, priority: prio })
+        });
+        if (res.ok) {
+          inp.value = '';
+          await openProjectDetail(projectId);
+          await loadProjects();
+        }
+      } catch (err) {
+        alert('Failed to add task: ' + err.message);
+      }
+    }
+
+    async function toggleTaskDone(taskId, isDone, projectId) {
+      try {
+        await fetch(`/api/tasks/${taskId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: isDone ? 'done' : 'todo' })
+        });
+        await openProjectDetail(projectId);
+        await loadProjects();
+      } catch (err) {
+        alert('Failed to update task: ' + err.message);
+      }
+    }
+
+    async function deleteTask(taskId, projectId) {
+      try {
+        await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        await openProjectDetail(projectId);
+        await loadProjects();
+      } catch (err) {
+        alert('Failed to delete task: ' + err.message);
+      }
+    }
+
+    function applyProjectPreset(type) {
+      const presets = {
+        saas: {
+          name: 'Next-Gen SaaS Billing & Subscription Hub',
+          domain: 'Growth',
+          priority: 'high',
+          health: 'planning',
+          target_date: 'Q4 2026',
+          owner: 'Pranshul Chopra',
+          goals: 'Improve trial-to-paid conversion by 25% and automate recurring enterprise invoicing.',
+          tech_stack: 'Stripe Billing API, React, FastAPI, PostgreSQL, Webhooks',
+          desc: 'Self-serve billing portal with multi-seat usage metering, plan upgrades, tax calculation, and automated dunning.'
+        },
+        ai: {
+          name: 'Enterprise Knowledge AI Copilot',
+          domain: 'AI/ML',
+          priority: 'critical',
+          health: 'on_track',
+          target_date: 'Q3 2026',
+          owner: 'Pranshul Chopra',
+          goals: 'Accelerate engineering decision velocity and reduce internal support resolution time by 40%.',
+          tech_stack: 'Python Flask, Gemini API, SQLite FTS5 RAG, Electron, Local Vector Index',
+          desc: 'Context-aware local-first Copilot synthesizing technical specifications, PRDs, and architecture decisions with verified evidence.'
+        },
+        mobile: {
+          name: 'Mobile Customer Onboarding Experience',
+          domain: 'Mobile',
+          priority: 'high',
+          health: 'planning',
+          target_date: 'Q4 2026',
+          owner: 'Pranshul Chopra',
+          goals: 'Achieve 85% first-session completion rate and cut onboarding drop-off by 30%.',
+          tech_stack: 'Swift, Kotlin Multiplatform, Firebase Auth, Mixpanel',
+          desc: 'Streamlined mobile activation flow with biometrics, social login, interactive setup checklists, and push notifications.'
+        },
+        security: {
+          name: 'Zero-Trust IAM & Audit Governance',
+          domain: 'Security',
+          priority: 'critical',
+          health: 'on_track',
+          target_date: 'Q4 2026',
+          owner: 'Pranshul Chopra',
+          goals: 'Pass SOC2 Type II certification and eliminate unauthorized cross-tenant privilege escalations.',
+          tech_stack: 'OAuth2, OpenID Connect, SAML 2.0, HashiCorp Vault, Audit Logging',
+          desc: 'Centralized identity federation, granular role-based permissions, and cryptographically verified audit trails.'
+        },
+        infra: {
+          name: 'Global Event Streaming & Telemetry Pipeline',
+          domain: 'Infrastructure',
+          priority: 'high',
+          health: 'planning',
+          target_date: 'Q1 2027',
+          owner: 'Pranshul Chopra',
+          goals: 'Sustain 50,000 events/sec with sub-100ms latency and 99.99% ingestion uptime.',
+          tech_stack: 'Apache Kafka, ClickHouse, Docker, Kubernetes, OpenTelemetry',
+          desc: 'High-throughput telemetry aggregator collecting client logs, performance metrics, and distributed traces.'
+        }
+      };
+
+      const p = presets[type];
+      if (!p) return;
+
+      document.getElementById('p-name').value = p.name;
+      document.getElementById('p-domain').value = p.domain;
+      document.getElementById('p-priority').value = p.priority;
+      document.getElementById('p-health').value = p.health;
+      document.getElementById('p-target-date').value = p.target_date;
+      document.getElementById('p-owner').value = p.owner;
+      document.getElementById('p-goals').value = p.goals;
+      document.getElementById('p-tech').value = p.tech_stack;
+      document.getElementById('p-desc').value = p.desc;
+      document.getElementById('p-seed-tasks').checked = true;
+    }
+
+    function generatePRDInCopilot(projectId, projectName, projectGoals) {
+      closeDetailModal();
+      window.parent.postMessage({
+        action: 'navigate_and_prompt',
+        tab: 'chat',
+        project_id: projectId,
+        prompt: `/prd Create a comprehensive Product Requirement Document for "${projectName}". Strategic Objectives: ${projectGoals || 'Drive product excellence and user adoption'}. Please outline: 1. Executive Summary & Problem Statement 2. User Personas 3. Functional Requirements 4. Key Metrics & KPIs 5. Technical Architecture & Security 6. Milestones.`
+      }, '*');
+    }
+
+    function discussInCopilot(projectId) {
+      closeDetailModal();
+      window.parent.postMessage({
+        action: 'navigate_and_prompt',
+        tab: 'chat',
+        project_id: projectId,
+        prompt: ''
+      }, '*');
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function escapeJs(str) {
+      if (!str) return '';
+      return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.data && (event.data.action === 'tab_activated' || event.data.action === 'projects_updated')) {
+        loadProjects();
+      }
+    });
+
+    window.addEventListener('focus', () => loadProjects());
+
+    init();
+  </script>
+</body>
+</html>

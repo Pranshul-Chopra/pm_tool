@@ -1,0 +1,71 @@
+{
+  "name": "pm-tool",
+  "version": "1.0.0",
+  "description": "PM Tool — Local-First Project Management Desktop Application",
+  "main": "main.js",
+  "author": "Pranshul Chopra",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win",
+    "build:dir": "electron-builder build --win --dir"
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
+    "electron": "^44.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "dev.pranshulchopra.pmtool",
+    "productName": "PM Tool",
+    "directories": {
+      "output": "../release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "icon.png",
+      "icon.ico"
+    ],
+    "extraResources": [
+      {
+        "from": "../dist/flask",
+        "to": "flask",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "artifactName": "${productName}-${version}.${ext}",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PM Tool",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    }
+  }
+}

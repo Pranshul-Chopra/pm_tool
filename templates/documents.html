@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Knowledge Base &mdash; PM Tool</title>
+  <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #111110;
+      --surface: #1a1918;
+      --surface2: #222120;
+      --border: #2e2c2a;
+      --border2: #3a3835;
+      --text: #edeae4;
+      --text2: #9b9690;
+      --text3: #5c5955;
+      --amber: #e8a84c;
+      --amber-dim: #7a5820;
+      --amber-faint: rgba(232, 168, 76, 0.08);
+      --green: #5aab7f;
+      --green-faint: rgba(90, 171, 127, 0.1);
+      --blue: #4c97e8;
+      --blue-faint: rgba(76, 151, 232, 0.1);
+      --red: #e85c4c;
+      --purple: #a87fe8;
+      --radius: 8px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Header ── */
+    .view-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 24px;
+      gap: 16px;
+    }
+
+    .view-title {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .view-subtitle {
+      font-size: 13px;
+      color: var(--text2);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--amber);
+      color: #111;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn:hover { background: #f0b55e; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-secondary {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .btn-secondary:hover { background: var(--border); border-color: var(--border2); }
+    .btn-sm { padding: 4px 8px; font-size: 11px; }
+
+    /* ── Metrics Grid ── */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .metric-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .metric-val {
+      font-family: var(--mono);
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--amber);
+    }
+
+    .metric-sub {
+      font-size: 11px;
+      color: var(--text2);
+    }
+
+    /* ── Search & Retrieval Test Bar ── */
+    .search-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .search-bar-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 14px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .search-input:focus { border-color: var(--amber); }
+
+    .test-results-panel {
+      display: none;
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .chunk-result-item {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+
+    .chunk-result-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--amber);
+    }
+
+    .chunk-result-snippet {
+      color: var(--text2);
+      font-family: var(--sans);
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 80px;
+      overflow-y: auto;
+    }
+
+    /* ── Dropzone & Ingest Bar ── */
+    .dropzone-container {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .dropzone {
+      flex: 1;
+      border: 2px dashed var(--border2);
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--amber);
+      background: var(--amber-faint);
+    }
+
+    .dropzone-icon {
+      font-size: 24px;
+    }
+
+    .dropzone-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .dropzone-hint {
+      font-size: 11px;
+      color: var(--text3);
+    }
+
+    /* ── Watched Folders Strip ── */
+    .folders-strip {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .folders-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .folders-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .folder-chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .folder-chip {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text2);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .folder-chip-del {
+      cursor: pointer;
+      color: var(--text3);
+    }
+    .folder-chip-del:hover { color: var(--red); }
+
+    /* ── Documents Table ── */
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .table-toolbar {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-title {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    th {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--surface2); }
+
+    .file-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 500;
+    }
+
+    .badge-ext {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .ext-pdf { background: rgba(232, 92, 76, 0.15); color: #e85c4c; border: 1px solid rgba(232, 92, 76, 0.3); }
+    .ext-docx { background: rgba(76, 151, 232, 0.15); color: #4c97e8; border: 1px solid rgba(76, 151, 232, 0.3); }
+    .ext-md { background: rgba(90, 171, 127, 0.15); color: #5aab7f; border: 1px solid rgba(90, 171, 127, 0.3); }
+    .ext-txt { background: rgba(155, 150, 144, 0.15); color: #edeae4; border: 1px solid rgba(155, 150, 144, 0.3); }
+    .ext-csv { background: rgba(232, 168, 76, 0.15); color: #e8a84c; border: 1px solid rgba(232, 168, 76, 0.3); }
+    .ext-json { background: rgba(168, 127, 232, 0.15); color: #a87fe8; border: 1px solid rgba(168, 127, 232, 0.3); }
+
+    .path-sub {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text3);
+      max-width: 320px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-state {
+      padding: 48px 24px;
+      text-align: center;
+      color: var(--text3);
+    }
+    .empty-icon { font-size: 36px; margin-bottom: 8px; }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(2px);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 600px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+      animation: modalIn 0.15s ease-out;
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.97); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text3);
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .form-control {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 12px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      outline: none;
+    }
+    .form-control:focus { border-color: var(--amber); }
+
+    .chunk-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .chunk-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .chunk-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    .chunk-text-box {
+      font-family: var(--mono);
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--text2);
+      background: var(--surface2);
+      padding: 8px 10px;
+      border-radius: 4px;
+      max-height: 140px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+
+    .status-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      padding: 10px 16px;
+      border-radius: var(--radius);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text);
+      display: none;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 200;
+    }
+  </style>
+</head>
+<body>
+  <!-- View Header -->
+  <div class="view-header">
+    <div>
+      <h1 class="view-title">📁 Knowledge Base &amp; RAG</h1>
+      <p class="view-subtitle">Local file system indexing powered by SQLite FTS5 BM25 search. Chunks specifications, PRDs, and architecture docs for AI synthesis.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-secondary" onclick="openScanModal()">📂 Scan Folder</button>
+      <button class="btn" onclick="triggerFileUpload()">⬆ Upload File</button>
+      <input type="file" id="file-uploader" style="display:none;" onchange="handleFileSelected(this)"/>
+    </div>
+  </div>
+
+  <!-- Metric Grid -->
+  <div class="metric-grid">
+    <div class="metric-card">
+      <div class="metric-label">Indexed Documents</div>
+      <div class="metric-val" id="stat-docs">0</div>
+      <div class="metric-sub">Active in knowledge base</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Knowledge Chunks</div>
+      <div class="metric-val" id="stat-chunks" style="color:var(--green);">0</div>
+      <div class="metric-sub">Searchable via FTS5 BM25</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Supported Formats</div>
+      <div class="metric-val" style="font-size:14px; color:var(--text); padding-top:6px;">PDF · DOCX · MD · TXT · CSV · JSON</div>
+      <div class="metric-sub">Deep section parsing</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">RAG Engine</div>
+      <div class="metric-val" style="font-size:15px; color:var(--blue); padding-top:6px;">Active &amp; Grounded</div>
+      <div class="metric-sub">Zero external cloud vector DB</div>
+    </div>
+  </div>
+
+  <!-- Search & Retrieval Test Bar -->
+  <div class="search-panel">
+    <div class="search-bar-row">
+      <span style="font-size:16px;">🔍</span>
+      <input type="text" id="query-input" class="search-input" placeholder="Test BM25 retrieval across your indexed knowledge (e.g. 'requirements', 'architecture', 'token limits')..." onkeydown="if(event.key==='Enter') testSearch()"/>
+      <button class="btn-secondary btn-sm" onclick="testSearch()">Search Chunks</button>
+    </div>
+    <div class="test-results-panel" id="search-results-panel" style="display:none;">
+      <!-- Chunks rendered here -->
+    </div>
+  </div>
+
+  <!-- Drag and Drop Zone -->
+  <div class="dropzone-container">
+    <div class="dropzone" id="drop-area" onclick="triggerFileUpload()">
+      <div class="dropzone-icon">📥</div>
+      <div class="dropzone-title">Drag &amp; drop knowledge files here, or click to browse</div>
+      <div class="dropzone-hint">Supports .pdf, .docx, .md, .txt, .csv, .json (files are parsed, chunked, and indexed locally)</div>
+    </div>
+  </div>
+
+  <!-- Watched Folders Strip -->
+  <div class="folders-strip">
+    <div class="folders-top">
+      <span class="folders-label">Registered Knowledge Directories</span>
+      <button class="btn-secondary btn-sm" onclick="rescanAllFolders()">🔄 Rescan All</button>
+    </div>
+    <div class="folder-chips-container" id="folder-chips">
+      <span style="font-size:11px; color:var(--text3);">No folders registered. Click "Scan Folder" to index your project docs.</span>
+    </div>
+  </div>
+
+  <!-- Documents Table -->
+  <div class="table-container">
+    <div class="table-toolbar">
+      <div class="table-title">
+        <span>Indexed Knowledge Files</span>
+        <span id="doc-count-badge" style="font-size:11px; color:var(--text3); font-weight:normal;">(0)</span>
+      </div>
+      <button class="btn-secondary btn-sm" onclick="loadDocuments()">↻ Refresh</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Document</th>
+          <th>File Type</th>
+          <th>Size</th>
+          <th>Indexed Chunks</th>
+          <th>Last Scanned</th>
+          <th style="text-align:right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="documents-tbody">
+        <tr>
+          <td colspan="6" class="empty-state">
+            <div class="empty-icon">📚</div>
+            <p>No documents indexed yet. Drop a document or scan a directory above!</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Scan Folder Modal -->
+  <div class="modal-overlay" id="scan-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title">📂 Index Local Directory</h2>
+        <button class="modal-close" onclick="closeScanModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Absolute Directory Path</label>
+          <input type="text" id="scan-folder-path" class="form-control" placeholder="e.g. C:\Users\YourName\Documents\Specs"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Optional Label</label>
+          <input type="text" id="scan-folder-label" class="form-control" placeholder="e.g. Core Product Specs"/>
+        </div>
+        <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+          <input type="checkbox" id="scan-recursive" checked/>
+          <label for="scan-recursive" style="font-size:12px; color:var(--text2); cursor:pointer;">Scan subdirectories recursively</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeScanModal()">Cancel</button>
+        <button class="btn" id="btn-do-scan" onclick="submitFolderScan()">Start Ingestion</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chunk Inspector Modal -->
+  <div class="modal-overlay" id="chunks-modal">
+    <div class="modal" style="max-width:760px;">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title" id="chunk-modal-title">Document Chunks</h2>
+          <div style="font-family:var(--mono); font-size:11px; color:var(--text3);" id="chunk-modal-sub"></div>
+        </div>
+        <button class="modal-close" onclick="closeChunksModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="chunk-list" id="chunks-container">
+          <!-- Chunks loaded here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeChunksModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Toast -->
+  <div class="status-toast" id="toast"></div>
+
+  <script>
+    let allDocuments = [];
+    let registeredFolders = [];
+
+    async function init() {
+      await loadDocuments();
+      await loadFolders();
+      setupDropzone();
+    }
+
+    function showToast(msg, duration = 3000) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, duration);
+    }
+
+    async function loadDocuments() {
+      try {
+        const res = await fetch('/api/documents');
+        const data = await res.json();
+        allDocuments = data.documents || [];
+
+        document.getElementById('stat-docs').textContent = allDocuments.length;
+        document.getElementById('stat-chunks').textContent = data.total_chunks || 0;
+        document.getElementById('doc-count-badge').textContent = `(${allDocuments.length})`;
+
+        renderTable(allDocuments);
+      } catch (err) {
+        console.error('Failed to load documents:', err);
+      }
+    }
+
+    async function loadFolders() {
+      try {
+        const res = await fetch('/api/documents/folders');
+        const data = await res.json();
+        registeredFolders = data.folders || [];
+        renderFolders(registeredFolders);
+      } catch (err) {
+        console.error('Failed to load folders:', err);
+      }
+    }
+
+    function renderFolders(folders) {
+      const container = document.getElementById('folder-chips');
+      if (!folders || folders.length === 0) {
+        container.innerHTML = '<span style="font-size:11px; color:var(--text3);">No folders registered yet. Click "Scan Folder" to index local files.</span>';
+        return;
+      }
+      container.innerHTML = folders.map(f => `
+        <div class="folder-chip">
+          <span>📁 ${escapeHtml(f.label || f.folder_path)}</span>
+          <button class="btn-secondary btn-sm" style="padding:2px 6px; font-size:10px;" onclick="rescanSingleFolder('${escapeJs(f.folder_path)}')">Scan</button>
+          <span class="folder-chip-del" onclick="deleteFolder(${f.id})" title="Remove folder">✕</span>
+        </div>
+      `).join('');
+    }
+
+    function renderTable(docs) {
+      const tbody = document.getElementById('documents-tbody');
+      if (!docs || docs.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty-state">
+              <div class="empty-icon">📚</div>
+              <p>No documents indexed yet. Drop a document or scan a directory above!</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = docs.map(d => {
+        const ext = (d.file_type || '').replace('.', '').toLowerCase();
+        const badgeClass = `ext-${ext}`;
+        const sizeKb = (d.file_size / 1024).toFixed(1) + ' KB';
+        const dateStr = d.indexed_at ? d.indexed_at.slice(0, 16).replace('T', ' ') : '-';
+
+        return `
+          <tr>
+            <td>
+              <div class="file-name-cell">
+                <span>📄</span>
+                <div>
+                  <div style="font-weight:600; color:var(--text);">${escapeHtml(d.filename)}</div>
+                  <div class="path-sub" title="${escapeHtml(d.file_path)}">${escapeHtml(d.file_path)}</div>
+                </div>
+              </div>
+            </td>
+            <td><span class="badge-ext ${badgeClass}">.${ext}</span></td>
+            <td style="font-family:var(--mono); font-size:12px; color:var(--text2);">${sizeKb}</td>
+            <td>
+              <span style="font-family:var(--mono); font-size:12px; color:var(--amber);">${d.chunk_count || 0} chunks</span>
+            </td>
+            <td style="font-family:var(--mono); font-size:11px; color:var(--text3);">${dateStr}</td>
+            <td style="text-align:right;">
+              <button class="btn-secondary btn-sm" onclick="inspectChunks(${d.id})">🔍 Chunks</button>
+              <button class="btn-secondary btn-sm" style="color:var(--red);" onclick="deleteDoc(${d.id})" title="Delete">🗑️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // ── Folder Scanning ──
+    function openScanModal() {
+      document.getElementById('scan-modal').style.display = 'flex';
+      document.getElementById('scan-folder-path').focus();
+    }
+
+    function closeScanModal() {
+      document.getElementById('scan-modal').style.display = 'none';
+      document.getElementById('scan-folder-path').value = '';
+    }
+
+    async function submitFolderScan() {
+      const path = document.getElementById('scan-folder-path').value.trim();
+      const label = document.getElementById('scan-folder-label').value.trim();
+      const recursive = document.getElementById('scan-recursive').checked;
+      const btn = document.getElementById('btn-do-scan');
+
+      if (!path) {
+        alert('Please enter a directory path.');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Scanning...';
+
+      try {
+        // Register folder first
+        await fetch('/api/documents/folders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_path: path, label: label, recursive: recursive })
+        });
+
+        // Trigger scan
+        const res = await fetch('/api/documents/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_path: path, recursive: recursive })
+        });
+
+        const data = await res.json();
+        closeScanModal();
+
+        if (res.ok) {
+          showToast(`Ingestion complete! ${data.scanned_count} files processed (${data.total_chunks} chunks).`);
+          await loadDocuments();
+          await loadFolders();
+          try {
+            window.parent.postMessage({ action: 'documents_updated' }, '*');
+          } catch (_) {}
+        } else {
+          alert('Scan failed: ' + (data.error || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Start Ingestion';
+      }
+    }
+
+    async function rescanSingleFolder(folderPath) {
+      showToast('Scanning directory: ' + folderPath + '...');
+      try {
+        const res = await fetch('/api/documents/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_path: folderPath, recursive: true })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Rescan finished! ${data.scanned_count} files processed.`);
+          await loadDocuments();
+        } else {
+          alert('Rescan error: ' + data.error);
+        }
+      } catch (err) {
+        alert('Failed to rescan: ' + err.message);
+      }
+    }
+
+    async function rescanAllFolders() {
+      if (registeredFolders.length === 0) {
+        alert('No folders registered yet.');
+        return;
+      }
+      for (const f of registeredFolders) {
+        await rescanSingleFolder(f.folder_path);
+      }
+    }
+
+    async function deleteFolder(folderId) {
+      if (!confirm('Remove this folder from registered paths? (Indexed documents will remain)')) return;
+      try {
+        await fetch(`/api/documents/folders/${folderId}`, { method: 'DELETE' });
+        await loadFolders();
+      } catch (err) {
+        alert('Failed to remove folder: ' + err.message);
+      }
+    }
+
+    async function deleteDoc(docId) {
+      if (!confirm('Delete this document and all its indexed chunks?')) return;
+      try {
+        await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+        showToast('Document removed from knowledge base.');
+        await loadDocuments();
+        try {
+          window.parent.postMessage({ action: 'documents_updated' }, '*');
+        } catch (_) {}
+      } catch (err) {
+        alert('Failed to delete document: ' + err.message);
+      }
+    }
+
+    // ── File Upload & Dropzone ──
+    function triggerFileUpload() {
+      document.getElementById('file-uploader').click();
+    }
+
+    function setupDropzone() {
+      const zone = document.getElementById('drop-area');
+
+      ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.add('dragover');
+        });
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          zone.classList.remove('dragover');
+        });
+      });
+
+      zone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+          uploadSingleFile(files[0]);
+        }
+      });
+    }
+
+    function handleFileSelected(input) {
+      if (input.files && input.files.length > 0) {
+        uploadSingleFile(input.files[0]);
+        input.value = '';
+      }
+    }
+
+    async function uploadSingleFile(file) {
+      showToast(`Uploading and indexing: ${file.name}...`);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showToast(`Ingested ${file.name} successfully! (${data.chunk_count || 0} chunks).`);
+          await loadDocuments();
+          try {
+            window.parent.postMessage({ action: 'documents_updated' }, '*');
+          } catch (_) {}
+        } else {
+          alert('Upload failed: ' + (data.error || 'Server error'));
+        }
+      } catch (err) {
+        alert('Network error: ' + err.message);
+      }
+    }
+
+    // ── Chunk Inspection Modal ──
+    async function inspectChunks(docId) {
+      try {
+        const res = await fetch(`/api/documents/${docId}/chunks`);
+        const data = await res.json();
+        const doc = data.document;
+        const chunks = data.chunks || [];
+
+        document.getElementById('chunk-modal-title').textContent = doc.filename;
+        document.getElementById('chunk-modal-sub').textContent = `${chunks.length} chunks extracted · ${doc.file_path}`;
+
+        const container = document.getElementById('chunks-container');
+        if (chunks.length === 0) {
+          container.innerHTML = '<div style="font-size:12px; color:var(--text3); padding:10px;">No chunks found for this file.</div>';
+        } else {
+          container.innerHTML = chunks.map(c => `
+            <div class="chunk-card">
+              <div class="chunk-card-header">
+                <span style="font-weight:600; color:var(--amber);">Chunk #${c.chunk_index + 1} &mdash; ${escapeHtml(c.section_title || 'Section')}</span>
+                <span style="color:var(--text3);">~${c.token_count || 0} tokens</span>
+              </div>
+              <div class="chunk-text-box">${escapeHtml(c.content)}</div>
+            </div>
+          `).join('');
+        }
+
+        document.getElementById('chunks-modal').style.display = 'flex';
+      } catch (err) {
+        alert('Failed to load chunks: ' + err.message);
+      }
+    }
+
+    function closeChunksModal() {
+      document.getElementById('chunks-modal').style.display = 'none';
+    }
+
+    // ── Test Retrieval Query ──
+    async function testSearch() {
+      const q = document.getElementById('query-input').value.trim();
+      const resultsPanel = document.getElementById('search-results-panel');
+      if (!q) {
+        resultsPanel.style.display = 'none';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/documents/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: q, top_k: 4 })
+        });
+        const data = await res.json();
+        const chunks = data.chunks || [];
+
+        resultsPanel.style.display = 'flex';
+        if (chunks.length === 0) {
+          resultsPanel.innerHTML = '<div style="font-size:12px; color:var(--text3); padding:8px;">No matching chunks found in knowledge base.</div>';
+          return;
+        }
+
+        resultsPanel.innerHTML = `
+          <div style="font-family:var(--mono); font-size:11px; color:var(--green); margin-bottom:4px;">
+            ✓ ${chunks.length} matching knowledge chunks retrieved (BM25 lexical ranking):
+          </div>
+          ${chunks.map(c => `
+            <div class="chunk-result-item">
+              <div class="chunk-result-top">
+                <span>📄 ${escapeHtml(c.filename)} &rsaquo; ${escapeHtml(c.section_title || 'General')}</span>
+                <span>Score: ${(c.rank_score || 0).toFixed(2)}</span>
+              </div>
+              <div class="chunk-result-snippet">${escapeHtml(c.content)}</div>
+            </div>
+          `).join('')}
+        `;
+      } catch (err) {
+        console.error('Search error:', err);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeJs(str) {
+      if (!str) return '';
+      return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+      if (event.data.action === 'tab_activated' && event.data.tab === 'documents') {
+        loadDocuments();
+        loadFolders();
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

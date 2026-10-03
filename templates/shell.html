@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PM Tool</title>
+  <link rel="icon" type="image/png" href="/static/icon.png"/>
+  <link rel="shortcut icon" href="/static/favicon.ico"/>
+  <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #111110;
+      --surface: #1a1918;
+      --surface2: #222120;
+      --border: #2e2c2a;
+      --border2: #3a3835;
+      --text: #edeae4;
+      --text2: #9b9690;
+      --text3: #5c5955;
+      --amber: #e8a84c;
+      --amber-dim: #7a5820;
+      --amber-faint: rgba(232, 168, 76, 0.08);
+      --green: #5aab7f;
+      --blue: #4c97e8;
+      --red: #e85c4c;
+      --radius: 8px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+      overflow: hidden;
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 220px;
+      flex-shrink: 0;
+      background: var(--surface);
+      background-image: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .sb-logo {
+      padding: 20px 18px 16px;
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--amber);
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, 0.15);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .sb-logo-badge {
+      font-size: 10px;
+      background: var(--amber-faint);
+      border: 1px solid var(--amber-dim);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--amber);
+      font-weight: normal;
+    }
+
+    .sb-nav {
+      padding: 14px 10px;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 10px 8px 4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      border: 1px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .nav-item.active {
+      background: var(--surface2);
+      color: var(--amber);
+      border-color: var(--border2);
+    }
+
+    .nav-icon {
+      font-family: var(--mono);
+      font-size: 14px;
+      width: 18px;
+      text-align: center;
+    }
+
+    .sb-footer {
+      padding: 14px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      display: inline-block;
+      margin-right: 6px;
+    }
+
+    /* ── Main Content Area ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .topbar {
+      height: 48px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+
+    .breadcrumb {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text2);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .breadcrumb span.current {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .badge-pill {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      padding: 3px 9px;
+      border-radius: 12px;
+      color: var(--text2);
+    }
+
+    .content-frame {
+      flex: 1;
+      border: none;
+      width: 100%;
+      height: calc(100vh - 48px);
+      background: var(--bg);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sb-logo">
+        <span>PM_TOOL</span>
+        <span class="sb-logo-badge">v1.0</span>
+      </div>
+
+      <nav class="sb-nav">
+        <div class="nav-label">Workspace</div>
+        <a class="nav-item active" id="nav-home" data-src="/home" onclick="navigate(this)">
+          <span class="nav-icon">◈</span>
+          <span>Overview</span>
+        </a>
+        <a class="nav-item" id="nav-chat" data-src="/chat" onclick="navigate(this)">
+          <span class="nav-icon">💬</span>
+          <span>AI Copilot</span>
+        </a>
+        <a class="nav-item" id="nav-documents" data-src="/documents" onclick="navigate(this)">
+          <span class="nav-icon">📁</span>
+          <span>Knowledge Base</span>
+        </a>
+        <div class="nav-label">System</div>
+        <a class="nav-item" id="nav-settings" data-src="/settings" onclick="navigate(this)">
+          <span class="nav-icon">⚙️</span>
+          <span>Settings</span>
+        </a>
+      </nav>
+
+      <div class="sb-footer">
+        <div style="display:flex; align-items:center;">
+          <span class="status-dot"></span>
+          <span>Engine Online</span>
+        </div>
+        <span id="port-label">:5050</span>
+      </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main">
+      <header class="topbar">
+        <div class="breadcrumb">
+          <span>pm_tool</span>
+          <span>/</span>
+          <span class="current" id="active-breadcrumb">Overview</span>
+        </div>
+        <div class="topbar-actions">
+          <span class="badge-pill" id="live-time">--:--</span>
+        </div>
+      </header>
+
+      <iframe id="view-home" class="content-frame" src="/home"></iframe>
+      <iframe id="view-chat" class="content-frame" src="/chat" style="display:none;"></iframe>
+      <iframe id="view-documents" class="content-frame" src="/documents" style="display:none;"></iframe>
+      <iframe id="view-settings" class="content-frame" src="/settings" style="display:none;"></iframe>
+    </main>
+  </div>
+
+  <script>
+    function navigate(el) {
+      document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+      el.classList.add('active');
+      const tabId = el.id.replace('nav-', '');
+
+      document.querySelectorAll('.content-frame').forEach(f => f.style.display = 'none');
+      const targetFrame = document.getElementById(`view-${tabId}`);
+      if (targetFrame) {
+        targetFrame.style.display = 'block';
+        // Notify the target frame that it became active so it can refresh dynamic state
+        try {
+          if (targetFrame.contentWindow) {
+            targetFrame.contentWindow.postMessage({ action: 'tab_activated', tab: tabId }, '*');
+          }
+        } catch (_) {}
+      }
+      document.getElementById('active-breadcrumb').textContent = el.querySelector('span:last-child').textContent;
+    }
+
+    function navigateToTab(tab) {
+      const el = document.getElementById(`nav-${tab}`);
+      if (el) navigate(el);
+    }
+
+    function broadcastToFrames(payload) {
+      ['view-home', 'view-chat', 'view-documents', 'view-settings'].forEach(id => {
+        const frame = document.getElementById(id);
+        if (frame && frame.contentWindow) {
+          try {
+            frame.contentWindow.postMessage(payload, '*');
+          } catch (_) {}
+        }
+      });
+    }
+
+    window.addEventListener('message', (event) => {
+      if (!event.data) return;
+      if (event.data.action === 'navigate' && event.data.tab) {
+        navigateToTab(event.data.tab);
+      } else if (event.data.action === 'llm_config_updated') {
+        broadcastToFrames({ action: 'llm_config_updated' });
+      } else if (event.data.action === 'projects_updated') {
+        broadcastToFrames({ action: 'projects_updated' });
+      } else if (event.data.action === 'documents_updated') {
+        broadcastToFrames({ action: 'documents_updated' });
+      } else if (event.data.action === 'navigate_and_prompt') {
+        navigateToTab(event.data.tab || 'chat');
+        const chatFrame = document.getElementById('view-chat');
+        if (chatFrame && chatFrame.contentWindow) {
+          setTimeout(() => {
+            try {
+              chatFrame.contentWindow.postMessage({
+                action: 'prefill_and_send',
+                project_id: event.data.project_id,
+                prompt: event.data.prompt
+              }, '*');
+            } catch (_) {}
+          }, 150);
+        }
+      }
+    });
+
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('live-time').textContent = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    if (window.location && window.location.port) {
+      document.getElementById('port-label').textContent = ':' + window.location.port;
+    }
+  </script>
+</body>
+</html>
