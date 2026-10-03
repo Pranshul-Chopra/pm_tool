@@ -877,6 +877,7 @@
     <div class="chat-input-container">
       <div class="quick-commands-bar">
         <span class="quick-cmd-chip" onclick="selectSlashCommand('prd')">📝 /prd</span>
+        <span class="quick-cmd-chip" onclick="selectSlashCommand('breakdown')">📋 /breakdown</span>
         <span class="quick-cmd-chip" onclick="selectSlashCommand('search')">🌐 /search</span>
         <span class="quick-cmd-chip" onclick="selectSlashCommand('plan')">⚡ /plan</span>
         <span class="quick-cmd-chip" onclick="selectSlashCommand('metrics')">🎯 /metrics</span>
@@ -894,7 +895,7 @@
             id="chat-input"
             class="chat-textarea"
             rows="1"
-            placeholder="Ask PM Copilot or type /search, /prd, /plan, /metrics, /summarize, /chat..."
+            placeholder="Ask PM Copilot or type /breakdown, /search, /prd, /plan, /metrics, /summarize..."
             onkeydown="handleKey(event)"
             oninput="handleChatInput(this)"
           ></textarea>
@@ -1156,6 +1157,16 @@
         desc: 'Draft comprehensive Product Requirement Document',
         badgeClass: 'mode-doc',
         placeholder: 'Describe feature or system requirements to draft PRD...'
+      },
+      {
+        cmd: '/breakdown',
+        mode: 'breakdown',
+        icon: '📋',
+        label: '/breakdown',
+        name: 'Story Breakdown',
+        desc: 'Decompose PRD or specs into agile user stories with acceptance criteria',
+        badgeClass: 'mode-plan',
+        placeholder: 'Decompose requirements into user stories with Given/When/Then criteria...'
       },
       {
         cmd: '/plan',

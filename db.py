@@ -195,6 +195,18 @@ def init_db():
                     INSERT OR IGNORE INTO schema_version (version) VALUES (4);
                 """)
 
+            if current_ver < 5:
+                for col_def in (
+                    "story_points INTEGER DEFAULT 0",
+                    "acceptance_criteria TEXT DEFAULT ''",
+                    "assignee TEXT DEFAULT ''",
+                ):
+                    try:
+                        con.execute(f"ALTER TABLE tasks ADD COLUMN {col_def}")
+                    except sqlite3.OperationalError:
+                        pass
+                con.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (5)")
+
 
 # ── AI Config CRUD ─────────────────────────────────────────────────────────────
 
@@ -385,10 +397,113 @@ def get_project_tasks(project_id: int) -> list[dict]:
     """Retrieve all tasks belonging to a project."""
     with get_db() as con:
         rows = con.execute(
-            "SELECT * FROM tasks WHERE project_id = ? ORDER BY CASE status WHEN 'todo' THEN 1 WHEN 'in_progress' THEN 2 ELSE 3 END, created_at DESC",
+            """SELECT t.*, p.name AS project_name, p.domain AS project_domain
+               FROM tasks t
+               LEFT JOIN projects p ON t.project_id = p.id
+               WHERE t.project_id = ? 
+               ORDER BY CASE t.status WHEN 'in_progress' THEN 1 WHEN 'blocked' THEN 2 WHEN 'todo' THEN 3 ELSE 4 END, t.created_at DESC""",
             (project_id,),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def get_tasks(
+    project_id: int | None = None,
+    status: str | None = None,
+    priority: str | None = None,
+    search: str | None = None,
+) -> list[dict]:
+    """
+    Retrieve tasks with joined project metadata, supporting filtering by project,
+    status, priority, and search keywords.
+    """
+    query = """
+        SELECT t.*, p.name AS project_name, p.domain AS project_domain
+        FROM tasks t
+        LEFT JOIN projects p ON t.project_id = p.id
+        WHERE 1=1
+    """
+    params = []
+    if project_id is not None and project_id != 0:
+        query += " AND t.project_id = ?"
+        params.append(project_id)
+    if status and status != "all":
+        query += " AND t.status = ?"
+        params.append(status)
+    if priority and priority != "all":
+        query += " AND t.priority = ?"
+        params.append(priority)
+    if search:
+        query += " AND (t.title LIKE ? OR t.description LIKE ? OR t.acceptance_criteria LIKE ?)"
+        term = f"%{search.strip()}%"
+        params.extend([term, term, term])
+
+    query += """
+        ORDER BY 
+            CASE t.status 
+                WHEN 'in_progress' THEN 1 
+                WHEN 'blocked' THEN 2 
+                WHEN 'todo' THEN 3 
+                ELSE 4 
+            END,
+            CASE t.priority 
+                WHEN 'critical' THEN 1 
+                WHEN 'high' THEN 2 
+                WHEN 'medium' THEN 3 
+                ELSE 4 
+            END,
+            t.created_at DESC
+    """
+    with get_db() as con:
+        rows = con.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_sprint_metrics(project_id: int | None = None) -> dict:
+    """
+    Calculate real-time sprint execution metrics:
+    - total tasks
+    - counts by status (todo, in_progress, blocked, done)
+    - counts by priority (critical, high, medium, low)
+    - completion rate percentage
+    - total story points & completed story points
+    """
+    with get_db() as con:
+        where = "WHERE project_id = ?" if (project_id and project_id != 0) else ""
+        params = (project_id,) if (project_id and project_id != 0) else ()
+
+        cur = con.execute(f"SELECT status, priority, COALESCE(story_points, 0) as pts FROM tasks {where}", params)
+        rows = cur.fetchall()
+
+        total = len(rows)
+        status_counts = {"todo": 0, "in_progress": 0, "blocked": 0, "done": 0}
+        priority_counts = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+        total_pts = 0
+        done_pts = 0
+
+        for r in rows:
+            st = r["status"]
+            pr = r["priority"]
+            pts = int(r["pts"] or 0)
+            if st in status_counts:
+                status_counts[st] += 1
+            if pr in priority_counts:
+                priority_counts[pr] += 1
+            total_pts += pts
+            if st == "done":
+                done_pts += pts
+
+        done_count = status_counts["done"]
+        completion_rate = round((done_count / total * 100), 1) if total > 0 else 0.0
+
+        return {
+            "total_tasks": total,
+            "status_counts": status_counts,
+            "priority_counts": priority_counts,
+            "completion_rate": completion_rate,
+            "total_story_points": total_pts,
+            "done_story_points": done_pts,
+        }
 
 
 def create_task(
@@ -398,15 +513,28 @@ def create_task(
     status: str = "todo",
     priority: str = "medium",
     due_date: str = "",
+    story_points: int = 0,
+    acceptance_criteria: str = "",
+    assignee: str = "",
 ) -> dict:
     """Create a task."""
     with get_db() as con:
         with con:
             cur = con.execute(
-                """INSERT INTO tasks (project_id, title, description, status, priority, due_date)
-                   VALUES (?, ?, ?, ?, ?, ?)
+                """INSERT INTO tasks (project_id, title, description, status, priority, due_date, story_points, acceptance_criteria, assignee)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                    RETURNING *""",
-                (project_id, title.strip(), description.strip(), status.strip(), priority.strip(), due_date.strip()),
+                (
+                    project_id,
+                    title.strip(),
+                    description.strip(),
+                    status.strip(),
+                    priority.strip(),
+                    due_date.strip(),
+                    int(story_points or 0),
+                    acceptance_criteria.strip(),
+                    assignee.strip(),
+                ),
             )
             # Touch project updated_at
             if project_id:
@@ -415,8 +543,11 @@ def create_task(
 
 
 def update_task(task_id: int, **fields) -> dict | None:
-    """Update task fields (e.g. status, priority, title, description, due_date)."""
-    allowed = {"title", "description", "status", "priority", "due_date", "project_id"}
+    """Update task fields (e.g. status, priority, title, description, due_date, story_points, acceptance_criteria, assignee)."""
+    allowed = {
+        "title", "description", "status", "priority", "due_date", "project_id",
+        "story_points", "acceptance_criteria", "assignee"
+    }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return None
@@ -428,7 +559,13 @@ def update_task(task_id: int, **fields) -> dict | None:
     with get_db() as con:
         with con:
             con.execute(f"UPDATE tasks SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?", values)
-            cur = con.execute("SELECT * FROM tasks WHERE id = ?", (task_id,))
+            cur = con.execute(
+                """SELECT t.*, p.name AS project_name, p.domain AS project_domain
+                   FROM tasks t
+                   LEFT JOIN projects p ON t.project_id = p.id
+                   WHERE t.id = ?""",
+                (task_id,),
+            )
             row = cur.fetchone()
             return dict(row) if row else None
 

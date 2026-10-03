@@ -378,7 +378,7 @@
     <aside class="sidebar">
       <div class="sb-logo">
         <span>PM_TOOL</span>
-        <span class="sb-logo-badge">v1.0</span>
+        <span class="sb-logo-badge">v1.3</span>
       </div>
 
       <nav class="sb-nav">
@@ -386,6 +386,10 @@
         <a class="nav-item active" id="nav-home" data-src="/home" onclick="navigate(this)">
           <span class="nav-icon">◈</span>
           <span>Overview</span>
+        </a>
+        <a class="nav-item" id="nav-board" data-src="/board" onclick="navigate(this)">
+          <span class="nav-icon">📋</span>
+          <span>Sprint Board</span>
         </a>
         <a class="nav-item" id="nav-chat" data-src="/chat" onclick="navigate(this)">
           <span class="nav-icon">💬</span>
@@ -405,7 +409,7 @@
       <div class="sb-version-strip" onclick="AppUpdater.checkManual()" title="Click to check for updates">
         <div style="display:flex; align-items:center; gap:6px;">
           <span class="sb-update-dot" id="sb-update-indicator" style="display:none;" title="Update ready!"></span>
-          <span id="sb-ver-text">v1.0.0 · PM Tool</span>
+          <span id="sb-ver-text">v1.3.0 · PM Tool</span>
         </div>
         <span class="sb-ver-hint">Check updates ↺</span>
       </div>
@@ -433,6 +437,7 @@
       </header>
 
       <iframe id="view-home" class="content-frame" src="/home"></iframe>
+      <iframe id="view-board" class="content-frame" src="/board" style="display:none;"></iframe>
       <iframe id="view-chat" class="content-frame" src="/chat" style="display:none;"></iframe>
       <iframe id="view-documents" class="content-frame" src="/documents" style="display:none;"></iframe>
       <iframe id="view-settings" class="content-frame" src="/settings" style="display:none;"></iframe>
@@ -481,7 +486,7 @@
     }
 
     function broadcastToFrames(payload) {
-      ['view-home', 'view-chat', 'view-documents', 'view-settings'].forEach(id => {
+      ['view-home', 'view-board', 'view-chat', 'view-documents', 'view-settings'].forEach(id => {
         const frame = document.getElementById(id);
         if (frame && frame.contentWindow) {
           try {
@@ -495,6 +500,20 @@
       if (!event.data) return;
       if (event.data.action === 'navigate' && event.data.tab) {
         navigateToTab(event.data.tab);
+        if (event.data.tab === 'board' && event.data.project_id) {
+          const boardFrame = document.getElementById('view-board');
+          if (boardFrame && boardFrame.contentWindow) {
+            setTimeout(() => {
+              try {
+                const sel = boardFrame.contentDocument ? boardFrame.contentDocument.getElementById('filter-project') : null;
+                if (sel) {
+                  sel.value = event.data.project_id;
+                  boardFrame.contentWindow.loadTasksAndMetrics();
+                }
+              } catch (_) {}
+            }, 100);
+          }
+        }
       } else if (event.data.action === 'llm_config_updated') {
         broadcastToFrames({ action: 'llm_config_updated' });
       } else if (event.data.action === 'projects_updated') {

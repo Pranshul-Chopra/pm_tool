@@ -3,6 +3,86 @@
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-03
+
+### 📋 Interactive Sprint Kanban Board & Agile Execution Engine
+- **Sprint Kanban Studio (`templates/board.html` & `/board` route)**:
+  - 4 status workflow lanes: **Backlog** (`todo`), **In Progress** (`in_progress`), **Blocked** (`blocked`), and **Completed** (`done`).
+  - Native HTML5 drag-and-drop mechanics with optimistic UI updates, visual hover targets, and background persistence (`PATCH /api/tasks/:id`).
+  - Sprint KPI metrics header: Total Tasks, Active/In-Flight items, Blockers alert badge, Velocity completion rate (`% Done`) with visual progress bar, and Fibonacci story points tracking.
+  - Multi-dimensional filtering by Project, Priority (`critical`, `high`, `medium`, `low`), and instant substring search.
+  - Dedicated "Sprint Board" sidebar tab in `shell.html` with cross-frame synchronization (`broadcastToFrames`) and direct navigation from Project Overview.
+
+### 🤖 Automated PRD-to-Story Decomposer Tool (`tools/story_decomposer.py`)
+- **Deterministic Backlog Generation (`/api/tools/breakdown` & `/breakdown` slash command)**:
+  - Analyzes raw PRD text or existing project objectives/architecture notes.
+  - Prompts LLM Gateway (8,192 token output budget) to generate 4–8 discrete, testable Agile user stories.
+  - Generates Given/When/Then acceptance criteria, priority weights, and Fibonacci story points (1, 2, 3, 5, 8).
+  - Deterministically saves generated stories into `pmtool.db` (`tasks`) with telemetry logging in `ai_context.db` (`tool_runs`).
+
+### 🗄️ Database Schema Migration v5 (`db.py`)
+- **Agile Task Columns**:
+  - Added `story_points` (INTEGER), `acceptance_criteria` (TEXT), and `assignee` (TEXT) to `tasks` table via non-destructive migration.
+  - Enhanced `get_tasks()` with joined project names/domains, status ordering, and multi-field keyword search.
+  - Added `get_sprint_metrics()` for instant calculation of lane distributions and velocity stats.
+
+## [1.2.0] - 2026-10-03
+
+### 🔄 In-App Auto-Updating & GitHub Releases Pipeline
+- **Automated Update Subsystem (`electron/main.js` & `electron/preload.js`)**:
+  - Integrated `electron-updater` with GitHub Releases (`Pranshul-Chopra/pm_tool`).
+  - Automatic background update checks executed 3 seconds after application launch and every 4 hours thereafter.
+  - Background delta downloading for NSIS installed builds using `.blockmap` differential files.
+  - Graceful backend shutdown: executes `stopFlask()` prior to calling `autoUpdater.quitAndInstall()` to release SQLite database locks and terminate all Python worker processes cleanly.
+  - Safe IPC bridge (`electronUpdater`) exposing `onStatus`, `restartAndInstall`, `checkForUpdates`, and `getInfo`.
+- **In-App Toast & Shell Status (`templates/shell.html`)**:
+  - Floating glassmorphic updater toast (`#app-updater-toast`) with real-time download progress bar and percentage display.
+  - Interactive sidebar version strip (`#sb-version-strip`) with pulsing update notification dot (`#sb-update-indicator`) and manual update check trigger.
+  - Portable mode detection providing direct browser download links to the release.
+- **Automated CI/CD Workflow (`.github/workflows/release.yml`)**:
+  - GitHub Actions workflow compiling the Flask backend with PyInstaller and packaging the Electron app via `electron-builder --publish always` upon pushing `v*` git tags.
+
+### 🎨 Bespoke PmT Brand Identity & Multi-Resolution Icons
+- **New App Icon Design (`static/icon.png`, `electron/icon.png`, `electron/icon.ico`)**:
+  - Replaced legacy "Pos" branding with distinctive, professional **PmT** (Product Management Tool) icon.
+  - Crisp off-white (`#EEEBEA`) "P" on the left paired with warm amber-orange (`#F29E24`) "mT" on the right, aligned on the same bottom baseline.
+  - Solid dark charcoal matte squircle container (`#161515`) with transparent corners.
+  - Generated full multi-resolution Windows icon (`icon.ico` with 16px, 24px, 32px, 48px, 64px, 128px, 256px), `favicon.ico`, and high-resolution `icon.png` (1024×1024 RGBA).
+
+### ⚡ Interactive Buttonish Slash Command Pill Container
+- **Pill Container inside Chat Input (`templates/chat.html`)**:
+  - Selecting a slash command from the suggestions menu, clicking a quick chip, or typing `/cmd ` transforms the command into an interactive button-like badge container (`#active-command-pill`) directly before the input textarea.
+  - Color-coded glowing badge styles matching the slash suggestion menu:
+    - `/search`: Cyan (`mode-search`)
+    - `/prd` & `/summarize`: Purple (`mode-doc`)
+    - `/plan` & `/metrics`: Amber (`mode-plan`)
+    - `/chat`: Blue (`mode-chat`)
+  - Integrated `✕` remove button and keyboard Backspace deletion when textarea is empty.
+  - Contextual placeholder updates guiding the user on mode-specific prompt phrasing.
+  - Outgoing and historical user messages format active slash commands with colored badge pills.
+
+### 📑 Deterministic Document Summarizer & 8,192 Max Output Tokens
+- **Deterministic Summarization Tool (`tools/summarizer.py`)**:
+  - Deterministic document summarizer tool producing structured executive briefs with ISO metadata frontmatter and SHA256 integrity verification.
+  - Full execution telemetry auditing into `ai_context.db` (`tool_runs`).
+  - Source document word budget expanded from 12,000 words to **30,000 words**.
+- **Increased LLM Generation Budget (`llm/gateway.py`)**:
+  - Maximum output token budget raised from 4,096 to **8,192 tokens** across all AI providers (Gemini `maxOutputTokens: 8192`, Ollama `num_predict: 8192` with `num_ctx: 16384`, and OpenAI-compatible endpoints).
+
+### 📊 Documents Table Dual Scrollbars & Sticky Headers
+- **Table Navigation (`templates/documents.html`)**:
+  - Wrapped indexed documents table in `.table-scroll-wrap` with horizontal and vertical scrolling (`max-height: 480px; overflow-x: auto;`).
+  - Enforced table `min-width: 860px` to guarantee action buttons and metadata never wrap or squash on compact displays.
+  - Sticky table headers (`th { position: sticky; top: 0; z-index: 5 }`) anchored during vertical scrolling.
+  - Dark-theme styled scrollbars matching the application color palette.
+
+### 🔌 Dynamic Cascading Port Collision Resilience
+- **Multi-Port Handshake (`routes.py` & `electron/main.js`)**:
+  - Cascading port binding across ports `5050` through `5065` preventing collisions with other local developer tools.
+  - Tri-channel handshake discovery via stdout regex, `%LOCALAPPDATA%\PMTool\runtime_port.json`, and cascading HTTP `/api/ping` probes.
+
+---
+
 ## [1.1.0-mvp] - 2026-10-03
 
 ### 📚 Local-First RAG Subsystem & Knowledge Base

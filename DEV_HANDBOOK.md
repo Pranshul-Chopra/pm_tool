@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 1.0.0-mvp  
+**Current Version:** 1.3.0  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -27,20 +27,26 @@ Instead of the standard brittle approach of dumping all files into a vector stor
 │  (electron/main.js & electron/preload.js)                              │
 │                                                                        │
 │  ├── Sandboxed Chromium Window (autoHideMenuBar, custom styling)       │
-│  ├── Auto-spawns & manages local Flask HTTP server                     │
+│  ├── Cascading Port Collision Resilience (probes 5050..5065)           │
+│  ├── Process Supervisor: auto-spawns & manages local Flask HTTP server │
+│  ├── In-App Auto-Updater (electron-updater + GitHub Releases)          │
+│  │   ├── Startup probe (3s delay) + recurring 4-hour background poll   │
+│  │   ├── In-app toast + sidebar update badge + progress bar            │
+│  │   └── Graceful Flask tree-kill (stopFlask) before quitAndInstall()  │
 │  ├── Electron Notification Bridge (electron-notify IPC)                │
-│  └── Graceful taskkill /t tree-kill on window exit                     │
+│  └── Preload Bridges: electronUpdater, electronNotifier, electronEnv   │
 └───────────────────────────────────┬────────────────────────────────────┘
-                                    │ HTTP on http://127.0.0.1:5050
+                                    │ HTTP on 127.0.0.1:5050..5065
                                     ▼
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        FLASK APPLICATION                               │
 │  (main.py + routes.py + notifier.py)                                   │
 │                                                                        │
-│  ├── Local-only binding (127.0.0.1:5050, configurable via PM_TOOL_PORT)│
+│  ├── Cascading port binding (5050..5065, dynamic discovery handshake)  │
 │  ├── Security middleware (strict Origin & Sec-Fetch-Site validation)   │
 │  ├── Security headers & CSP (offline font loading, nosniff, DENY frame)│
-│  └── RESTful APIs for entities, workspace, and AI lifecycle            │
+│  ├── Deterministic Tool Dispatch (document_generator, summarizer, etc.)│
+│  └── RESTful APIs for entities, workspace, sprint board, and AI RAG    │
 └──────────────┬──────────────────────────────────────────┬──────────────┘
                │                                          │
                ▼                                          ▼
@@ -50,8 +56,8 @@ Instead of the standard brittle approach of dumping all files into a vector stor
 │                              │          │   AIContextTool)             │
 │  └── pmtool.db               │          │                              │
 │      ├── projects            │          │  ├── ai_context.db           │
-│      ├── tasks               │          │  │   ├── conversations       │
-│      ├── decisions (v1.1)    │          │  │   ├── messages            │
+│      ├── tasks (v5 agile)    │          │  │   ├── conversations       │
+│      ├── decisions           │          │  │   ├── messages            │
 │      ├── app_settings        │          │  │   └── tool_runs           │
 │      └── ai_config (enc)     │          │  └── chroma/ (vector store)  │
 └──────────────────────────────┘          └──────────────┬───────────────┘
@@ -73,13 +79,16 @@ Instead of the standard brittle approach of dumping all files into a vector stor
 
 ```text
 pm_tool/
+├── .github/
+│   └── workflows/
+│       └── release.yml      # Automated GitHub Actions CI/CD for packaging & releases
 ├── .gitignore               # Git exclusion list
 ├── README.md                # Quick-start instructions
-├── RELEASE_WORKFLOW.md      # Automated packaging and publishing guide
+├── RELEASE_WORKFLOW.md      # Automated packaging, publishing, and auto-update guide
 ├── CHANGELOG.md             # Semantic versioning history
 ├── DEV_HANDBOOK.md          # Technical handbook and architecture specification
 ├── requirements.txt         # Python dependencies (Flask, requests, plyer, pypdf, python-docx)
-├── version.json             # Source of truth for app version
+├── version.json             # Single source of truth for app version (v1.3.0)
 ├── main.py                  # Flask application factory, server lifecycle, ping checks
 ├── routes.py                # REST API controllers and template renderers
 ├── db.py                    # SQLite connection pool, WAL mode, schema migrations (pmtool.db)
@@ -100,26 +109,29 @@ pm_tool/
 │
 ├── tools/                   # PM productivity tools
 │   ├── __init__.py
-│   └── document_generator.py # Formats markdown into professionally styled .docx documents
+│   ├── document_generator.py # Formats markdown into professionally styled .docx documents
+│   ├── summarizer.py        # Deterministic document brief summarizer with 8K token budget
+│   └── story_decomposer.py  # Deterministic PRD-to-Agile story decomposer with acceptance criteria
 │
 ├── electron/                # Desktop shell
-│   ├── package.json         # Electron scripts and builder configuration
-│   ├── main.js              # Cascading port discovery, process supervisor and window manager
-│   ├── preload.js           # Isolated IPC bridge
-│   ├── icon.ico             # Windows application icon
-│   └── icon.png             # Taskbar/notification icon
+│   ├── package.json         # Electron scripts, auto-updater publish target, builder configuration
+│   ├── main.js              # Cascading port discovery, process supervisor, auto-updater lifecycle
+│   ├── preload.js           # Isolated IPC bridge (electronUpdater, electronNotifier, electronEnv)
+│   ├── icon.ico             # Windows application icon (PmT branding)
+│   └── icon.png             # Taskbar/notification icon (PmT branding)
 │
 ├── static/                  # Static assets served by Flask
-│   ├── favicon.ico
-│   ├── icon.png
+│   ├── favicon.ico          # PmT favicon
+│   ├── icon.png             # PmT web icon
 │   └── fonts/               # Offline IBM Plex Sans & Mono woff2 fonts
 │       └── ibmflex.css
 │
 └── templates/               # Jinja2 HTML templates
-    ├── shell.html           # Main workstation layout with multi-tab iframe manager
+    ├── shell.html           # Main workstation layout, multi-tab iframe manager, in-app updater toast
     ├── home.html            # Product workspace, initiatives, roadmaps, backlog manager
-    ├── chat.html            # AI Copilot studio with verified citations & DOCX export
-    ├── documents.html       # Knowledge Base manager, FTS5 test bench, and chunk inspector
+    ├── board.html           # Interactive drag-and-drop Sprint Kanban Board & velocity tracker
+    ├── chat.html            # AI Copilot studio with buttonish slash command pill & DOCX export
+    ├── documents.html       # Knowledge Base manager, dual-scrollbar table, FTS5 test bench
     └── settings.html        # AI model configuration, cascading test probes, secret manager
 ```
 
@@ -397,3 +409,215 @@ assert client.get('/api/llm/status').status_code == 200;
 print('All core smoke tests passed!')
 "
 ```
+
+---
+
+## 10. In-App Auto-Update & GitHub Releases Architecture
+
+PM Tool features a fully automated, background-first update system powered by `electron-updater` and GitHub Releases.
+
+```text
+┌────────────────────────┐         ┌────────────────────────┐
+│  GitHub Releases CDN   │         │ Electron Desktop Shell │
+│  (Pranshul-Chopra/     │         │                        │
+│   pm_tool)             │         │ ┌────────────────────┐ │
+│                        │         │ │ autoUpdater Engine │ │
+│ ├── latest.yml ────────┼─────────┼─┤ (electron-updater) │ │
+│ ├── PMTool-Setup.exe   │ HTTP GET│ └─────────┬──────────┘ │
+│ └── *.exe.blockmap ────┼─────────┼───────────┘            │
+└────────────────────────┘         │                        │
+                                   │ IPC 'updater-status'   │
+                                   ▼                        │
+                         ┌────────────────────┐             │
+                         │ In-App Toast &     │             │
+                         │ Sidebar Indicator  │             │
+                         └────────────────────┘             │
+                                   │                        │
+                                   │ User clicks "Restart"  │
+                                   ▼                        │
+                         ┌────────────────────┐             │
+                         │ stopFlask()        │             │
+                         │ Tree-kill Python   │             │
+                         └─────────┬──────────┘             │
+                                   │ SQLite locks released  │
+                                   ▼                        │
+                         ┌────────────────────┐             │
+                         │ quitAndInstall()   │             │
+                         │ Silent NSIS Apply  │             │
+                         └────────────────────┘             │
+```
+
+### 1. Update Lifecycle & Scheduling
+- **Startup Probe:** Triggered 3 seconds post-initialization. This ensures the local Flask HTTP server and SQLite databases have finished initialization before network queries begin.
+- **Periodic Background Polling:** Runs automatically every 4 hours (`4 * 60 * 60 * 1000` ms).
+- **Manual User Trigger:** Users can check on demand by clicking the sidebar version footer (`#sb-version-strip`), which dispatches `updater-check` to the main process.
+
+### 2. Preload Bridge API (`window.electronUpdater`)
+Exposed securely via `electron/preload.js` with `contextIsolation: true`:
+- `onStatus(callback)`: Registers listener for status events (`checking`, `available`, `downloading`, `downloaded`, `not-available`, `error`).
+- `checkForUpdates()`: Dispatches manual update check to main process.
+- `restartAndInstall()`: Triggers graceful shutdown and silent NSIS installer application.
+- `getInfo()`: Queries current app version, packaging state, and portable mode status.
+
+### 3. Graceful Shutdown & File Lock Prevention
+On Windows systems, SQLite databases (`pmtool.db`, `ai_context.db`) and executable binaries in `%LOCALAPPDATA%` lock while child processes are active. When `updater-restart-install` fires:
+1. `stopFlask()` executes `taskkill /F /T /PID <flaskPid>` (or sends SIGTERM to the process tree).
+2. The Electron main process pauses until the Flask backend has terminated and all file handles are closed.
+3. `autoUpdater.quitAndInstall(false, true)` is invoked, executing the NSIS installer without encountering `EBUSY` or locked-file errors.
+
+### 4. Differential Blockmap Downloads
+`electron-builder` generates `.blockmap` files alongside the installer. When updating:
+- `electron-updater` reads `latest.yml` to identify the current release.
+- If an existing version is installed, only the modified blocks are downloaded rather than the full installer binary, drastically reducing bandwidth and update time.
+
+### 5. Portable Mode Fallback
+If running in portable mode (`process.env.PORTABLE_EXECUTABLE_DIR` is detected):
+- Automatic download is disabled (`autoUpdater.autoDownload = false`).
+- When an update is detected, the UI displays a notification linking directly to the GitHub Release tag for manual archive extraction.
+
+---
+
+## 11. Deterministic Document Summarizer & 8K Token Budget
+
+The Document Summarizer tool ([`tools/summarizer.py`](file:///C:/Users/Pranshul%20Chopra/OneDrive/Desktop/Project/pm_tool/tools/summarizer.py)) produces executive-grade Markdown briefs from uploaded or indexed company documents and deterministically persists them to a user-specified filesystem location.
+
+### 1. Ingestion & Token Budgets
+- **Source Document Threshold:** Up to **30,000 words** of extracted document text (from PDF, DOCX, TXT, MD, CSV, JSON). Section headers and document structure are preserved.
+- **Expanded Output Budget:** Max output tokens set to **8,192** (upgraded from 2,048) in the LLM Gateway invocation. This guarantees complete, un-truncated coverage of multi-section enterprise specifications.
+- **Deterministic Parameterization:** Operates at low temperature (`0.2`) and focused sampling (`top_p: 0.95`) to prevent hallucination and strictly mirror source data.
+
+### 2. Standardized 6-Section Schema
+Every generated summary adheres to the following structure:
+1. `## 1. Executive Summary & Objective` — High-level business purpose, strategic thesis, and core problems.
+2. `## 2. Core Architecture & System Specifications` — Technical components, data flows, and integration contracts.
+3. `## 3. Key Decisions, Constraints & Trade-Offs` — Architectural choices, evaluated alternatives, and dependencies.
+4. `## 4. Success Metrics & Quantitative Acceptance Criteria` — Measurable KPIs, SLAs, performance baselines, and quality gates.
+5. `## 5. Identified Risks, Blockers & Open Questions` — Security concerns, failure modes, and unvalidated assumptions.
+6. `## 6. Actionable Next Steps & Engineering Tasks` — Prioritized action items labeled `[P0]`, `[P1]`, `[P2]`.
+
+### 3. File System Persistence & Integrity Frontmatter
+Summaries are written directly to the target `.md` file with cryptographic integrity frontmatter:
+```markdown
+---
+document_title: "Executive Document Brief: Architecture_Spec.pdf"
+source_file: "C:/Projects/Docs/Architecture_Spec.pdf"
+source_sha256: "a1b2c3d4..."
+output_sha256: "e5f6g7h8..."
+generated_at: "2026-10-03T18:30:00Z"
+generator: "PM Tool Deterministic Summarizer v1.2"
+word_count: 2450
+---
+```
+Every execution is audited into `ai_context.db` under `tool_runs` with execution latency, status, input parameters, and file verification telemetry.
+
+---
+
+## 12. Modern UI/UX Architecture: Command Pills & Dual Scrollbars
+
+### 1. Interactive Buttonish Slash Command Pill
+The Copilot chat interface ([`templates/chat.html`](file:///C:/Users/Pranshul%20Chopra/OneDrive/Desktop/Project/pm_tool/templates/chat.html)) provides a button-like slash command container:
+- Typing `/` triggers an auto-complete dropdown of deterministic tools (`/summarize`, `/draft-prd`, `/search-decisions`, `/create-task`).
+- Selecting an action replaces the raw text slash command with an interactive **command pill** container styled with the application's amber accent theme (`--amber: #f59e0b`, `--amber-glow`).
+- The pill container includes a clear/remove handle (`×`) that allows the user to dismiss the command and return to free-text mode with a single click or backspace.
+
+### 2. Knowledge Base Dual-Scrollbar Architecture
+The Document Explorer table ([`templates/documents.html`](file:///C:/Users/Pranshul%20Chopra/OneDrive/Desktop/Project/pm_tool/templates/documents.html)) features synchronized dual-axis scrolling:
+- Wrapped in `.table-scroll-container` with `overflow-x: auto; overflow-y: auto; max-height: 480px;`.
+- Table column headers utilize `position: sticky; top: 0; z-index: 10;` with solid background rendering to prevent see-through text collisions during vertical scroll.
+- Handles deep file system paths (`C:\Very\Deep\Folder\Structure\...`) and wide metadata columns without viewport clipping or table blowout.
+- Integrated dark-carbon scrollbar styling (`::-webkit-scrollbar`) with `#1f242d` tracks and `#333b47` hoverable thumbs matching the core application aesthetic.
+
+---
+
+## 13. Cascading Port Discovery & Process Lifecycle
+
+To eliminate port collision issues caused by zombie processes, developer servers, or competing local services, PM Tool uses a cascading handshake mechanism across 16 ports (`5050` through `5065`):
+
+1. **Port Probe:** The Electron supervisor sequentially tests ports in the range `5050..5065` via TCP socket connections to determine availability.
+2. **Environment Injection:** The first free port is selected and passed to the Flask backend via `PM_TOOL_PORT`.
+3. **Health Handshake:** Electron polls `http://127.0.0.1:<port>/api/ping` with exponential backoff (up to 15 seconds) until HTTP 200 is confirmed.
+4. **Window Presentation:** The main Chromium window is revealed only after the backend health check succeeds, preventing white-screen errors or connection refused screens.
+5. **Clean Teardown:** On window close or update installation, `taskkill` ensures the entire Python process tree is terminated, freeing the port immediately.
+
+---
+
+## 14. Sprint Kanban & Agile Execution Engine (v1.3.0)
+
+Version 1.3.0 transforms PM Tool from a planning copilot into an active sprint execution environment via a dedicated **Sprint Kanban Board** ([`templates/board.html`](file:///C:/Users/Pranshul%20Chopra/OneDrive/Desktop/Project/pm_tool/templates/board.html)) and an automated PRD-to-Story Decomposer ([`tools/story_decomposer.py`](file:///C:/Users/Pranshul%20Chopra/OneDrive/Desktop/Project/pm_tool/tools/story_decomposer.py)).
+
+### 1. Kanban Workflow Lanes & Drag-and-Drop Lifecycle
+The board organizes tasks across four status lanes:
+- `📋 Backlog` (`todo`): Groomed user stories awaiting sprint allocation.
+- `⚡ In Progress` (`in_progress`): Active engineering or design deliverables.
+- `⚠️ Blocked` (`blocked`): Items impeded by cross-team dependencies, reviews, or technical debt.
+- `✅ Completed` (`done`): Finished deliverables meeting acceptance criteria.
+
+Drag-and-drop utilizes the native HTML5 Drag and Drop API with optimistic UI updates:
+1. `dragstart`: Attaches task ID and sets dragging visual styling.
+2. `dragover` / `dragleave`: Highlights target column with amber glow border.
+3. `drop`: Optimistically moves DOM card to target lane, dispatches `PATCH /api/tasks/:id` with `{ status: newStatus }`, recalculates sprint velocity metrics, and broadcasts updates to peer frames.
+
+### 2. Database Schema Migration v5 (`db.py`)
+To elevate simple task records to rich Agile user stories, Schema Migration v5 extends the `tasks` table with:
+- `story_points INTEGER DEFAULT 0`: Fibonacci story points (1, 2, 3, 5, 8, 13).
+- `acceptance_criteria TEXT DEFAULT ''`: Bulleted, verifiable Given/When/Then conditions.
+- `assignee TEXT DEFAULT ''`: Engineering lead or stakeholder handle.
+
+### 3. Automated PRD-to-Story Decomposer (`tools/story_decomposer.py`)
+Triggered via `/breakdown` or the board header:
+1. Gathers context from raw input or active project parameters (domain, goals, tech stack).
+2. Prompts the LLM Gateway (8,192 token limit) to synthesize 4–8 discrete, testable Agile stories following standard persona formats (`As a [persona], I want [action] so that [outcome]`).
+3. Formulates structured Given/When/Then acceptance criteria and Fibonacci point estimates.
+4. Deterministically inserts stories into `pmtool.db` (`tasks`) and audits telemetry into `ai_context.db` (`tool_runs`).
+
+---
+
+## 15. Future Architecture Blueprint: DB/Data-to-Dashboard Engine & Safe AI Guardrails (Roadmap Vision)
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│               INTELLIGENT DB / FILE TO DASHBOARD STUDIO                │
+├──────────────────────────┬─────────────────────────────────────────────┤
+│  Data Source Connectors  │  • Excel (.xlsx/.xls via openpyxl)          │
+│                          │  • CSV / JSON Data Files                    │
+│                          │  • Relational DBs (SQLite, PostgreSQL, MySQL)│
+├──────────────────────────┼─────────────────────────────────────────────┤
+│  User KPI Studio         │  • Metric schema: name, formula, target     │
+│                          │  • Aggregation: SUM, AVG, COUNT, GROWTH     │
+│                          │  • Visual tiles: burnup, velocity, charts   │
+├──────────────────────────┼─────────────────────────────────────────────┤
+│  Guarded AI Sandbox      │  • Schema-only context (zero PII exposure)  │
+│  (Controlled Access)     │  • Read-only query contracts (no mutations) │
+│                          │  • OOM & Row Ceiling Guard (max 100 rows)   │
+│                          │  • Sensitive column redaction / PII masking │
+│                          │  • Audit logging in ai_context.db           │
+└──────────────────────────┴─────────────────────────────────────────────┘
+```
+
+### 1. Data Ingestion & Metric Definition Schema
+Users connect external data files or databases to derive business KPIs:
+- **Connectors**:
+  - File: Local Excel spreadsheets (`.xlsx`, `.xls`), CSV exports, and structured JSON.
+  - Relational: Read-only SQLite files, local/remote PostgreSQL and MySQL connection handles.
+- **KPI Entity Schema (`kpis` table in `pmtool.db`)**:
+  - `name`: Human-readable KPI label (e.g. "Sprint Story Completion Velocity").
+  - `data_source_id`: Reference to connected database or file dataset.
+  - `calculation_type`: Analytical function (`sum`, `avg`, `count`, `ratio`, `growth_rate`).
+  - `target_value`: Milestone goal or SLA threshold.
+  - `dimension_column` & `time_grain`: Grouping parameters (Daily, Weekly, Monthly, Sprint).
+
+### 2. The "Guarded Data Sandbox": Safe AI Access Principles
+To grant AI contextual awareness of integrations without risking security or privacy, access is governed by strict boundaries:
+
+1. **Schema-Only Context Ingestion:**
+   The AI context engine only sees table schemas, column data types, field descriptions, and statistical value ranges (e.g. *"table orders has 14,000 rows, date span Q1-Q3 2026"*). Raw user records and sensitive row data are NEVER dumped into LLM prompt context.
+2. **Read-Only Analytical Contract:**
+   The AI cannot execute arbitrary SQL queries. All AI data requests must route through a guarded analytical dispatcher (`run_analytics_query`) with an AST validator blocking any DDL or DML statements (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `GRANT`, `EXEC`).
+3. **Resource & OOM Bounds:**
+   Queries enforced with mandatory `LIMIT 100` caps and execution timeouts (max 3,000ms) to ensure desktop responsiveness.
+4. **PII Masking & Column Blacklists:**
+   Fields classified as sensitive (`email`, `phone`, `password`, `ssn`, `auth_token`, `compensation`) are automatically redacted from analytical results returned to the AI.
+5. **Auditing & Human-in-the-Loop Confirmation:**
+   Every query executed is recorded in `ai_context.db` (`tool_runs`), with user confirmation prompts required for external database connections.
+
+

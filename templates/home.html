@@ -111,35 +111,136 @@
     .btn-secondary:hover { background: var(--border); }
     .btn-sm { padding: 4px 10px; font-size: 11px; }
 
+    /* ── Quick Capabilities Hub ── */
+    .quick-launch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .quick-launch-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .quick-launch-card:hover {
+      border-color: var(--amber-dim);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    .quick-launch-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: transparent;
+      transition: background 0.15s ease;
+    }
+
+    .quick-launch-card:hover::before {
+      background: var(--amber);
+    }
+
+    .ql-top {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .ql-icon {
+      font-size: 22px;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .ql-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+
+    .ql-desc {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.4;
+    }
+
+    .ql-action {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--amber);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: 600;
+    }
+
     /* ── Metric Cards ── */
     .metric-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
     }
 
     .metric-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
     }
 
     .metric-label {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text2);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      margin-bottom: 6px;
+    }
+
+    .metric-val-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
     }
 
     .metric-val {
-      font-size: 26px;
+      font-size: 22px;
       font-weight: 600;
       font-family: var(--mono);
       color: var(--text);
+    }
+
+    .metric-sub {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: var(--mono);
     }
 
     /* ── Search & Filter Toolbar ── */
@@ -435,29 +536,91 @@
   <!-- Header -->
   <div class="view-header">
     <div>
-      <h1 class="view-title">Product Workspace</h1>
-      <p class="view-subtitle">Manage enterprise projects, roadmaps, goals, and sprint backlog</p>
+      <h1 class="view-title">
+        <span>Product Workspace</span>
+        <span style="font-size: 11px; font-weight: normal; background: var(--amber-faint); border: 1px solid var(--amber-dim); color: var(--amber); padding: 1px 6px; border-radius: 4px; font-family: var(--mono);">v1.3.0</span>
+      </h1>
+      <p class="view-subtitle">Local-first product management copilot: roadmaps, sprint execution, and AI reasoning</p>
     </div>
-    <button class="btn" onclick="openNewProjectModal()">+ New Project</button>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="btn-secondary" onclick="navigateParent('board')">📋 Sprint Board</button>
+      <button class="btn-secondary" onclick="navigateParent('chat')">💬 AI Copilot</button>
+      <button class="btn" onclick="openNewProjectModal()">+ New Project</button>
+    </div>
+  </div>
+
+  <!-- Capabilities Quick-Launch Hub -->
+  <div class="quick-launch-grid">
+    <div class="quick-launch-card" onclick="navigateParent('board')">
+      <div class="ql-top">
+        <div class="ql-icon">📋</div>
+        <div>
+          <div class="ql-title">Sprint Kanban Board</div>
+          <div class="ql-desc">Interactive drag-and-drop workflow lanes, story points, and sprint velocity tracking.</div>
+        </div>
+      </div>
+      <div class="ql-action">Open Sprint Board →</div>
+    </div>
+
+    <div class="quick-launch-card" onclick="navigateParent('chat')">
+      <div class="ql-top">
+        <div class="ql-icon">💬</div>
+        <div>
+          <div class="ql-title">AI Copilot &amp; PRD Studio</div>
+          <div class="ql-desc">Draft PRDs, decompose stories, and query decision records with an expanded 8K token budget.</div>
+        </div>
+      </div>
+      <div class="ql-action">Launch Copilot →</div>
+    </div>
+
+    <div class="quick-launch-card" onclick="navigateParent('documents')">
+      <div class="ql-top">
+        <div class="ql-icon">📁</div>
+        <div>
+          <div class="ql-title">Knowledge Base &amp; RAG</div>
+          <div class="ql-desc">Local-first ingestion of PDF, DOCX, and Markdown files with BM25 hybrid chunk search.</div>
+        </div>
+      </div>
+      <div class="ql-action">Browse Knowledge →</div>
+    </div>
   </div>
 
   <!-- Metric Grid -->
   <div class="metric-grid">
     <div class="metric-card">
-      <div class="metric-label">Active Projects</div>
-      <div class="metric-val" id="stat-projects">0</div>
+      <div class="metric-label">Active Initiatives</div>
+      <div class="metric-val-wrap">
+        <div class="metric-val" id="stat-projects">0</div>
+        <div class="metric-sub" id="stat-projects-sub">projects</div>
+      </div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">On Track</div>
-      <div class="metric-val" id="stat-ontrack" style="color: var(--green);">0</div>
+      <div class="metric-label">Sprint Velocity</div>
+      <div class="metric-val-wrap">
+        <div class="metric-val" id="stat-velocity" style="color: var(--green);">0%</div>
+        <div class="metric-sub">completion</div>
+      </div>
     </div>
     <div class="metric-card">
-      <div class="metric-label">At Risk / Blocked</div>
-      <div class="metric-val" id="stat-atrisk" style="color: var(--amber);">0</div>
+      <div class="metric-label">In-Flight / Blocked</div>
+      <div class="metric-val-wrap">
+        <div class="metric-val" id="stat-active" style="color: var(--amber);">0</div>
+        <div class="metric-sub" id="stat-blocked-sub">/ 0 blocked</div>
+      </div>
     </div>
     <div class="metric-card">
       <div class="metric-label">Total Backlog Tasks</div>
-      <div class="metric-val" id="stat-tasks">0</div>
+      <div class="metric-val-wrap">
+        <div class="metric-val" id="stat-tasks">0</div>
+        <div class="metric-sub" id="stat-points">0 pts</div>
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Knowledge Base</div>
+      <div class="metric-val-wrap">
+        <div class="metric-val" id="stat-docs">0</div>
+        <div class="metric-sub" id="stat-chunks-sub">0 chunks</div>
+      </div>
     </div>
   </div>
 
@@ -614,31 +777,59 @@
 
     async function loadProjects() {
       try {
-        const res = await fetch('/api/projects');
-        const data = await res.json();
-        allProjects = data.projects || [];
+        const [projRes, metricRes, docRes] = await Promise.all([
+          fetch('/api/projects').catch(() => null),
+          fetch('/api/tasks/metrics').catch(() => null),
+          fetch('/api/documents').catch(() => null)
+        ]);
+
+        const projData = projRes ? await projRes.json() : { projects: [] };
+        const metricData = metricRes ? await metricRes.json() : {};
+        const docData = docRes ? await docRes.json() : {};
+
+        allProjects = projData.projects || [];
         renderProjects(allProjects);
-        updateMetrics(allProjects);
+        updateMetrics(allProjects, metricData, docData);
       } catch (err) {
         console.error('Failed to load projects:', err);
       }
     }
 
-    function updateMetrics(projects) {
+    function updateMetrics(projects, sprintMetrics = {}, docData = {}) {
       document.getElementById('stat-projects').textContent = projects.length;
-      let onTrack = 0;
-      let atRisk = 0;
-      let totalTasks = 0;
+      const subProj = document.getElementById('stat-projects-sub');
+      if (subProj) subProj.textContent = projects.length === 1 ? 'initiative' : 'initiatives';
 
-      projects.forEach(p => {
-        if (p.health === 'on_track') onTrack++;
-        if (p.health === 'at_risk' || p.health === 'blocked') atRisk++;
-        totalTasks += (p.task_count || 0);
-      });
+      const rate = sprintMetrics.completion_rate || 0;
+      const velEl = document.getElementById('stat-velocity');
+      if (velEl) velEl.textContent = `${rate}%`;
 
-      document.getElementById('stat-ontrack').textContent = onTrack;
-      document.getElementById('stat-atrisk').textContent = atRisk;
-      document.getElementById('stat-tasks').textContent = totalTasks;
+      const inFlight = (sprintMetrics.status_counts && sprintMetrics.status_counts.in_progress) || 0;
+      const blocked = (sprintMetrics.status_counts && sprintMetrics.status_counts.blocked) || 0;
+      const actEl = document.getElementById('stat-active');
+      if (actEl) actEl.textContent = inFlight;
+      const blkEl = document.getElementById('stat-blocked-sub');
+      if (blkEl) blkEl.textContent = `/ ${blocked} blocked`;
+
+      const totalTasks = sprintMetrics.total_tasks || 0;
+      const totalPts = sprintMetrics.total_story_points || 0;
+      const taskEl = document.getElementById('stat-tasks');
+      if (taskEl) taskEl.textContent = totalTasks;
+      const ptsEl = document.getElementById('stat-points');
+      if (ptsEl) ptsEl.textContent = `${totalPts} pts`;
+
+      const docCount = docData.count || 0;
+      const chunkCount = docData.total_chunks || 0;
+      const docEl = document.getElementById('stat-docs');
+      if (docEl) docEl.textContent = docCount;
+      const chkEl = document.getElementById('stat-chunks-sub');
+      if (chkEl) chkEl.textContent = `${chunkCount} chunks`;
+    }
+
+    function navigateParent(tab) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ action: 'navigate', tab: tab }, '*');
+      }
     }
 
     function filterProjects() {
@@ -666,9 +857,17 @@
       if (!projects || projects.length === 0) {
         container.innerHTML = `
           <div class="empty-state">
-            <div style="font-size:32px; margin-bottom:12px;">📂</div>
-            <div style="font-size:15px; font-weight:600; color:var(--text); margin-bottom:4px;">No projects found</div>
-            <p>Create your first project to organize PRDs, backlog tasks, and goals.</p>
+            <div style="font-size:36px; margin-bottom:12px;">🚀</div>
+            <div style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:6px;">No initiatives found</div>
+            <p style="max-width:480px; margin: 0 auto 16px; font-size:13px; line-height:1.4; color:var(--text2);">
+              Get started by creating your first product initiative, or explore the Sprint Board and Knowledge Base:
+            </p>
+            <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+              <button class="btn btn-sm" onclick="openNewProjectModal()">+ Create Initiative</button>
+              <button class="btn-secondary btn-sm" onclick="applyProjectPreset('saas'); openNewProjectModal();">⚡ Load SaaS Template</button>
+              <button class="btn-secondary btn-sm" onclick="navigateParent('board')">📋 Sprint Board</button>
+              <button class="btn-secondary btn-sm" onclick="navigateParent('documents')">📁 Knowledge Base</button>
+            </div>
           </div>
         `;
         return;
@@ -718,10 +917,11 @@
             </div>
 
             <div class="card-actions">
-              <div style="display:flex; gap:6px;">
-                <button class="btn-secondary btn-sm" onclick="openProjectDetail(${p.id})">📋 Backlog (${p.task_count || 0})</button>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button class="btn-secondary btn-sm" onclick="openProjectDetail(${p.id})">📋 Details (${p.task_count || 0})</button>
+                <button class="btn-secondary btn-sm" style="color:var(--amber);" onclick="openInSprintBoard(${p.id})">⚡ Sprint Board</button>
                 <button class="btn-secondary btn-sm" onclick="discussInCopilot(${p.id})">💬 Copilot</button>
-                <button class="btn-secondary btn-sm" style="color:var(--amber);" onclick="generatePRDInCopilot(${p.id}, '${escapeJs(p.name)}', '${escapeJs(p.goals || '')}')">📝 PRD</button>
+                <button class="btn-secondary btn-sm" onclick="generatePRDInCopilot(${p.id}, '${escapeJs(p.name)}', '${escapeJs(p.goals || '')}')">📝 PRD</button>
               </div>
               <button class="btn-secondary btn-sm" style="color:var(--red);" onclick="deleteProject(event, ${p.id})" title="Delete">🗑️</button>
             </div>
@@ -826,8 +1026,9 @@
             <div style="margin-top:12px; border-top:1px solid var(--border); padding-top:16px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div class="metric-label" style="margin:0;">Project Tasks (${tasks.length})</div>
-                <div style="display:flex; gap:6px;">
-                  <button class="btn-secondary btn-sm" style="color:var(--amber);" onclick="generatePRDInCopilot(${p.id}, '${escapeJs(p.name)}', '${escapeJs(p.goals || '')}')">📝 Draft PRD</button>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                  <button class="btn-secondary btn-sm" style="color:var(--amber);" onclick="openInSprintBoard(${p.id})">⚡ Sprint Board</button>
+                  <button class="btn-secondary btn-sm" onclick="generatePRDInCopilot(${p.id}, '${escapeJs(p.name)}', '${escapeJs(p.goals || '')}')">📝 Draft PRD</button>
                   <button class="btn btn-sm" onclick="discussInCopilot(${p.id})">💬 Discuss in Copilot</button>
                 </div>
               </div>
@@ -1020,6 +1221,15 @@
         tab: 'chat',
         project_id: projectId,
         prompt: ''
+      }, '*');
+    }
+
+    function openInSprintBoard(projectId) {
+      closeDetailModal();
+      window.parent.postMessage({
+        action: 'navigate',
+        tab: 'board',
+        project_id: projectId
       }, '*');
     }
 

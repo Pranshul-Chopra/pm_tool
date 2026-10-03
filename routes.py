@@ -45,6 +45,11 @@ def home():
     return render_template("home.html")
 
 
+@bp.route("/board")
+def board_page():
+    return render_template("board.html")
+
+
 @bp.route("/chat")
 def chat_page():
     return render_template("chat.html")
@@ -83,7 +88,7 @@ def status():
     return jsonify({
         "status": "healthy",
         "app": "PM Tool",
-        "version": "1.0.0",
+        "version": "1.3.0",
         "counts": {
             "projects": project_count,
             "tasks": task_count,
@@ -209,12 +214,49 @@ def tasks():
             status=data.get("status", "todo"),
             priority=data.get("priority", "medium"),
             due_date=data.get("due_date", ""),
+            story_points=data.get("story_points", 0),
+            acceptance_criteria=data.get("acceptance_criteria", ""),
+            assignee=data.get("assignee", ""),
         )
         return jsonify(task), 201
 
-    with db.get_db() as con:
-        rows = con.execute("SELECT * FROM tasks ORDER BY created_at DESC").fetchall()
-        return jsonify({"tasks": [dict(r) for r in rows]})
+    project_id = request.args.get("project_id", type=int)
+    status = request.args.get("status")
+    priority = request.args.get("priority")
+    search = request.args.get("search") or request.args.get("q")
+
+    task_list = db.get_tasks(
+        project_id=project_id,
+        status=status,
+        priority=priority,
+        search=search,
+    )
+    return jsonify({"tasks": task_list, "count": len(task_list)})
+
+
+@bp.route("/api/tasks/metrics", methods=["GET"])
+def task_metrics():
+    project_id = request.args.get("project_id", type=int)
+    metrics = db.get_sprint_metrics(project_id)
+    return jsonify(metrics)
+
+
+@bp.route("/api/tools/breakdown", methods=["POST"])
+def tool_breakdown():
+    data = request.get_json(force=True) or {}
+    project_id = data.get("project_id")
+    prd_text = data.get("prd_text")
+    conversation_id = data.get("conversation_id")
+
+    from tools.story_decomposer import decompose_prd_to_stories
+    res = decompose_prd_to_stories(
+        project_id=project_id,
+        prd_text=prd_text,
+        conversation_id=conversation_id,
+    )
+    if not res.get("success"):
+        return jsonify(res), 400
+    return jsonify(res), 200
 
 
 @bp.route("/api/tasks/<int:task_id>", methods=["PATCH", "DELETE"])

@@ -1,68 +1,149 @@
-# PM Tool
+# PM Tool (PmT)
 
-A local-first project management desktop application built with Python Flask and Electron.
-
-## Tech Stack
-
-- **Backend:** Flask 3.x (local-only, bound to `127.0.0.1:5050`, configurable via `PM_TOOL_PORT`)
-- **Shell:** Electron (Chromium desktop wrapper with native IPC bridge)
-- **Database:** SQLite with connection pooling, WAL mode, foreign keys, stored in `%LOCALAPPDATA%\PMTool\pmtool.db`
-- **UI / Frontend:** Server-rendered Jinja2 templates, native CSS tokens, offline-first IBM Plex fonts
-- **Packaging:** PyInstaller (headless Flask backend) + electron-builder (NSIS installer & portable Windows binaries)
+<div align="center">
+  <img src="static/icon.png" width="96" height="96" alt="PM Tool Logo" />
+  <h3>Enterprise Product Management Copilot &amp; Sprint Execution Workstation</h3>
+  <p><b>Version 1.3.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
+</div>
 
 ---
 
-## Project Structure
+## ⚡ Overview
+
+**PM Tool** is an enterprise-grade product management copilot designed as a high-performance, local-first desktop application. It unifies traditional project and task management with an autonomous AI reasoning engine capable of ingesting local company documentation, drafting comprehensive Product Requirement Documents (PRDs), decomposing initiatives into agile user stories, and providing high-leverage PM insights.
+
+---
+
+## 🌟 Key Features
+
+### 📋 Interactive Sprint Kanban Board (`v1.3.0`)
+- **4 Agile Workflow Lanes**: Backlog (`todo`), In Progress (`in_progress`), Blocked (`blocked`), and Completed (`done`).
+- **HTML5 Drag-and-Drop**: Smooth card dragging with optimistic UI updates and background synchronization.
+- **Sprint KPI Strip**: Real-time counters for Total Tasks, Fibonacci Story Points, In-Flight items, Blockers alert badge, and Velocity Completion Rate (`% Done`).
+- **Automated PRD-to-Story Decomposer (`/breakdown`)**: Analyzes PRDs or project goals and generates structured agile user stories with Given/When/Then acceptance criteria and Fibonacci estimates (`1, 2, 3, 5, 8`).
+
+### 💬 AI Copilot Studio & Slash Command Pills
+- **Buttonish Command Pills**: Typing `/` triggers an autocomplete dropdown converting commands into high-contrast interactive badge containers (`/prd`, `/breakdown`, `/plan`, `/metrics`, `/summarize`, `/chat`).
+- **8,192 Max Output Tokens**: Expanded generation budget guaranteeing complete, un-truncated coverage of multi-section enterprise specifications.
+- **Cascading Multi-Provider Gateway**: Seamless fallback across local Ollama, native Google Gemini REST, and OpenAI-compatible proxy endpoints.
+
+### 📁 Knowledge Base & Local RAG Pipeline
+- **Deep Document Ingestion**: Ingests and parses `.pdf`, `.docx`, `.md`, `.txt`, `.csv`, and `.json` files.
+- **Section-Aware Chunking & FTS5 BM25 Indexing**: Preserves heading hierarchy and performs lightning-fast Porter-stemmed BM25 keyword search.
+- **Dual-Axis Sticky Table Navigation**: Custom-styled dark scrollbars with sticky table headers preventing layout distortion on wide metadata columns.
+
+### 🔄 In-App Auto-Updating & CI/CD Pipeline
+- **Differential Delta Updates**: Powered by `electron-updater` querying GitHub Releases (`Pranshul-Chopra/pm_tool`) using `.blockmap` differential files.
+- **Silent Background Checks & In-App Toast**: 3-second startup check, recurring 4-hour background poll, and interactive sidebar update notification badge.
+- **Graceful Process Teardown**: Automatically kills child Python processes before applying NSIS updates to prevent locked-file `EBUSY` errors.
+
+### 🔌 Cascading Port Collision Resilience
+- **16-Port Handshake**: Dynamically probes and binds ports `5050` through `5065` via socket checks, eliminating conflicts with zombie processes or competing developer tools.
+
+### 🛡️ Local-First Security & Two-Database Partitioning
+- **Operational Store (`%LOCALAPPDATA%\PMTool\pmtool.db`)**: SQLite with Write-Ahead Logging (`WAL`), foreign keys, and connection pooling for projects, tasks, and settings.
+- **Trace Store (`%LOCALAPPDATA%\AIContextTool\ai_context.db`)**: SQLite FTS5 store for conversation threads, RAG chunks, and audit logs (`tool_runs`).
+- **Machine-Bound PBKDF2/HMAC Encryption**: API keys are securely encrypted using Windows user profiles and machine salts.
+
+---
+
+## 🏗️ Tech Stack
+
+- **Desktop Shell:** Electron (Chromium sandbox, custom window controls, safe IPC preload bridge)
+- **Backend Server:** Flask 3.x (local loopback binding, origin verification, security middleware)
+- **Databases:** SQLite 3 (WAL mode, FTS5 full-text search, thread-safe connection pooling)
+- **AI / LLM Layer:** Local Ollama (`llama3.2`, `llama3.1`, `mistral`), Google Gemini REST API, OpenAI-compatible custom endpoints
+- **Packaging:** PyInstaller (headless Flask backend) + electron-builder (NSIS 1-Click Installer & Portable Windows binaries)
+
+---
+
+## 📂 Project Structure
 
 ```text
 pm_tool/
-├── .gitignore
-├── README.md
-├── requirements.txt         # Backend Python dependencies
-├── version.json             # Version configuration
-├── main.py                  # Flask entry point & server lifecycle
-├── routes.py                # REST APIs & template routes
-├── db.py                    # SQLite connection pool & migrations
-├── notifier.py              # Desktop notification bridge
-├── flask.spec               # PyInstaller specification
-├── build.bat                # Automated release build script
-├── electron/
-│   ├── package.json         # Electron scripts and builder config
-│   ├── main.js              # Electron window & backend process manager
-│   ├── preload.js           # Safe IPC context bridge
-│   ├── icon.ico
-│   └── icon.png
-├── static/
-│   ├── favicon.ico
-│   ├── icon.png
-│   └── fonts/               # Offline IBM Plex Sans & Mono fonts
-└── templates/
-    ├── shell.html           # Main desktop window layout & sidebar
-    └── home.html            # Dashboard overview view
+├── .github/
+│   └── workflows/
+│       └── release.yml          # Automated GitHub Actions CI/CD pipeline
+├── .gitignore                   # Git exclusion list
+├── README.md                    # Project overview & documentation landing page
+├── RELEASE_WORKFLOW.md          # Packaging, publishing, and auto-update guide
+├── CHANGELOG.md                 # Semantic versioning history
+├── DEV_HANDBOOK.md              # Technical engineering handbook & architecture spec
+├── requirements.txt             # Python dependencies
+├── version.json                 # Single source of truth for version (1.3.0)
+├── main.py                      # Flask factory, server lifecycle, ping checks
+├── routes.py                    # REST API controllers & Jinja template routes
+├── db.py                        # SQLite connection pool, schema migrations (pmtool.db)
+├── ai_db.py                     # SQLite context store, conversation history, FTS5 index
+├── notifier.py                  # Cross-platform desktop notification service
+├── flask.spec                   # PyInstaller build specification
+├── build.bat                    # 4-stage automated Windows build script
+│
+├── llm/                         # LLM Gateway and provider abstraction
+│   ├── __init__.py
+│   └── gateway.py               # Key encryption, Ollama probe, Gemini discovery, dispatch
+│
+├── rag/                         # Local-first document ingestion and retrieval pipeline
+│   ├── __init__.py
+│   ├── parsers.py               # Parsers for PDF, DOCX, MD, TXT, CSV, JSON
+│   ├── chunker.py               # Section-aware sliding-window chunker
+│   └── engine.py                # Directory scanner and BM25 retrieval
+│
+├── tools/                       # Deterministic PM productivity tools
+│   ├── __init__.py
+│   ├── document_generator.py    # Generates formatted DOCX documents
+│   ├── summarizer.py            # Document summarizer with 8K token budget & SHA256 integrity
+│   └── story_decomposer.py      # Automated PRD-to-Agile story decomposer
+│
+├── electron/                    # Desktop shell
+│   ├── package.json             # Electron configuration & auto-updater targets
+│   ├── main.js                  # Cascading port discovery, process supervisor, auto-updater
+│   ├── preload.js               # Isolated IPC bridge (electronUpdater, electronNotifier, electronEnv)
+│   ├── icon.ico                 # Multi-resolution Windows app icon (PmT)
+│   └── icon.png                 # Taskbar & notification icon
+│
+├── static/                      # Static assets served by Flask
+│   ├── favicon.ico              # Web favicon
+│   ├── icon.png                 # Brand icon
+│   └── fonts/                   # Offline IBM Plex Sans & Mono woff2 fonts
+│       └── ibmflex.css
+│
+└── templates/                   # Jinja2 HTML templates
+    ├── shell.html               # Main desktop shell layout & multi-frame manager
+    ├── home.html                # Product workspace, roadmaps, and capabilities hub
+    ├── board.html               # Interactive drag-and-drop Sprint Kanban Board
+    ├── chat.html                # AI Copilot studio with buttonish slash command pills
+    ├── documents.html           # Knowledge Base manager, dual scrollbars, FTS5 test bench
+    └── settings.html            # AI provider configuration & secret manager
 ```
 
 ---
 
-## Development
+## 🛠️ Getting Started (Development)
 
-### 1. Setup Python Environment
-```bash
+### 1. Prerequisites
+- **Python 3.11 or 3.13**
+- **Node.js (v18+) & npm**
+
+### 2. Python Environment Setup
+```powershell
 # Create and activate virtual environment
 python -m venv venv
-venv\Scripts\activate
+.\venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Run Flask Backend (Terminal 1)
-```bash
+### 3. Start Flask Backend
+```powershell
 python main.py
 ```
-> Flask runs at `http://127.0.0.1:5050`
+> The server will automatically discover and bind to an available port in the range `5050`–`5065`.
 
-### 3. Run Electron Shell (Terminal 2)
-```bash
+### 4. Start Electron Desktop Shell
+In a separate terminal:
+```powershell
 cd electron
 npm install
 npm start
@@ -70,18 +151,26 @@ npm start
 
 ---
 
-## Release Build
+## 📦 Building Standalone Release Binaries
 
-To build the standalone Windows installer and portable executable:
+To produce the Windows 1-Click NSIS installer and Portable executable locally:
 
-```bash
-# Ensure PyInstaller is installed in your Python environment
-pip install pyinstaller
+```powershell
+# Set build flag
+$env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 
-# Run the build script
+# Run automated 4-stage build script
 .\build.bat
 ```
 
-Output binaries will be placed in `release/`:
-- `release/PM Tool-Setup-1.0.0.exe` (Installer)
-- `release/PM Tool-1.0.0.exe` (Portable)
+Output assets will be generated in `release/`:
+- `release/PM Tool-Setup-1.3.0.exe` (1-Click NSIS Installer)
+- `release/PM Tool-1.3.0.exe` (Portable Executable)
+- `release/PM Tool-Setup-1.3.0.exe.blockmap` (Differential update map)
+- `release/latest.yml` (Auto-update manifest)
+
+---
+
+## 📄 License & Ownership
+
+PM Tool is developed and maintained by **Pranshul Chopra**. All rights reserved.
