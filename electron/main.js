@@ -9,6 +9,7 @@
  */
 
 const { app, BrowserWindow, ipcMain, Notification } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -42,6 +43,101 @@ ipcMain.on('electron-notify', (_event, payload) => {
 });
 
 ipcMain.handle('app-is-packaged', () => app.isPackaged);
+
+function sendUpdaterStatus(status, data = {}) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('updater-status', { status, ...data });
+  }
+}
+
+// ── Auto-updater setup ────────────────────────────────────────────────────────
+
+function setupAutoUpdater() {
+  ipcMain.handle('updater-get-info', () => ({
+    version: app.getVersion(),
+    isPackaged: app.isPackaged,
+    isPortable: Boolean(process.env.PORTABLE_EXECUTABLE_DIR),
+  }));
+
+  // In development mode, don't run background network updater
+  if (!app.isPackaged) {
+    ipcMain.on('updater-check', () => {
+      sendUpdaterStatus('dev-mode', {
+        message: 'Auto-update is disabled in development mode.',
+        version: app.getVersion(),
+      });
+    });
+    return;
+  }
+
+  const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
+
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoDownload = !isPortable;
+
+  autoUpdater.on('checking-for-update', () => {
+    sendUpdaterStatus('checking');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    sendUpdaterStatus('available', {
+      version: info.version,
+      releaseDate: info.releaseDate,
+      isPortable,
+      downloadUrl: isPortable ? `https://github.com/Pranshul-Chopra/pm_tool/releases/tag/v${info.version}` : null,
+    });
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    sendUpdaterStatus('not-available', {
+      version: info ? info.version : app.getVersion(),
+      currentVersion: app.getVersion(),
+    });
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    sendUpdaterStatus('downloading', {
+      percent: Math.floor(progressObj.percent || 0),
+      bytesPerSecond: progressObj.bytesPerSecond,
+      transferred: progressObj.transferred,
+      total: progressObj.total,
+    });
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    sendUpdaterStatus('downloaded', {
+      version: info.version,
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err.message);
+    sendUpdaterStatus('error', { message: err.message });
+  });
+
+  ipcMain.on('updater-check', () => {
+    autoUpdater.checkForUpdates().catch((err) => {
+      sendUpdaterStatus('error', { message: err.message });
+    });
+  });
+
+  ipcMain.on('updater-restart-install', () => {
+    // Terminate Flask backend first to release all file locks
+    stopFlask();
+    setImmediate(() => {
+      autoUpdater.quitAndInstall(false, true);
+    });
+  });
+
+  // Check 3 seconds after launch, then every 4 hours
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 3000);
+
+  setInterval(() => {
+    autoUpdater.checkForUpdates().catch(() => {});
+  }, 4 * 60 * 60 * 1000);
+}
 
 // ── Port Handshake Utilities ──────────────────────────────────────────────────
 
@@ -235,9 +331,11 @@ if (!gotLock) {
     try {
       await waitForFlaskCascading();
       createWindow();
+      setupAutoUpdater();
     } catch (err) {
       console.error(err);
       createWindow();
+      setupAutoUpdater();
     }
 
     app.on('activate', () => {

@@ -28,6 +28,12 @@
   "build": {
     "appId": "dev.pranshulchopra.pmtool",
     "productName": "PM Tool",
+    "publish": {
+      "provider": "github",
+      "owner": "Pranshul-Chopra",
+      "repo": "pm_tool",
+      "releaseType": "release"
+    },
     "directories": {
       "output": "../release"
     },

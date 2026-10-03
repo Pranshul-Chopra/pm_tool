@@ -232,6 +232,144 @@
       height: calc(100vh - 48px);
       background: var(--bg);
     }
+
+    /* ── In-App Updater Toast / Banner ── */
+    .updater-toast {
+      position: fixed;
+      top: 20px;
+      right: 24px;
+      z-index: 10005;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 320px;
+      max-width: 440px;
+      padding: 12px 16px;
+      background: var(--surface);
+      border: 1px solid var(--amber-dim);
+      border-radius: var(--radius);
+      box-shadow: 0 10px 32px rgba(0,0,0,0.7), 0 0 16px var(--amber-faint);
+      backdrop-filter: blur(12px);
+      color: var(--text);
+      font-family: var(--sans);
+      animation: updaterSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    @keyframes updaterSlideIn {
+      from { opacity: 0; transform: translateY(-16px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .updater-toast-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+    .updater-toast-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .updater-toast-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+    .updater-toast-msg {
+      font-size: 0.76rem;
+      color: var(--text2);
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+    .updater-progress-bar {
+      margin-top: 6px;
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .updater-progress-fill {
+      height: 100%;
+      background: var(--amber);
+      border-radius: 2px;
+      transition: width 0.2s ease;
+    }
+    .updater-toast-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .updater-btn {
+      font-size: 0.74rem;
+      font-family: var(--sans);
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+    .updater-btn-primary {
+      background: var(--amber);
+      color: #111;
+      border-color: var(--amber);
+    }
+    .updater-btn-primary:hover {
+      filter: brightness(1.15);
+      box-shadow: 0 0 8px var(--amber-dim);
+    }
+    .updater-btn-ghost {
+      background: transparent;
+      color: var(--text2);
+      border-color: var(--border);
+    }
+    .updater-btn-ghost:hover {
+      background: var(--surface2);
+      color: var(--text);
+    }
+
+    .sb-version-strip {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+      background: rgba(0, 0, 0, 0.08);
+    }
+    .sb-version-strip:hover {
+      background: var(--surface2);
+      color: var(--amber);
+    }
+    .sb-ver-hint {
+      font-size: 10px;
+      opacity: 0.7;
+    }
+    .sb-update-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 6px var(--amber);
+      display: inline-block;
+      animation: pulseDot 1s infinite alternate;
+    }
+    @keyframes pulseDot {
+      from { opacity: 0.3; transform: scale(0.85); }
+      to   { opacity: 1; transform: scale(1.15); }
+    }
   </style>
 </head>
 <body>
@@ -264,6 +402,14 @@
         </a>
       </nav>
 
+      <div class="sb-version-strip" onclick="AppUpdater.checkManual()" title="Click to check for updates">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="sb-update-dot" id="sb-update-indicator" style="display:none;" title="Update ready!"></span>
+          <span id="sb-ver-text">v1.0.0 · PM Tool</span>
+        </div>
+        <span class="sb-ver-hint">Check updates ↺</span>
+      </div>
+
       <div class="sb-footer">
         <div style="display:flex; align-items:center;">
           <span class="status-dot"></span>
@@ -291,6 +437,22 @@
       <iframe id="view-documents" class="content-frame" src="/documents" style="display:none;"></iframe>
       <iframe id="view-settings" class="content-frame" src="/settings" style="display:none;"></iframe>
     </main>
+  </div>
+
+  <!-- In-App Updater Toast -->
+  <div id="app-updater-toast" class="updater-toast" style="display:none;" role="status" aria-live="polite">
+    <div class="updater-toast-icon" id="updater-icon">⚡</div>
+    <div class="updater-toast-body">
+      <div class="updater-toast-title" id="updater-title">Update Available</div>
+      <div class="updater-toast-msg" id="updater-msg">Downloading update...</div>
+      <div class="updater-progress-bar" id="updater-progress-wrap" style="display:none;">
+        <div class="updater-progress-fill" id="updater-progress-fill" style="width:0%;"></div>
+      </div>
+    </div>
+    <div class="updater-toast-actions" id="updater-actions">
+      <button class="updater-btn updater-btn-primary" id="updater-btn-action" onclick="AppUpdater.handlePrimaryAction()">Restart Now</button>
+      <button class="updater-btn updater-btn-ghost" onclick="AppUpdater.dismiss()">Dismiss</button>
+    </div>
   </div>
 
   <script>
@@ -367,6 +529,219 @@
     if (window.location && window.location.port) {
       document.getElementById('port-label').textContent = ':' + window.location.port;
     }
+
+    // ── In-App Desktop Auto-Updater Controller ────────────────────────────────────
+    const AppUpdater = {
+      currentVersion: '1.0.0',
+      downloadedVersion: null,
+      portableDownloadUrl: null,
+      manualCheck: false,
+      dismissed: false,
+
+      init() {
+        if (!window.electronUpdater) {
+          return;
+        }
+
+        window.electronUpdater.getInfo().then((info) => {
+          if (info && info.version) {
+            this.currentVersion = info.version;
+            const txt = document.getElementById('sb-ver-text');
+            if (txt) txt.textContent = `v${info.version} · PM Tool`;
+          }
+        }).catch(() => {});
+
+        window.electronUpdater.onStatus((payload) => {
+          this.handleStatus(payload);
+        });
+      },
+
+      handleStatus(payload) {
+        if (!payload) return;
+        const { status } = payload;
+        const progressWrap = document.getElementById('updater-progress-wrap');
+        const progressFill = document.getElementById('updater-progress-fill');
+        const msg = document.getElementById('updater-msg');
+        const dot = document.getElementById('sb-update-indicator');
+
+        if (status === 'checking') {
+          if (this.manualCheck) {
+            this.showToast({
+              icon: '🔄',
+              title: 'Checking for Updates',
+              msg: 'Connecting to GitHub Releases...',
+              showAction: false,
+            });
+          }
+        } else if (status === 'available') {
+          this.dismissed = false;
+          const ver = payload.version || '';
+          if (payload.isPortable) {
+            this.portableDownloadUrl = payload.downloadUrl || 'https://github.com/Pranshul-Chopra/pm_tool/releases';
+            this.showToast({
+              icon: '✨',
+              title: `Update Available ${ver ? 'v' + ver : ''}`,
+              msg: 'A newer release is available on GitHub.',
+              actionText: 'Download',
+              showAction: true,
+              isPortable: true,
+            });
+          } else {
+            this.showToast({
+              icon: '⬇️',
+              title: `Update Available ${ver ? 'v' + ver : ''}`,
+              msg: 'Downloading update in background...',
+              showProgress: true,
+              progress: 0,
+              showAction: false,
+            });
+          }
+        } else if (status === 'downloading') {
+          const pct = payload.percent || 0;
+          if (progressWrap) progressWrap.style.display = 'block';
+          if (progressFill) progressFill.style.width = `${pct}%`;
+          if (msg) msg.textContent = `Downloading update... ${pct}%`;
+        } else if (status === 'downloaded') {
+          this.downloadedVersion = payload.version || '';
+          if (dot) dot.style.display = 'inline-block';
+          this.showToast({
+            icon: '🚀',
+            title: `PM Tool ${payload.version ? 'v' + payload.version : ''} Ready!`,
+            msg: 'Update downloaded! Restart to apply now.',
+            actionText: 'Restart to Update',
+            showAction: true,
+            showProgress: false,
+          });
+        } else if (status === 'not-available') {
+          if (this.manualCheck) {
+            this.showToast({
+              icon: '✅',
+              title: 'Up to Date',
+              msg: `PM Tool v${this.currentVersion} is the latest version.`,
+              showAction: false,
+            });
+            setTimeout(() => this.dismiss(), 3500);
+          }
+          this.manualCheck = false;
+        } else if (status === 'error') {
+          if (this.manualCheck) {
+            this.showToast({
+              icon: '⚠️',
+              title: 'Update Check Failed',
+              msg: payload.message || 'Could not connect to update server.',
+              showAction: false,
+            });
+            setTimeout(() => this.dismiss(), 4000);
+          }
+          this.manualCheck = false;
+        } else if (status === 'dev-mode') {
+          if (this.manualCheck) {
+            this.showToast({
+              icon: '🛠️',
+              title: 'Development Mode',
+              msg: 'Auto-update is only active in packaged release builds.',
+              showAction: false,
+            });
+            setTimeout(() => this.dismiss(), 3500);
+          }
+          this.manualCheck = false;
+        }
+      },
+
+      showToast({ icon, title, msg, actionText, showAction = false, showProgress = false, progress = 0, isPortable = false }) {
+        if (this.dismissed && !this.downloadedVersion && !this.manualCheck) return;
+        const toast = document.getElementById('app-updater-toast');
+        if (!toast) return;
+
+        const iconEl = document.getElementById('updater-icon');
+        const titleEl = document.getElementById('updater-title');
+        const msgEl = document.getElementById('updater-msg');
+        const pWrap = document.getElementById('updater-progress-wrap');
+        const pFill = document.getElementById('updater-progress-fill');
+        const btn = document.getElementById('updater-btn-action');
+
+        if (iconEl) iconEl.textContent = icon || '⚡';
+        if (titleEl) titleEl.textContent = title || '';
+        if (msgEl) msgEl.textContent = msg || '';
+
+        if (pWrap) pWrap.style.display = showProgress ? 'block' : 'none';
+        if (pFill && showProgress) pFill.style.width = `${progress}%`;
+
+        if (btn) {
+          btn.style.display = showAction ? 'inline-block' : 'none';
+          if (actionText) btn.textContent = actionText;
+          btn.setAttribute('data-portable', isPortable ? 'true' : 'false');
+          btn.disabled = false;
+        }
+
+        toast.style.display = 'flex';
+      },
+
+      handlePrimaryAction() {
+        const btn = document.getElementById('updater-btn-action');
+        const isPortable = btn && btn.getAttribute('data-portable') === 'true';
+
+        if (isPortable && this.portableDownloadUrl) {
+          window.open(this.portableDownloadUrl, '_blank');
+          this.dismiss();
+          return;
+        }
+
+        if (window.electronUpdater) {
+          const msg = document.getElementById('updater-msg');
+          if (msg) msg.textContent = 'Restarting app to apply update...';
+          if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Restarting...';
+          }
+          setTimeout(() => {
+            window.electronUpdater.restartAndInstall();
+          }, 400);
+        }
+      },
+
+      dismiss() {
+        this.dismissed = true;
+        const toast = document.getElementById('app-updater-toast');
+        if (toast) toast.style.display = 'none';
+      },
+
+      checkManual() {
+        this.manualCheck = true;
+        this.dismissed = false;
+
+        if (this.downloadedVersion) {
+          this.showToast({
+            icon: '🚀',
+            title: `PM Tool v${this.downloadedVersion} Ready!`,
+            msg: 'Update downloaded! Restart to apply now.',
+            actionText: 'Restart to Update',
+            showAction: true,
+          });
+          return;
+        }
+
+        if (window.electronUpdater) {
+          this.showToast({
+            icon: '🔄',
+            title: 'Checking for Updates',
+            msg: 'Connecting to GitHub Releases...',
+            showAction: false,
+          });
+          window.electronUpdater.checkForUpdates();
+        } else {
+          this.showToast({
+            icon: 'ℹ️',
+            title: 'Desktop Shell Only',
+            msg: 'Auto-update is available inside the PM Tool desktop app.',
+            showAction: false,
+          });
+          setTimeout(() => this.dismiss(), 3500);
+        }
+      }
+    };
+
+    AppUpdater.init();
   </script>
 </body>
 </html>
