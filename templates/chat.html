@@ -278,21 +278,49 @@
 
     /* ── Threads Sidebar ── */
     .threads-sidebar {
-      width: 260px;
+      width: 240px;
+      min-width: 140px;
+      max-width: 480px;
       background: var(--surface);
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       height: 100vh;
       flex-shrink: 0;
+      position: relative;
+      transition: width 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+    }
+
+    .threads-sidebar.resizing {
+      transition: none !important;
+      user-select: none;
+    }
+
+    .threads-sidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      border-right: none !important;
+      overflow: hidden !important;
+      visibility: hidden !important;
+      opacity: 0;
+      pointer-events: none;
     }
 
     .threads-header {
-      padding: 16px;
+      padding: 14px 16px;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .threads-header-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .threads-title {
@@ -302,13 +330,16 @@
       color: var(--text2);
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .btn-new-chat {
       background: var(--amber);
       color: #111;
       border: none;
-      padding: 5px 10px;
+      padding: 5px 9px;
       border-radius: var(--radius);
       font-size: 12px;
       font-weight: 600;
@@ -316,6 +347,68 @@
       display: flex;
       align-items: center;
       gap: 4px;
+      white-space: nowrap;
+      transition: opacity 0.15s ease;
+    }
+    .btn-new-chat:hover { opacity: 0.9; }
+
+    .btn-sidebar-toggle {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      width: 26px;
+      height: 26px;
+      border-radius: 6px;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+    .btn-sidebar-toggle:hover {
+      color: var(--amber);
+      border-color: var(--amber-dim);
+      background: var(--surface3);
+    }
+
+    .btn-sidebar-expand {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      color: var(--amber);
+      font-size: 12px;
+      font-family: var(--mono);
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      margin-right: 8px;
+      white-space: nowrap;
+    }
+    .btn-sidebar-expand:hover {
+      background: var(--surface3);
+      border-color: var(--amber);
+    }
+
+    .sidebar-resizer {
+      width: 5px;
+      margin-left: -2px;
+      cursor: col-resize;
+      background: transparent;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 50;
+      transition: background 0.15s ease;
+    }
+    .sidebar-resizer:hover, .sidebar-resizer.active {
+      background: var(--amber);
+    }
+    .threads-sidebar.collapsed + .sidebar-resizer {
+      display: none;
     }
 
     .threads-list {
@@ -597,40 +690,315 @@
     }
 
 
-    /* Markdown inside assistant messages */
-    .message-bubble h1, .message-bubble h2, .message-bubble h3 {
+    /* ── Enhanced Markdown Typography & Layout ── */
+    .message-bubble h1, .message-bubble h2, .message-bubble h3, .message-bubble h4, .message-bubble h5 {
       margin-top: 14px;
       margin-bottom: 8px;
-      color: var(--amber);
       font-weight: 600;
+      line-height: 1.35;
+      color: var(--text);
     }
-    .message-bubble h1 { font-size: 18px; }
-    .message-bubble h2 { font-size: 16px; }
-    .message-bubble h3 { font-size: 14px; }
-    .message-bubble p { margin-bottom: 10px; }
+    .message-bubble h1 { font-size: 18px; color: var(--amber); border-bottom: 1px solid var(--border2); padding-bottom: 4px; }
+    .message-bubble h2 { font-size: 16px; color: var(--amber); }
+    .message-bubble h3 { font-size: 14px; color: var(--amber); }
+    .message-bubble h4 { font-size: 13px; font-weight: 600; }
+    .message-bubble h5 { font-size: 12px; font-weight: 600; color: var(--text2); }
+    .message-bubble p { margin-bottom: 10px; line-height: 1.55; }
     .message-bubble p:last-child { margin-bottom: 0; }
-    .message-bubble ul, .message-bubble ol { margin-left: 20px; margin-bottom: 10px; }
+    .message-bubble ul, .message-bubble ol { margin-left: 20px; margin-bottom: 10px; line-height: 1.5; }
     .message-bubble li { margin-bottom: 4px; }
-    .message-bubble code {
+    .message-bubble blockquote {
+      border-left: 3px solid var(--amber);
+      padding: 6px 14px;
+      margin: 10px 0;
+      background: rgba(232, 168, 76, 0.05);
+      border-radius: 0 4px 4px 0;
+      color: var(--text);
+    }
+    .message-bubble hr.chat-hr {
+      border: none;
+      border-top: 1px solid var(--border2);
+      margin: 16px 0;
+    }
+    .message-bubble code:not(pre code) {
       font-family: var(--mono);
       font-size: 12px;
-      background: rgba(0, 0, 0, 0.3);
+      background: var(--surface2);
       padding: 2px 6px;
       border-radius: 4px;
+      border: 1px solid var(--border2);
       color: var(--amber);
     }
-    .message-bubble pre {
-      background: rgba(0, 0, 0, 0.4);
+
+    /* ── Markdown Tables (GFM) ── */
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      margin: 14px 0;
       border: 1px solid var(--border2);
       border-radius: var(--radius);
-      padding: 12px;
-      overflow-x: auto;
-      margin: 10px 0;
+      background: var(--surface);
     }
-    .message-bubble pre code {
-      background: none;
-      padding: 0;
+    .chat-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+      line-height: 1.5;
+      text-align: left;
+    }
+    .chat-table th, .chat-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+    }
+    .chat-table th:last-child, .chat-table td:last-child {
+      border-right: none;
+    }
+    .chat-table tr:last-child td {
+      border-bottom: none;
+    }
+    .chat-table th {
+      background: var(--surface2);
+      color: var(--amber);
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .chat-table tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.015);
+    }
+    .chat-table tr:hover td {
+      background: rgba(232, 168, 76, 0.04);
+    }
+    .chat-table code {
+      font-size: 11px;
+    }
+
+    /* ── Code Blocks with Copy Bar ── */
+    .code-block-wrap {
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      margin: 12px 0;
+      background: var(--surface2);
+      overflow: hidden;
+      max-width: 100%;
+    }
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background: rgba(0, 0, 0, 0.25);
+      border-bottom: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+    .code-lang-tag {
+      font-weight: 600;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .code-copy-btn {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--mono);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .code-copy-btn:hover {
       color: var(--text);
+      border-color: var(--amber);
+      background: var(--surface3);
+    }
+    .code-block-wrap pre {
+      padding: 12px;
+      margin: 0;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.5;
+      background: transparent;
+      border: none;
+    }
+
+    /* ── Task Checklist Items ── */
+    .message-bubble .chat-task-item {
+      list-style: none;
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      margin-left: -14px;
+    }
+    .message-bubble .task-list {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    /* ── Interactive Markdown Prompt Suggestions (like PranshulOS) ── */
+    .chat-prompt-suggestion {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 12px;
+      margin: 4px 6px 4px 0;
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 12.5px;
+      line-height: 1.35;
+      cursor: pointer;
+      text-align: left;
+      vertical-align: middle;
+      transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+      user-select: none;
+      outline: none;
+      max-width: 100%;
+    }
+    .chat-prompt-suggestion:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    .chat-prompt-suggestion:active {
+      transform: translateY(0);
+    }
+    .prompt-sugg-icon {
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .prompt-sugg-text {
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .prompt-sugg-hint {
+      font-family: var(--mono);
+      font-size: 10px;
+      opacity: 0.7;
+      padding: 1px 5px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 3px;
+      margin-left: 3px;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .chat-prompt-suggestion.prompt-plan {
+      border-color: rgba(232, 168, 76, 0.4);
+      background: rgba(232, 168, 76, 0.08);
+    }
+    .chat-prompt-suggestion.prompt-plan:hover {
+      border-color: var(--amber);
+      background: rgba(232, 168, 76, 0.16);
+      box-shadow: 0 4px 12px rgba(232, 168, 76, 0.2);
+    }
+    .chat-prompt-suggestion.prompt-plan .prompt-sugg-text { color: var(--amber); }
+
+    .chat-prompt-suggestion.prompt-breakdown {
+      border-color: rgba(76, 151, 232, 0.4);
+      background: rgba(76, 151, 232, 0.08);
+    }
+    .chat-prompt-suggestion.prompt-breakdown:hover {
+      border-color: #4c97e8;
+      background: rgba(76, 151, 232, 0.16);
+      box-shadow: 0 4px 12px rgba(76, 151, 232, 0.2);
+    }
+    .chat-prompt-suggestion.prompt-breakdown .prompt-sugg-text { color: #72b1f5; }
+
+    .chat-prompt-suggestion.prompt-prd {
+      border-color: rgba(157, 124, 216, 0.4);
+      background: rgba(157, 124, 216, 0.08);
+    }
+    .chat-prompt-suggestion.prompt-prd:hover {
+      border-color: #9d7cd8;
+      background: rgba(157, 124, 216, 0.16);
+      box-shadow: 0 4px 12px rgba(157, 124, 216, 0.2);
+    }
+    .chat-prompt-suggestion.prompt-prd .prompt-sugg-text { color: #bfa8ea; }
+
+    .chat-prompt-suggestion.prompt-metrics {
+      border-color: rgba(90, 171, 127, 0.4);
+      background: rgba(90, 171, 127, 0.08);
+    }
+    .chat-prompt-suggestion.prompt-metrics:hover {
+      border-color: #5aab7f;
+      background: rgba(90, 171, 127, 0.16);
+      box-shadow: 0 4px 12px rgba(90, 171, 127, 0.2);
+    }
+    .chat-prompt-suggestion.prompt-metrics .prompt-sugg-text { color: #7ecba1; }
+
+    .chat-prompt-suggestion.prompt-doc {
+      border-color: rgba(129, 140, 248, 0.4);
+      background: rgba(129, 140, 248, 0.08);
+    }
+    .chat-prompt-suggestion.prompt-doc:hover {
+      border-color: #818cf8;
+      background: rgba(129, 140, 248, 0.16);
+      box-shadow: 0 4px 12px rgba(129, 140, 248, 0.2);
+    }
+    .chat-prompt-suggestion.prompt-doc .prompt-sugg-text { color: #a5b4fc; }
+
+    .chat-prompt-suggestion.prompt-search {
+      border-color: rgba(6, 182, 212, 0.4);
+      background: rgba(6, 182, 212, 0.08);
+    }
+    .chat-prompt-suggestion.prompt-search:hover {
+      border-color: #06b6d4;
+      background: rgba(6, 182, 212, 0.16);
+      box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+    }
+    .chat-prompt-suggestion.prompt-search .prompt-sugg-text { color: #67e8f9; }
+
+    .chat-prompt-suggestion.prompt-chat {
+      border-color: rgba(16, 185, 129, 0.4);
+      background: rgba(16, 185, 129, 0.08);
+    }
+    .chat-prompt-suggestion.prompt-chat:hover {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.16);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    .chat-prompt-suggestion.prompt-chat .prompt-sugg-text { color: #6ee7b7; }
+
+    /* ── Elegant Streaming Cursor (like PranshulOS) ── */
+    .stream-cursor {
+      display: inline-block;
+      width: 2.5px;
+      height: 1.15em;
+      background: var(--amber);
+      margin-left: 3px;
+      vertical-align: -0.18em;
+      border-radius: 1px;
+      animation: stream-cursor-blink 0.75s ease-in-out infinite;
+      box-shadow: 0 0 6px rgba(232, 168, 76, 0.4);
+    }
+    @keyframes stream-cursor-blink {
+      0%, 100% { opacity: 1; transform: scaleY(1); }
+      50% { opacity: 0.15; transform: scaleY(0.85); }
+    }
+
+    /* ── Input Box Pulse Glow ── */
+    @keyframes pulseGlow {
+      0% { box-shadow: 0 0 0 0 rgba(232, 168, 76, 0.7); border-color: var(--amber); }
+      70% { box-shadow: 0 0 0 8px rgba(232, 168, 76, 0); border-color: var(--amber); }
+      100% { box-shadow: 0 0 0 0 rgba(232, 168, 76, 0); }
+    }
+    .chat-input-box.pulse-highlight {
+      animation: pulseGlow 0.9s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     /* ── Empty State / Welcome Screen ── */
@@ -808,20 +1176,30 @@
 </head>
 <body>
   <!-- Conversations Thread Sidebar -->
-  <aside class="threads-sidebar">
+  <aside class="threads-sidebar" id="threads-sidebar">
     <div class="threads-header">
       <span class="threads-title">Conversations</span>
-      <button class="btn-new-chat" onclick="startNewChat()">+ New</button>
+      <div class="threads-header-actions">
+        <button class="btn-new-chat" onclick="startNewChat()" title="Start New Conversation">+ New</button>
+        <button class="btn-sidebar-toggle" id="btn-collapse-sidebar" onclick="toggleSidebar()" title="Collapse Conversations Sidebar (Alt+C)">◀</button>
+      </div>
     </div>
     <div class="threads-list" id="threads-container">
       <!-- Injected dynamically -->
     </div>
   </aside>
 
+  <!-- Sidebar Drag Resizer -->
+  <div class="sidebar-resizer" id="sidebar-resizer" title="Drag to adjust sidebar width, double-click to reset"></div>
+
   <!-- Main Chat Workspace -->
   <main class="chat-main">
     <header class="chat-topbar">
       <div class="chat-topbar-title">
+        <button class="btn-sidebar-expand" id="btn-expand-sidebar" onclick="toggleSidebar()" title="Show Conversations (Alt+C)">
+          <span>💬</span>
+          <span>Conversations</span>
+        </button>
         <span id="active-chat-title">New Conversation</span>
         <span class="model-badge" id="active-model-badge">Checking model...</span>
         <span class="rag-badge" id="chat-rag-badge" title="Click to view Knowledge Base" onclick="openDocuments()">📚 0 docs</span>
@@ -912,7 +1290,95 @@
     let isWaiting = false;
     const lastAssistantResponses = {};
 
+    /* ── Conversations Sidebar Collapse & Resizing ── */
+    function toggleSidebar() {
+      const sb = document.getElementById('threads-sidebar');
+      const expandBtn = document.getElementById('btn-expand-sidebar');
+      if (!sb) return;
+      const isCollapsed = sb.classList.toggle('collapsed');
+      if (expandBtn) {
+        expandBtn.style.display = isCollapsed ? 'inline-flex' : 'none';
+      }
+      localStorage.setItem('pm_copilot_sidebar_collapsed', isCollapsed ? '1' : '0');
+    }
+
+    function initSidebarControls() {
+      const sb = document.getElementById('threads-sidebar');
+      const resizer = document.getElementById('sidebar-resizer');
+      const expandBtn = document.getElementById('btn-expand-sidebar');
+      if (!sb) return;
+
+      // Restore collapsed state
+      const savedCollapsed = localStorage.getItem('pm_copilot_sidebar_collapsed');
+      if (savedCollapsed === '1') {
+        sb.classList.add('collapsed');
+        if (expandBtn) expandBtn.style.display = 'inline-flex';
+      } else {
+        sb.classList.remove('collapsed');
+        if (expandBtn) expandBtn.style.display = 'none';
+      }
+
+      // Restore custom width
+      const savedWidth = localStorage.getItem('pm_copilot_sidebar_width');
+      if (savedWidth) {
+        const w = parseInt(savedWidth, 10);
+        if (w >= 140 && w <= 480) {
+          sb.style.width = `${w}px`;
+        }
+      }
+
+      // Resizer dragging
+      if (resizer) {
+        let isResizing = false;
+        let startX = 0;
+        let startWidth = 240;
+
+        resizer.addEventListener('mousedown', (e) => {
+          if (sb.classList.contains('collapsed')) return;
+          isResizing = true;
+          startX = e.clientX;
+          startWidth = sb.getBoundingClientRect().width;
+          sb.classList.add('resizing');
+          resizer.classList.add('active');
+          document.body.style.cursor = 'col-resize';
+          e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+          if (!isResizing) return;
+          const delta = e.clientX - startX;
+          const newWidth = Math.max(140, Math.min(480, startWidth + delta));
+          sb.style.width = `${newWidth}px`;
+        });
+
+        window.addEventListener('mouseup', () => {
+          if (isResizing) {
+            isResizing = false;
+            sb.classList.remove('resizing');
+            resizer.classList.remove('active');
+            document.body.style.cursor = '';
+            const currentW = Math.round(sb.getBoundingClientRect().width);
+            localStorage.setItem('pm_copilot_sidebar_width', currentW);
+          }
+        });
+
+        resizer.addEventListener('dblclick', () => {
+          sb.style.width = '240px';
+          localStorage.removeItem('pm_copilot_sidebar_width');
+        });
+      }
+
+      // Keyboard shortcut: Alt+C to toggle sidebar
+      window.addEventListener('keydown', (e) => {
+        if ((e.altKey && (e.key === 'c' || e.key === 'C')) || ((e.ctrlKey || e.metaKey) && e.key === '[')) {
+          e.preventDefault();
+          toggleSidebar();
+        }
+      });
+    }
+
     async function init() {
+      initSidebarControls();
       await loadModelStatus();
       await loadProjects();
       await loadConversations();
@@ -1022,6 +1488,10 @@
     }
 
     async function selectConversation(convId) {
+      if (activeStreamTimer) {
+        clearTimeout(activeStreamTimer);
+        activeStreamTimer = null;
+      }
       activeConversationId = convId;
       document.querySelectorAll('.thread-item').forEach(el => el.classList.remove('active'));
       const activeEl = document.querySelector(`[onclick="selectConversation('${convId}')"]`);
@@ -1086,6 +1556,10 @@
     }
 
     function startNewChat() {
+      if (activeStreamTimer) {
+        clearTimeout(activeStreamTimer);
+        activeStreamTimer = null;
+      }
       activeConversationId = null;
       removeActiveCommand();
       document.getElementById('active-chat-title').textContent = 'New Conversation';
@@ -1508,21 +1982,28 @@
             `;
           }
 
-          container.innerHTML += `
-            <div class="message-row assistant" id="${msgId}">
-              <div class="message-bubble">
-                ${formatMarkdown(data.response)}
-                ${sourcesHtml}
-              </div>
-              <div class="message-bottom-bar">
-                <div class="message-meta">${escapeHtml(data.provider)} · ${escapeHtml(data.model)}</div>
-                <div class="msg-actions">
-                  <button class="msg-btn" onclick="exportDocx('${msgId}')">📄 Export DOCX</button>
-                  <button class="msg-btn" onclick="copyResponse('${msgId}')">📋 Copy</button>
-                </div>
-              </div>
+          const row = document.createElement('div');
+          row.className = 'message-row assistant';
+          row.id = msgId;
+
+          const bubble = document.createElement('div');
+          bubble.className = 'message-bubble';
+          row.appendChild(bubble);
+
+          const bottomBar = document.createElement('div');
+          bottomBar.className = 'message-bottom-bar';
+          bottomBar.innerHTML = `
+            <div class="message-meta">${escapeHtml(data.provider)} · ${escapeHtml(data.model)}</div>
+            <div class="msg-actions">
+              <button class="msg-btn" onclick="exportDocx('${msgId}')">📄 Export DOCX</button>
+              <button class="msg-btn" onclick="copyResponse('${msgId}')">📋 Copy</button>
             </div>
           `;
+          row.appendChild(bottomBar);
+          container.appendChild(row);
+
+          // Stream response fluidly with blinking cursor (like PranshulOS)
+          streamMessageContent(bubble, data.response, sourcesHtml, msgId);
           await loadConversations();
         } else {
           container.innerHTML += `
@@ -1548,6 +2029,90 @@
         document.getElementById('btn-send').disabled = false;
         container.scrollTop = container.scrollHeight;
       }
+    }
+
+    /* ── Fluid Streaming Engine (like PranshulOS) ── */
+    let activeStreamTimer = null;
+
+    function streamMessageContent(bubbleEl, fullText, sourcesHtml = '', msgId = null) {
+      if (activeStreamTimer) {
+        clearTimeout(activeStreamTimer);
+        activeStreamTimer = null;
+      }
+
+      // Tokenize by words and whitespace (preserves formatting and line breaks)
+      const tokens = fullText.split(/(\s+)/);
+      let currentIdx = 0;
+      let accumulated = '';
+
+      const totalTokens = tokens.length;
+      // Adaptive chunking: 4-5 tokens per step if long, 2 if short
+      const chunkSize = totalTokens > 400 ? 5 : (totalTokens > 150 ? 3 : 2);
+      const intervalMs = 16;
+
+      const step = () => {
+        if (currentIdx >= tokens.length) {
+          bubbleEl.innerHTML = formatMarkdown(fullText) + sourcesHtml;
+          const container = document.getElementById('messages-container');
+          if (container) container.scrollTop = container.scrollHeight;
+          activeStreamTimer = null;
+          return;
+        }
+
+        const count = Math.min(chunkSize, tokens.length - currentIdx);
+        for (let i = 0; i < count; i++) {
+          accumulated += tokens[currentIdx + i];
+        }
+        currentIdx += count;
+
+        let rendered = formatMarkdown(accumulated);
+        if (currentIdx < tokens.length) {
+          rendered += '<span class="stream-cursor"></span>';
+        }
+        bubbleEl.innerHTML = rendered + sourcesHtml;
+
+        const container = document.getElementById('messages-container');
+        if (container) container.scrollTop = container.scrollHeight;
+
+        activeStreamTimer = setTimeout(step, intervalMs);
+      };
+
+      step();
+    }
+
+    /* ── Interactive Suggestion Stage (like PranshulOS) ── */
+    function populateInput(text) {
+      if (!text) return;
+      const input = document.getElementById('chat-input');
+      if (!input) return;
+
+      const cleanText = text.trim();
+      const lower = cleanText.toLowerCase();
+
+      // Check if text starts with one of our slash commands
+      const matchedCmd = slashCommands.find(c => lower.startsWith(c.cmd.toLowerCase()));
+      if (matchedCmd) {
+        setActiveCommand(matchedCmd);
+        const remainder = cleanText.substring(matchedCmd.cmd.length).trim();
+        input.value = remainder;
+      } else {
+        input.value = cleanText;
+      }
+
+      autoResize(input);
+      input.focus();
+      input.selectionStart = input.selectionEnd = input.value.length;
+
+      // Visual pulse glow on input wrap
+      const box = input.closest('.chat-input-box');
+      if (box) {
+        box.classList.remove('pulse-highlight');
+        void box.offsetWidth;
+        box.classList.add('pulse-highlight');
+        setTimeout(() => box.classList.remove('pulse-highlight'), 1000);
+      }
+
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function openSettings() {
@@ -1608,6 +2173,29 @@
       }
     }
 
+    function copySnippet(codeId, btn) {
+      const codeEl = document.getElementById(codeId);
+      if (!codeEl) return;
+      const text = codeEl.innerText || codeEl.textContent;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          const old = btn.textContent;
+          btn.textContent = '✓ Copied';
+          setTimeout(() => btn.textContent = old, 1800);
+        }).catch(() => {
+          fallbackCopy(text);
+          const old = btn.textContent;
+          btn.textContent = '✓ Copied';
+          setTimeout(() => btn.textContent = old, 1800);
+        });
+      } else {
+        fallbackCopy(text);
+        const old = btn.textContent;
+        btn.textContent = '✓ Copied';
+        setTimeout(() => btn.textContent = old, 1800);
+      }
+    }
+
     function copyResponse(msgId) {
       const content = lastAssistantResponses[msgId];
       if (!content) return;
@@ -1632,27 +2220,259 @@
       showChatToast('Copied response text to clipboard!');
     }
 
+    /* ── GFM Markdown Table Parser ── */
+    function renderMarkdownTables(rawHtml) {
+      const tableRegex = /((?:^|\n)\|[^\n]+\|\r?\n\|[-:\s|]+\|\r?\n(?:\|[^\n]+\|\r?\n?)*)/g;
+      return rawHtml.replace(tableRegex, (match) => {
+        const lines = match.trim().split(/\r?\n/).filter(l => l.trim().startsWith('|'));
+        if (lines.length < 2) return match;
+
+        const parseRow = (line) => {
+          let cells = line.trim().split('|');
+          if (cells.length > 0 && cells[0].trim() === '') cells.shift();
+          if (cells.length > 0 && cells[cells.length - 1].trim() === '') cells.pop();
+          return cells.map(c => c.trim());
+        };
+
+        const headerCells = parseRow(lines[0]);
+        const alignCells = parseRow(lines[1]);
+        const alignments = alignCells.map(col => {
+          const c = col.trim();
+          const left = c.startsWith(':');
+          const right = c.endsWith(':');
+          if (left && right) return 'center';
+          if (right) return 'right';
+          return 'left';
+        });
+
+        let tableHtml = '<div class="table-wrap"><table class="chat-table">';
+        tableHtml += '<thead><tr>';
+        headerCells.forEach((th, i) => {
+          const align = alignments[i] ? ` style="text-align:${alignments[i]}"` : '';
+          tableHtml += `<th${align}>${th}</th>`;
+        });
+        tableHtml += '</tr></thead>';
+
+        tableHtml += '<tbody>';
+        for (let r = 2; r < lines.length; r++) {
+          const rowCells = parseRow(lines[r]);
+          if (rowCells.length === 0 || (rowCells.length === 1 && rowCells[0] === '')) continue;
+          tableHtml += '<tr>';
+          headerCells.forEach((_, i) => {
+            const td = rowCells[i] !== undefined ? rowCells[i] : '';
+            const align = alignments[i] ? ` style="text-align:${alignments[i]}"` : '';
+            tableHtml += `<td${align}>${td}</td>`;
+          });
+          tableHtml += '</tr>';
+        }
+        tableHtml += '</tbody></table></div>';
+        return `\n\n${tableHtml}\n\n`;
+      });
+    }
+
+    /* ── Comprehensive GFM Markdown Parser ── */
     function formatMarkdown(text) {
       if (!text) return '';
-      // Safe markdown formatter: headers, code blocks, lists, bold
-      let html = escapeHtml(text);
+      let raw = text;
 
-      // Code blocks
-      html = html.replace(/```([a-z]*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-      // Inline code
-      html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-      // Headers
-      html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
-      html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
-      html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
-      // Bold
+      // Handle unclosed code block during streaming so styling doesn't break
+      const codeTicks = (raw.match(/```/g) || []).length;
+      if (codeTicks % 2 === 1) {
+        raw += '\n```';
+      }
+
+      // 1. Extract Code Blocks with copy buttons
+      const storedCodeBlocks = [];
+      raw = raw.replace(/```([a-zA-Z0-9_\-:]*)\r?\n([\s\S]*?)```/g, (match, lang, code) => {
+        const language = (lang || 'code').trim();
+        const codeId = 'code_' + Math.random().toString(36).substr(2, 9);
+        const escapedCode = escapeHtml(code.trim());
+        const html = `
+          <div class="code-block-wrap">
+            <div class="code-block-header">
+              <span class="code-lang-tag">‹/› ${escapeHtml(language)}</span>
+              <button class="code-copy-btn" onclick="copySnippet('${codeId}', this)">📋 Copy</button>
+            </div>
+            <pre><code id="${codeId}" class="lang-${escapeHtml(language)}">${escapedCode}</code></pre>
+          </div>
+        `;
+        const placeholder = `%%%CODE_BLOCK_${storedCodeBlocks.length}%%%`;
+        storedCodeBlocks.push(html);
+        return `\n\n${placeholder}\n\n`;
+      });
+
+      // 2. Extract Inline Code (prevents italics/math regexes from corrupting identifiers like `app_launch`)
+      const storedInlineCode = [];
+      raw = raw.replace(/`([^`\r\n]+)`/g, (match, code) => {
+        const placeholder = `:::INLCODE${storedInlineCode.length}:::`;
+        storedInlineCode.push(`<code>${escapeHtml(code)}</code>`);
+        return placeholder;
+      });
+
+      // 3. Normalize Math & LaTeX notation (e.g. $\le 8\%$, $> 15\%$)
+      raw = raw.replace(/\$\\le\s*([^$]*?)\$/g, '≤ $1')
+               .replace(/\$\\ge\s*([^$]*?)\$/g, '≥ $1')
+               .replace(/\$>\s*([^$]*?)\$/g, '> $1')
+               .replace(/\$<\s*([^$]*?)\$/g, '< $1')
+               .replace(/\$\\approx\s*([^$]*?)\$/g, '≈ $1')
+               .replace(/\$\\pm\s*([^$]*?)\$/g, '± $1')
+               .replace(/\$([^$\n]+)\$/g, '$1')
+               .replace(/\\%/g, '%')
+               .replace(/\\le\b/g, '≤')
+               .replace(/\\ge\b/g, '≥');
+
+      // 4. HTML Escape remaining text
+      let html = escapeHtml(raw);
+
+      // 5. Markdown Tables
+      html = renderMarkdownTables(html);
+
+      // 6. Dividers (Horizontal Rules)
+      html = html.replace(/^(?:---|[*]{3}|___)\s*$/gm, '<hr class="chat-hr"/>');
+
+      // 7. Headers (H1 - H5)
+      html = html.replace(/^##### (.*$)/gm, '<h5>$1</h5>');
+      html = html.replace(/^#### (.*$)/gm, '<h4>$1</h4>');
+      html = html.replace(/^### (.*$)/gm, '<h3>$1</h3>');
+      html = html.replace(/^## (.*$)/gm, '<h2>$1</h2>');
+      html = html.replace(/^# (.*$)/gm, '<h1>$1</h1>');
+
+      // 8. Blockquotes
+      html = html.replace(/^\s*&gt;\s+(.*$)/gm, '<blockquote>$1</blockquote>');
+
+      // 9. Interactive Prompt Suggestions (PranshulOS style)
+      // Pattern: [label](prompt:text) or [label](suggest:text)
+      html = html.replace(/\[([^\]]+)\]\((?:prompt|suggest):([^)]+)\)/g, (match, label, rawPrompt) => {
+        let promptText = rawPrompt.trim();
+        try {
+          if (promptText.includes('%')) promptText = decodeURIComponent(promptText);
+        } catch (e) {}
+
+        let modeClass = 'prompt-generic';
+        let icon = '⚡';
+        const cleanPrompt = promptText.trim();
+        const lower = cleanPrompt.toLowerCase();
+
+        if (lower.startsWith('/prd')) {
+          modeClass = 'prompt-prd';
+          icon = '📝';
+        } else if (lower.startsWith('/breakdown')) {
+          modeClass = 'prompt-breakdown';
+          icon = '📋';
+        } else if (lower.startsWith('/plan')) {
+          modeClass = 'prompt-plan';
+          icon = '⚡';
+        } else if (lower.startsWith('/metrics')) {
+          modeClass = 'prompt-metrics';
+          icon = '🎯';
+        } else if (lower.startsWith('/summarize') || lower.startsWith('/doc')) {
+          modeClass = 'prompt-doc';
+          icon = '📑';
+        } else if (lower.startsWith('/search')) {
+          modeClass = 'prompt-search';
+          icon = '🌐';
+        } else if (lower.startsWith('/chat')) {
+          modeClass = 'prompt-chat';
+          icon = '💬';
+        }
+
+        const cleanLabel = label.replace(/[*_`]/g, '').trim();
+        const escapedPrompt = escapeAttr(cleanPrompt);
+        return `<button class="chat-prompt-suggestion ${modeClass}" type="button" data-prompt="${escapedPrompt}" onclick="populateInput(this.getAttribute('data-prompt'))" title="Click to stage in your input bar"><span class="prompt-sugg-icon">${icon}</span><span class="prompt-sugg-text">${cleanLabel}</span><span class="prompt-sugg-hint">↳ edit / ↵</span></button>`;
+      });
+
+      // Bracketed pattern: [prompt: /plan ...] or [suggest: /prd ...]
+      html = html.replace(/\[(?:prompt|suggest):\s*([^\]]+)\]/gi, (match, rawPrompt) => {
+        let cleanPrompt = rawPrompt.trim();
+        let modeClass = 'prompt-generic';
+        let icon = '⚡';
+        const lower = cleanPrompt.toLowerCase();
+
+        if (lower.startsWith('/prd')) {
+          modeClass = 'prompt-prd';
+          icon = '📝';
+        } else if (lower.startsWith('/breakdown')) {
+          modeClass = 'prompt-breakdown';
+          icon = '📋';
+        } else if (lower.startsWith('/plan')) {
+          modeClass = 'prompt-plan';
+          icon = '⚡';
+        } else if (lower.startsWith('/metrics')) {
+          modeClass = 'prompt-metrics';
+          icon = '🎯';
+        } else if (lower.startsWith('/summarize') || lower.startsWith('/doc')) {
+          modeClass = 'prompt-doc';
+          icon = '📑';
+        } else if (lower.startsWith('/search')) {
+          modeClass = 'prompt-search';
+          icon = '🌐';
+        } else if (lower.startsWith('/chat')) {
+          modeClass = 'prompt-chat';
+          icon = '💬';
+        }
+
+        const cleanLabel = cleanPrompt.replace(/[*_`]/g, '').trim();
+        const escapedPrompt = escapeAttr(cleanPrompt);
+        return `<button class="chat-prompt-suggestion ${modeClass}" type="button" data-prompt="${escapedPrompt}" onclick="populateInput(this.getAttribute('data-prompt'))" title="Click to stage in your input bar"><span class="prompt-sugg-icon">${icon}</span><span class="prompt-sugg-text">${cleanLabel}</span><span class="prompt-sugg-hint">↳ edit / ↵</span></button>`;
+      });
+
+      // 10. Task Checklists
+      html = html.replace(/^\s*-\s*\[([ xX])\]\s+(.*$)/gm, (m, checked, itemText) => {
+        const isChecked = checked.toLowerCase() === 'x';
+        return `<li class="chat-task-item"><input type="checkbox" ${isChecked ? 'checked' : ''} disabled/> <span style="${isChecked ? 'text-decoration:line-through; opacity:0.6;' : ''}">${itemText}</span></li>`;
+      });
+
+      // 11. Unordered & Ordered Lists
+      html = html.replace(/^\s*[-*]\s+(.*$)/gm, '<li class="chat-ul-item">$1</li>');
+      html = html.replace(/^\s*(\d+)\.\s+(.*$)/gm, '<li class="chat-ol-item" value="$1">$2</li>');
+      
+      html = html.replace(/(?:<li class="chat-task-item">[\s\S]*?<\/li>\s*)+/g, (match) => `<ul class="task-list">${match.trim()}</ul>\n\n`);
+      html = html.replace(/(?:<li class="chat-ul-item">[\s\S]*?<\/li>\s*)+/g, (match) => `<ul>${match.trim()}</ul>\n\n`);
+      html = html.replace(/(?:<li class="chat-ol-item"[^>]*>[\s\S]*?<\/li>\s*)+/g, (match) => `<ol>${match.trim()}</ol>\n\n`);
+
+      // 12. Bold, Italics, Del, Links
       html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      // Unordered lists
-      html = html.replace(/^\s*-\s+(.*$)/gim, '<li>$1</li>');
-      html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-      // Line breaks to paragraphs
-      html = html.replace(/\n\n+/g, '</p><p>');
-      return `<p>${html}</p>`;
+      html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+      html = html.replace(/(^|[^*_])\*([^*]+)\*([^*_]|$)/g, '$1<em>$2</em>$3');
+      html = html.replace(/(^|[^*_])_([^_]+)_([^*_]|$)/g, '$1<em>$2</em>$3');
+      html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (match, text, url) => {
+        const cleanUrl = (url || '').trim();
+        // Strictly allow safe web protocols (https://, http://, mailto:)
+        if (/^(?:https?:\/\/|mailto:)/i.test(cleanUrl)) {
+          return `<a href="${escapeAttr(cleanUrl)}" target="_blank" rel="noopener noreferrer">${text} ↗</a>`;
+        }
+        // Disallow dangerous schemes (javascript:, data:, vbscript:, file:, etc.)
+        return `${text} (${escapeHtml(cleanUrl)})`;
+      });
+
+      // 13. Paragraphs (split by double newlines)
+      const blocks = html.split(/\n\n+/);
+      html = blocks.map(b => {
+        b = b.trim();
+        if (!b) return '';
+        if (b.startsWith('%%%CODE_BLOCK_') ||
+            b.startsWith('<div class="table-wrap"') ||
+            b.startsWith('<hr') ||
+            b.startsWith('<blockquote') ||
+            b.startsWith('<ul') ||
+            b.startsWith('<ol') ||
+            b.startsWith('<h1') || b.startsWith('<h2') ||
+            b.startsWith('<h3') || b.startsWith('<h4') || b.startsWith('<h5') ||
+            b.startsWith('<button class="chat-prompt-suggestion')) {
+          return b;
+        }
+        return `<p>${b.replace(/\n/g, '<br/>')}</p>`;
+      }).filter(Boolean).join('\n\n');
+
+      // 14. Reinsert Inline Code and Code Blocks
+      storedInlineCode.forEach((codeHtml, idx) => {
+        html = html.split(`:::INLCODE${idx}:::`).join(codeHtml);
+      });
+      storedCodeBlocks.forEach((codeHtml, idx) => {
+        html = html.split(`%%%CODE_BLOCK_${idx}%%%`).join(codeHtml);
+      });
+
+      return html;
     }
 
     function escapeHtml(str) {
@@ -1662,6 +2482,16 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    function escapeAttr(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
     }
 
     init();

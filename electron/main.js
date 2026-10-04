@@ -8,7 +8,7 @@
  * 4. Kill Flask backend process tree cleanly when the Electron window closes
  */
 
-const { app, BrowserWindow, ipcMain, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const { spawn } = require('child_process');
 const path = require('path');
@@ -304,8 +304,38 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      webSecurity: true,
+      enableRemoteModule: false,
+      allowRunningInsecureContent: false,
     },
     autoHideMenuBar: true,
+  });
+
+  // Disallow opening new Electron windows; open verified external web links safely in OS default browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        shell.openExternal(url);
+      }
+    } catch (_) {}
+    return { action: 'deny' };
+  });
+
+  // Guard navigation: restrict in-app top-level navigation to local Flask origin
+  mainWindow.webContents.on('will-navigate', (event, navUrl) => {
+    try {
+      const parsedNav = new URL(navUrl);
+      const parsedFlask = new URL(activeFlaskUrl);
+      if (parsedNav.origin !== parsedFlask.origin) {
+        event.preventDefault();
+        if (parsedNav.protocol === 'http:' || parsedNav.protocol === 'https:') {
+          shell.openExternal(navUrl);
+        }
+      }
+    } catch (_) {
+      event.preventDefault();
+    }
   });
 
   mainWindow.loadURL(`${activeFlaskUrl}/`);

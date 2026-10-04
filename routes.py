@@ -372,11 +372,24 @@ def api_llm_custom_probe():
     Body: { "url": "http://localhost:1234/v1" }
     """
     import urllib.request
+    import urllib.parse
     import json as _json
 
     data = request.get_json(silent=True) or {}
     endpoint = (data.get("url") or "http://localhost:1234/v1").rstrip("/")
     probe_target = f"{endpoint}/models" if not endpoint.endswith("/models") else endpoint
+
+    # 1. SSRF Guard: Validate URL scheme strictly to HTTP/HTTPS
+    try:
+        parsed = urllib.parse.urlparse(probe_target)
+        if parsed.scheme not in ("http", "https"):
+            return jsonify({"error": "Only HTTP and HTTPS protocols are supported."}), 400
+        
+        host = (parsed.hostname or "").lower()
+        if host in ("169.254.169.254", "metadata.google.internal", "instance-data"):
+            return jsonify({"error": "Prohibited target host."}), 403
+    except Exception:
+        return jsonify({"error": "Malformed URL endpoint."}), 400
 
     try:
         req = urllib.request.Request(probe_target, headers={"User-Agent": "PM-Tool"})
@@ -428,6 +441,8 @@ def _build_pm_system_prompt(project_id: int | None = None) -> str:
         "3. **Decision & Trade-Off Analysis**: When evaluating architectural or product decisions, use a trade-off matrix evaluating: Value/Impact, Engineering Complexity, Operational Maintenance, and Reversibility (Two-way vs One-way door).",
         "4. **Roadmap & Sprint Execution**: Break releases into MoSCoW (Must, Should, Could, Won't have) buckets with clear dependency sequencing.",
         "5. **Format**: Use clean GitHub-flavored markdown with bold headers, concise bullet points, and markdown tables for data comparisons.",
+        "6. **Plain-Text Math & Symbols (No LaTeX)**: This chat UI renders formatted Markdown tables and text, NOT LaTeX math. NEVER use LaTeX dollar-sign notation (e.g. $X^+$, $\\le 8\\%$, $> 15\\%$, $\\approx$). Instead use clean plain-text and unicode equivalents: write `≤ 8%`, `> 15%`, `≥ 90%`, `≈ 5%`, `± 2`. Use standard markdown tables with clean pipes `| Col 1 | Col 2 |`.",
+        "7. **Actionable Suggestions & Next-Step Chips (Prompt Suggestions)**: When a brainstorming conversation, PRD discussion, or story decomposition reaches an actionable consensus, milestone, or natural follow-up (e.g. decomposing a story, generating metrics, creating a project, or writing a PRD), offer 1-2 interactive prompt suggestion chips at the bottom of your response in markdown format: `[📝 /breakdown <label>](prompt:/breakdown <suggested prompt>)` or `[📋 /prd <label>](prompt:/prd <suggested prompt>)` or `[🎯 /metrics <label>](prompt:/metrics <suggested prompt>)` or `[⚡ /plan <label>](prompt:/plan <suggested prompt>)` or `[📑 /summarize <label>](prompt:/summarize <suggested prompt>)`. When clicked, it automatically populates the user's input bar with the command and prompt so they can review, edit, or press Enter to execute.",
     ]
 
     if project_id:
@@ -758,11 +773,21 @@ def api_documents_upload():
 
     upload_dir = db._user_data_dir() / "documents"
     upload_dir.mkdir(parents=True, exist_ok=True)
-    target_path = upload_dir / safe_filename
+    target_path = (upload_dir / safe_filename).resolve()
+
+    # 1. Path traversal guard
+    if not str(target_path).startswith(str(upload_dir.resolve())):
+        return jsonify({"error": "Path traversal detected."}), 400
+
+    # 2. Strict file extension whitelist BEFORE writing to disk
+    ALLOWED_EXTENSIONS = {".md", ".markdown", ".txt", ".text", ".pdf", ".docx", ".csv", ".json"}
+    suffix = target_path.suffix.lower()
+    if suffix not in ALLOWED_EXTENSIONS:
+        allowed_list = ", ".join(sorted(ALLOWED_EXTENSIONS))
+        return jsonify({"error": f"File type '{suffix}' is not permitted. Supported formats: {allowed_list}"}), 400
 
     counter = 1
     stem = target_path.stem
-    suffix = target_path.suffix
     while target_path.exists():
         target_path = upload_dir / f"{stem}_{counter}{suffix}"
         counter += 1

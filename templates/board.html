@@ -300,6 +300,23 @@
       border: 1px solid var(--border2);
     }
 
+    .btn-clear-done {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--text3);
+      font-size: 10px;
+      font-family: var(--mono);
+      padding: 2px 6px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-clear-done:hover {
+      color: var(--red);
+      border-color: rgba(232, 92, 76, 0.4);
+      background: rgba(232, 92, 76, 0.08);
+    }
+
     .cards-container {
       flex: 1;
       overflow-y: auto;
@@ -691,7 +708,10 @@
           <span class="col-dot col-dot-done"></span>
           <span class="col-title">Completed</span>
         </div>
-        <span class="col-count" id="count-done">0</span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="btn-clear-done" title="Clear completed tasks" onclick="clearCompletedTasks()">Clear</button>
+          <span class="col-count" id="count-done">0</span>
+        </div>
       </div>
       <div class="cards-container" id="cards-done"></div>
       <div class="col-quick-add">
@@ -976,8 +996,8 @@
             ${pointsBadge}
           </div>
           <div class="card-actions">
-            <button class="card-btn" title="Edit task" onclick="openTaskModal({ id: ${t.id} })">✎</button>
-            <button class="card-btn" title="Delete task" onclick="deleteTaskDirect(${t.id})">✕</button>
+            <button class="card-btn" title="Edit task" onclick="event.stopPropagation(); openTaskModal({ id: ${t.id} })">✎</button>
+            <button class="card-btn" title="Delete task" onclick="event.stopPropagation(); deleteTaskDirect(${t.id})">✕</button>
           </div>
         </div>
         <div class="card-title" onclick="openTaskModal({ id: ${t.id} })">${escapeHtml(t.title)}</div>
@@ -1129,23 +1149,78 @@
 
     async function deleteTaskDirect(taskId, cb) {
       const t = currentTasks.find(item => String(item.id) === String(taskId));
-      const confirmed = await window.PmDialogs.confirm({
-        title: 'Delete Task',
-        message: `Are you sure you want to delete "${t ? t.title : 'this task'}"? This cannot be undone.`,
-        confirmText: 'Delete Task',
-        cancelText: 'Cancel',
-        danger: true,
-      });
+      const confirmFn = (window.PmDialogs && window.PmDialogs.confirm) || window.showConfirmDialog;
+      let confirmed = false;
+      if (confirmFn) {
+        confirmed = await confirmFn({
+          title: 'Delete Task',
+          message: `Are you sure you want to delete "${t ? t.title : 'this task'}"? This cannot be undone.`,
+          confirmText: 'Delete Task',
+          cancelText: 'Cancel',
+          isDanger: true,
+          danger: true,
+        });
+      } else {
+        confirmed = window.confirm(`Are you sure you want to delete "${t ? t.title : 'this task'}"? This cannot be undone.`);
+      }
 
       if (!confirmed) return;
 
       try {
-        await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+        if (!res.ok) {
+          console.error('Delete task HTTP error:', res.status);
+        }
         if (cb) cb();
         await loadTasksAndMetrics();
         notifyShell();
       } catch (err) {
         console.error('Failed to delete task:', err);
+      }
+    }
+
+    async function clearCompletedTasks() {
+      const activeProjFilter = document.getElementById('filter-project').value;
+      const completed = currentTasks.filter(t => t.status === 'done');
+      if (completed.length === 0) {
+        const alertFn = (window.PmDialogs && window.PmDialogs.alert) || window.showAlertDialog;
+        if (alertFn) {
+          await alertFn({ title: 'Completed Tasks', message: 'There are no completed tasks to clear.' });
+        } else {
+          alert('There are no completed tasks to clear.');
+        }
+        return;
+      }
+
+      const confirmFn = (window.PmDialogs && window.PmDialogs.confirm) || window.showConfirmDialog;
+      let confirmed = false;
+      const scopeMsg = (activeProjFilter && activeProjFilter !== '0')
+        ? `all ${completed.length} completed task(s) for the selected project`
+        : `all ${completed.length} completed task(s)`;
+
+      if (confirmFn) {
+        confirmed = await confirmFn({
+          title: 'Clear Completed Tasks',
+          message: `Are you sure you want to permanently delete ${scopeMsg}? This will clear them from the board.`,
+          confirmText: 'Clear Completed',
+          cancelText: 'Cancel',
+          isDanger: true,
+          danger: true,
+        });
+      } else {
+        confirmed = window.confirm(`Are you sure you want to delete ${scopeMsg}? This cannot be undone.`);
+      }
+
+      if (!confirmed) return;
+
+      try {
+        for (const t of completed) {
+          await fetch(`/api/tasks/${t.id}`, { method: 'DELETE' });
+        }
+        await loadTasksAndMetrics();
+        notifyShell();
+      } catch (err) {
+        console.error('Failed to clear completed tasks:', err);
       }
     }
 

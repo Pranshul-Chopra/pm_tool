@@ -107,16 +107,30 @@ def create_app() -> Flask:
     @app.before_request
     def validate_origin():
         from flask import request, jsonify
-        origin = request.headers.get("Origin")
-        sec_site = request.headers.get("Sec-Fetch-Site")
 
+        # 1. DNS Rebinding Protection: Verify Host header resolves strictly to local loopback
+        host_name = request.host.split(":")[0].strip().lower()
+        if host_name not in ("127.0.0.1", "localhost"):
+            return jsonify({"error": "Forbidden: unauthorized Host header (DNS rebinding protection)"}), 403
+
+        # 2. Sec-Fetch-Site Header Check (blocks cross-site attacks from external web pages)
+        sec_site = request.headers.get("Sec-Fetch-Site")
         if sec_site == "cross-site":
             return jsonify({"error": "Forbidden cross-origin request"}), 403
 
+        # 3. Origin Header Validation
+        origin = request.headers.get("Origin")
         if origin:
             parsed = urllib.parse.urlparse(origin)
             if parsed.hostname not in ("127.0.0.1", "localhost"):
                 return jsonify({"error": "Forbidden cross-origin request"}), 403
+
+        # 4. Referer Header Validation (detects external navigation or embedding attempts)
+        referer = request.headers.get("Referer")
+        if referer:
+            parsed_ref = urllib.parse.urlparse(referer)
+            if parsed_ref.hostname and parsed_ref.hostname not in ("127.0.0.1", "localhost"):
+                return jsonify({"error": "Forbidden cross-origin referer"}), 403
 
     @app.after_request
     def add_security_headers(response):
@@ -124,6 +138,9 @@ def create_app() -> Flask:
         response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        response.headers.setdefault("X-XSS-Protection", "1; mode=block")
+        response.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+        response.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; "

@@ -11,7 +11,11 @@ from rag.parsers import parse_file
 from rag.chunker import chunk_sections
 
 SUPPORTED_EXTENSIONS = {".md", ".markdown", ".txt", ".text", ".pdf", ".docx", ".csv", ".json"}
-IGNORE_DIRECTORIES = {".git", "node_modules", "venv", "__pycache__", ".idea", ".vscode", "dist", "build"}
+IGNORE_DIRECTORIES = {
+    ".git", "node_modules", "venv", ".venv", "env", "__pycache__",
+    ".idea", ".vscode", "dist", "build", "$recycle.bin", "system volume information",
+    "windows", "program files", "program files (x86)", ".ssh", ".gnupg", ".aws"
+}
 
 
 def scan_and_ingest_directory(
@@ -42,8 +46,8 @@ def scan_and_ingest_directory(
     files_to_process = []
     if recursive:
         for root, dirs, files in os.walk(path_obj):
-            # Prune ignored directories
-            dirs[:] = [d for d in dirs if d not in IGNORE_DIRECTORIES and not d.startswith(".")]
+            # Prune ignored directories (case-insensitive)
+            dirs[:] = [d for d in dirs if d.lower() not in IGNORE_DIRECTORIES and not d.startswith(".")]
             for f in files:
                 ext = Path(f).suffix.lower()
                 if ext in SUPPORTED_EXTENSIONS:

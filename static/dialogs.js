@@ -32,12 +32,12 @@
 
   window.showConfirmDialog = function (options = {}) {
     const opts = typeof options === 'string' ? { message: options } : options;
+    const isDanger = Boolean(opts.isDanger || opts.danger);
     const {
       title = 'Confirm Action',
       message = 'Are you sure you want to proceed?',
-      confirmText = 'Confirm',
+      confirmText = isDanger ? 'Delete' : 'Confirm',
       cancelText = 'Cancel',
-      isDanger = false,
       icon = isDanger ? '🗑️' : '⚠️',
     } = opts;
 
@@ -145,5 +145,15 @@
       backdrop.classList.add('visible');
       confirmBtn.focus();
     });
+  };
+
+  // Expose PmDialogs namespace for unified modal calls
+  window.PmDialogs = {
+    confirm: function (options) {
+      return window.showConfirmDialog(options);
+    },
+    alert: function (options) {
+      return window.showAlertDialog(options);
+    }
   };
 })();

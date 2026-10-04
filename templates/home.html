@@ -111,92 +111,6 @@
     .btn-secondary:hover { background: var(--border); }
     .btn-sm { padding: 4px 10px; font-size: 11px; }
 
-    /* ── Quick Capabilities Hub ── */
-    .quick-launch-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-
-    .quick-launch-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 12px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .quick-launch-card:hover {
-      border-color: var(--amber-dim);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-    }
-
-    .quick-launch-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: transparent;
-      transition: background 0.15s ease;
-    }
-
-    .quick-launch-card:hover::before {
-      background: var(--amber);
-    }
-
-    .ql-top {
-      display: flex;
-      align-items: flex-start;
-      gap: 12px;
-    }
-
-    .ql-icon {
-      font-size: 22px;
-      background: var(--surface2);
-      border: 1px solid var(--border2);
-      border-radius: 8px;
-      width: 40px;
-      height: 40px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .ql-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 3px;
-    }
-
-    .ql-desc {
-      font-size: 12px;
-      color: var(--text2);
-      line-height: 1.4;
-    }
-
-    .ql-action {
-      font-size: 11px;
-      font-family: var(--mono);
-      color: var(--amber);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      font-weight: 600;
-    }
-
     /* ── Metric Cards ── */
     .metric-grid {
       display: grid;
@@ -542,46 +456,8 @@
       </h1>
       <p class="view-subtitle">Local-first product management copilot: roadmaps, sprint execution, and AI reasoning</p>
     </div>
-    <div style="display:flex; gap:10px; align-items:center;">
-      <button class="btn-secondary" onclick="navigateParent('board')">📋 Sprint Board</button>
-      <button class="btn-secondary" onclick="navigateParent('chat')">💬 AI Copilot</button>
+    <div>
       <button class="btn" onclick="openNewProjectModal()">+ New Project</button>
-    </div>
-  </div>
-
-  <!-- Capabilities Quick-Launch Hub -->
-  <div class="quick-launch-grid">
-    <div class="quick-launch-card" onclick="navigateParent('board')">
-      <div class="ql-top">
-        <div class="ql-icon">📋</div>
-        <div>
-          <div class="ql-title">Sprint Kanban Board</div>
-          <div class="ql-desc">Interactive drag-and-drop workflow lanes, story points, and sprint velocity tracking.</div>
-        </div>
-      </div>
-      <div class="ql-action">Open Sprint Board →</div>
-    </div>
-
-    <div class="quick-launch-card" onclick="navigateParent('chat')">
-      <div class="ql-top">
-        <div class="ql-icon">💬</div>
-        <div>
-          <div class="ql-title">AI Copilot &amp; PRD Studio</div>
-          <div class="ql-desc">Draft PRDs, decompose stories, and query decision records with an expanded 8K token budget.</div>
-        </div>
-      </div>
-      <div class="ql-action">Launch Copilot →</div>
-    </div>
-
-    <div class="quick-launch-card" onclick="navigateParent('documents')">
-      <div class="ql-top">
-        <div class="ql-icon">📁</div>
-        <div>
-          <div class="ql-title">Knowledge Base &amp; RAG</div>
-          <div class="ql-desc">Local-first ingestion of PDF, DOCX, and Markdown files with BM25 hybrid chunk search.</div>
-        </div>
-      </div>
-      <div class="ql-action">Browse Knowledge →</div>
     </div>
   </div>
 
