@@ -1,0 +1,1551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Data Studio &amp; Dashboards</title>
+  <link rel="stylesheet" href="/static/fonts/ibmflex.css"/>
+  <link rel="stylesheet" href="/static/dialogs.css"/>
+  <script src="/static/dialogs.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2) transparent;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #3a3835; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #7a5820; }
+
+    :root {
+      --bg: #111110;
+      --surface: #1a1918;
+      --surface2: #222120;
+      --surface3: #2a2826;
+      --border: #2e2c2a;
+      --border2: #3a3835;
+      --text: #edeae4;
+      --text2: #9b9690;
+      --text3: #5c5955;
+      --amber: #e8a84c;
+      --amber-dim: #7a5820;
+      --amber-faint: rgba(232, 168, 76, 0.08);
+      --green: #5aab7f;
+      --green-faint: rgba(90, 171, 127, 0.12);
+      --blue: #4c97e8;
+      --blue-faint: rgba(76, 151, 232, 0.12);
+      --red: #e85c4c;
+      --red-faint: rgba(232, 92, 76, 0.12);
+      --purple: #a5b4fc;
+      --radius: 8px;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 13px;
+      line-height: 1.5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top Controls Bar ── */
+    .dashboard-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .view-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .view-title {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--amber);
+      letter-spacing: 0.02em;
+    }
+
+    .badge-ds {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: 4px;
+      font-size: 10px;
+      font-family: var(--mono);
+      padding: 2px 6px;
+      color: var(--text2);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Sub-navigation Tab Bar ── */
+    .tab-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text2);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .tab-btn:hover {
+      color: var(--text);
+    }
+    .tab-btn.active {
+      color: var(--amber);
+      border-bottom-color: var(--amber);
+      font-weight: 600;
+    }
+
+    /* ── Buttons & Inputs ── */
+    .btn {
+      background: var(--amber);
+      color: #000;
+      border: none;
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--sans);
+      transition: opacity 0.15s ease;
+    }
+    .btn:hover { opacity: 0.9; }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--sans);
+      transition: all 0.15s ease;
+    }
+    .btn-secondary:hover {
+      background: var(--surface3);
+      border-color: var(--amber-dim);
+    }
+
+    .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-icon:hover {
+      color: var(--amber);
+      border-color: var(--amber);
+      background: var(--amber-faint);
+    }
+
+    .form-select, .form-input {
+      background: var(--surface2);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 12px;
+      padding: 6px 10px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .form-select:focus, .form-input:focus {
+      border-color: var(--amber);
+    }
+
+    /* ── View Containers ── */
+    .view-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Dashboard Canvas ── */
+    .dashboard-meta-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dash-info h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .dash-info p {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    /* KPI Summary Cards Grid */
+    .kpi-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+    }
+
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+    .kpi-card:hover {
+      border-color: var(--border2);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+    }
+
+    .kpi-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .kpi-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-family: var(--mono);
+    }
+    .kpi-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .kpi-card:hover .kpi-actions {
+      opacity: 1;
+    }
+
+    .kpi-value-wrap {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+    .kpi-value {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .kpi-comparison {
+      font-size: 11px;
+      font-family: var(--mono);
+      padding: 2px 6px;
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    .kpi-comparison.up {
+      background: var(--green-faint);
+      color: var(--green);
+    }
+    .kpi-comparison.down {
+      background: var(--red-faint);
+      color: var(--red);
+    }
+
+    .kpi-card-footer {
+      margin-top: 12px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Charts Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 16px;
+    }
+
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .chart-card:hover {
+      border-color: var(--border2);
+    }
+    .chart-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .chart-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .chart-card-sub {
+      font-size: 11px;
+      color: var(--text3);
+      font-family: var(--mono);
+    }
+
+    .chart-render-area {
+      flex: 1;
+      min-height: 220px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    /* SVG Bar Chart Styling */
+    .svg-chart {
+      width: 100%;
+      height: 220px;
+      overflow: visible;
+    }
+    .chart-bar {
+      transition: fill 0.2s ease, opacity 0.2s ease;
+      cursor: pointer;
+    }
+    .chart-bar:hover {
+      opacity: 0.85;
+    }
+
+    /* Table & Datasets Styling */
+    .dataset-table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow-x: auto;
+    }
+    .dataset-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      text-align: left;
+    }
+    .dataset-table th {
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border2);
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--amber);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .dataset-table td {
+      border-bottom: 1px solid var(--border);
+      padding: 9px 14px;
+      color: var(--text);
+      white-space: nowrap;
+      font-family: var(--sans);
+    }
+    .dataset-table tr:hover td {
+      background: var(--surface2);
+    }
+
+    /* Empty States */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      background: var(--surface);
+      border: 1px dashed var(--border2);
+      border-radius: var(--radius);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+    }
+    .empty-icon {
+      font-size: 32px;
+      color: var(--amber);
+      margin-bottom: 4px;
+    }
+    .empty-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .empty-desc {
+      font-size: 12px;
+      color: var(--text2);
+      max-width: 440px;
+      line-height: 1.5;
+    }
+
+    /* ── SQL Query Sandbox ── */
+    .query-sandbox-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .sql-textarea {
+      width: 100%;
+      height: 90px;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      color: #38bdf8;
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 10px;
+      outline: none;
+      resize: vertical;
+    }
+    .sql-textarea:focus {
+      border-color: var(--amber);
+    }
+
+    /* ── Modals ── */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
+      width: 520px;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      color: var(--text3);
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .modal-close:hover { color: var(--red); }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-group label {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text2);
+      text-transform: uppercase;
+    }
+    .file-dropzone {
+      border: 2px dashed var(--border2);
+      border-radius: var(--radius);
+      padding: 30px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      background: var(--surface2);
+    }
+    .file-dropzone:hover {
+      border-color: var(--amber);
+      background: var(--amber-faint);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Controls Bar -->
+  <header class="dashboard-header">
+    <div class="header-left">
+      <div class="view-title-wrap">
+        <span style="font-size:16px;">📊</span>
+        <span class="view-title">Data Studio &amp; Dashboards</span>
+        <span style="font-size: 11px; font-weight: normal; background: var(--amber-faint); border: 1px solid var(--amber-dim); color: var(--amber); padding: 1px 6px; border-radius: 4px; font-family: var(--mono);">v1.4.0</span>
+        <span class="badge-ds" id="active-dataset-count">0 Datasets</span>
+      </div>
+
+      <!-- Dashboard Switcher -->
+      <select id="dash-selector" class="form-select" style="min-width: 200px;" onchange="onDashboardSelect(this.value)">
+        <option value="">Loading Dashboards...</option>
+      </select>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-secondary" onclick="openUploadModal()">
+        <span>📤</span> Connect Dataset
+      </button>
+      <button class="btn-secondary" onclick="openNewDashboardModal()">
+        <span>+</span> New Dashboard
+      </button>
+      <button class="btn" id="btn-add-kpi" onclick="openAddWidgetModal('kpi_card')">
+        <span>⚡</span> + KPI Card
+      </button>
+      <button class="btn-secondary" id="btn-add-chart" onclick="openAddWidgetModal('bar_chart')">
+        <span>📈</span> + Chart
+      </button>
+      <button class="btn-secondary" onclick="askCopilotAboutData()" title="Consult PM Copilot with contextual data grounding">
+        <span>💬</span> Ask Copilot
+      </button>
+      <button class="btn-icon" onclick="refreshCurrentView()" title="Refresh data">↺</button>
+    </div>
+  </header>
+
+  <!-- Navigation Tab Bar -->
+  <nav class="tab-bar">
+    <button class="tab-btn active" id="tab-btn-dashboard" onclick="switchTab('dashboard')">
+      <span>📊</span> Dashboard Canvas
+    </button>
+    <button class="tab-btn" id="tab-btn-sources" onclick="switchTab('sources')">
+      <span>📁</span> Connected Datasets (<span id="source-tab-count">0</span>)
+    </button>
+    <button class="tab-btn" id="tab-btn-sandbox" onclick="switchTab('sandbox')">
+      <span>‹/›</span> Safe SQL Sandbox
+    </button>
+  </nav>
+
+  <!-- Main View Area -->
+  <main class="view-content" id="main-view-container">
+
+    <!-- ── TAB 1: DASHBOARD CANVAS ── -->
+    <div id="tab-dashboard" style="display:flex; flex-direction:column; gap:20px;">
+      
+      <!-- Dashboard Meta Strip -->
+      <div class="dashboard-meta-strip" id="dash-meta-strip" style="display:none;">
+        <div class="dash-info">
+          <h2 id="dash-title-display">Executive Metrics</h2>
+          <p id="dash-desc-display">Business performance and user telemetry metrics.</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="badge-ds" id="dash-source-badge">Source: All Datasets</span>
+          <button class="btn-icon" onclick="deleteCurrentDashboard()" title="Delete this dashboard">🗑️</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards Grid -->
+      <div class="kpi-cards-grid" id="kpi-grid"></div>
+
+      <!-- Charts Grid -->
+      <div class="charts-grid" id="charts-grid"></div>
+
+      <!-- Empty State if No Dashboards or No Widgets -->
+      <div class="empty-state" id="dash-empty-state" style="display:none;">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">No Dashboard Created Yet</div>
+        <div class="empty-desc">
+          Connect a CSV, Excel, JSON, or SQLite database file and create customized KPI metric cards, bar breakdowns, and trend charts.
+        </div>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button class="btn" onclick="openUploadModal()">Connect Dataset</button>
+          <button class="btn-secondary" onclick="openNewDashboardModal()">Create Dashboard</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── TAB 2: CONNECTED DATASETS ── -->
+    <div id="tab-sources" style="display:none; flex-direction:column; gap:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 style="font-size:16px; font-weight:600;">Managed Datasets &amp; File Sources</h3>
+          <p style="font-size:12px; color:var(--text2);">Structured tabular databases ingested into the local analytics store.</p>
+        </div>
+        <button class="btn" onclick="openUploadModal()">+ Upload New Dataset</button>
+      </div>
+
+      <div class="dataset-table-wrap">
+        <table class="dataset-table">
+          <thead>
+            <tr>
+              <th>Dataset Name</th>
+              <th>Format</th>
+              <th>Rows</th>
+              <th>Columns</th>
+              <th>Internal Table</th>
+              <th>Registered</th>
+              <th style="text-align:right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sources-table-body">
+            <tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text3);">Loading datasets...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── TAB 3: SAFE SQL QUERY SANDBOX ── -->
+    <div id="tab-sandbox" style="display:none; flex-direction:column; gap:16px;">
+      <div class="query-sandbox-box">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-family:var(--mono); font-size:12px; color:var(--amber); font-weight:600;">
+            ⚡ Safe Read-Only SQL Query Console
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-size:11px; font-family:var(--mono); color:var(--text2);">Target Dataset:</label>
+            <select id="sandbox-source-select" class="form-select"></select>
+          </div>
+        </div>
+
+        <textarea id="sandbox-sql-input" class="sql-textarea" placeholder="SELECT * FROM dataset_table LIMIT 10;"></textarea>
+
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:11px; font-family:var(--mono); color:var(--text3);">
+            🔒 Read-only query execution sandbox with timeout and limit protections.
+          </span>
+          <button class="btn" onclick="executeSandboxQuery()">▶ Run Safe Query</button>
+        </div>
+      </div>
+
+      <!-- Query Results -->
+      <div id="sandbox-results-wrap" class="dataset-table-wrap" style="display:none;">
+        <div style="padding:10px 14px; background:var(--surface2); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; font-size:11px; font-family:var(--mono);">
+          <span id="sandbox-stat-count">0 rows returned</span>
+          <span id="sandbox-stat-duration" style="color:var(--green);">0 ms</span>
+        </div>
+        <table class="dataset-table" id="sandbox-results-table">
+          <thead id="sandbox-results-head"></thead>
+          <tbody id="sandbox-results-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── MODAL: CONNECT DATASET ── -->
+  <div id="modal-upload" class="modal-backdrop" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">Connect Tabular Dataset</div>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label>Dataset Display Name</label>
+        <input type="text" id="upload-name-input" class="form-input" placeholder="e.g. Q3 Sales &amp; Revenue Ledger"/>
+      </div>
+
+      <div class="file-dropzone" onclick="document.getElementById('dataset-file-input').click()">
+        <input type="file" id="dataset-file-input" style="display:none;" accept=".csv,.tsv,.xlsx,.xls,.json,.db,.sqlite,.sqlite3" onchange="onFileSelected(this)"/>
+        <div style="font-size:28px; margin-bottom:8px;">📁</div>
+        <div style="font-weight:600; color:var(--text);" id="dropzone-label">Click to select CSV, Excel, JSON, or SQLite file</div>
+        <div style="font-size:11px; color:var(--text3); margin-top:4px;">Supported formats: .csv, .tsv, .xlsx, .xls, .json, .db, .sqlite (Max 30MB)</div>
+      </div>
+
+      <div id="upload-status" style="font-size:12px; font-family:var(--mono); color:var(--amber); display:none;"></div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button class="btn-secondary" onclick="closeModals()">Cancel</button>
+        <button class="btn" id="btn-submit-upload" onclick="submitUploadDataset()">Ingest &amp; Materialize</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: NEW DASHBOARD ── -->
+  <div id="modal-new-dashboard" class="modal-backdrop" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">Create Analytics Dashboard</div>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label>Dashboard Title</label>
+        <input type="text" id="new-dash-title" class="form-input" placeholder="e.g. Product Funnel &amp; Growth KPIs"/>
+      </div>
+
+      <div class="form-group">
+        <label>Description / Objective</label>
+        <input type="text" id="new-dash-desc" class="form-input" placeholder="Track monthly conversion, retention, and drop-off thresholds"/>
+      </div>
+
+      <div class="form-group">
+        <label>Primary Data Source</label>
+        <select id="new-dash-source" class="form-select"></select>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button class="btn-secondary" onclick="closeModals()">Cancel</button>
+        <button class="btn" onclick="submitCreateDashboard()">Create Dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: ADD WIDGET ── -->
+  <div id="modal-add-widget" class="modal-backdrop" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title" id="widget-modal-title">Configure Dashboard Widget</div>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="form-group">
+        <label>Widget Title</label>
+        <input type="text" id="widget-title-input" class="form-input" placeholder="e.g. Monthly Active Revenue"/>
+      </div>
+
+      <div class="form-group">
+        <label>Widget Type</label>
+        <select id="widget-type-select" class="form-select" onchange="onWidgetTypeChange(this.value)">
+          <option value="kpi_card">⚡ KPI Metric Card (Single Stat)</option>
+          <option value="bar_chart">📊 Vertical Bar Chart (Breakdown)</option>
+          <option value="line_chart">📈 Trend Line Chart (Time / Dimension)</option>
+          <option value="pie_chart">🍩 Donut / Pie Breakdown</option>
+          <option value="table_view">📋 Table View (Top Rows)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Target Data Source</label>
+        <select id="widget-source-select" class="form-select" onchange="loadColumnsForWidget(this.value)"></select>
+      </div>
+
+      <div class="form-group" id="grp-metric-op">
+        <label>Metric Operation</label>
+        <select id="widget-op-select" class="form-select">
+          <option value="count">COUNT (Number of Records)</option>
+          <option value="sum">SUM (Total Sum of Column)</option>
+          <option value="avg">AVG (Average of Column)</option>
+          <option value="min">MIN (Lowest Value)</option>
+          <option value="max">MAX (Highest Value)</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="grp-val-col">
+        <label>Target Value Column</label>
+        <select id="widget-val-col-select" class="form-select"></select>
+      </div>
+
+      <div class="form-group" id="grp-breakdown-col" style="display:none;">
+        <label>Breakdown / Group By Dimension</label>
+        <select id="widget-grp-col-select" class="form-select"></select>
+      </div>
+
+      <div class="form-group">
+        <label>Display Format</label>
+        <select id="widget-format-select" class="form-select">
+          <option value="number">12,345 (Standard Number)</option>
+          <option value="currency_usd">$12,345.00 (USD $)</option>
+          <option value="currency_eur">€12,345.00 (EUR €)</option>
+          <option value="currency_inr">₹12,345.00 (INR ₹)</option>
+          <option value="percent">84.5% (Percentage)</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="grp-target-val">
+        <label>Benchmark / Target Value (Optional)</label>
+        <input type="number" step="any" id="widget-target-input" class="form-input" placeholder="e.g. 50000"/>
+      </div>
+
+      <div class="form-group">
+        <label>Filter Condition (WHERE clause, optional)</label>
+        <input type="text" id="widget-filter-input" class="form-input" placeholder="e.g. status = 'completed' AND amount > 0"/>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:8px;">
+        <button class="btn-secondary" onclick="closeModals()">Cancel</button>
+        <button class="btn" onclick="submitCreateWidget()">Save Widget</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: PREVIEW DATASET SCHEMA & ROWS ── -->
+  <div id="modal-preview" class="modal-backdrop" style="display:none;">
+    <div class="modal-box" style="width: 800px;">
+      <div class="modal-header">
+        <div class="modal-title" id="preview-modal-title">Dataset Schema &amp; Preview</div>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+
+      <div style="font-size:12px; font-family:var(--mono); color:var(--amber);" id="preview-meta-summary"></div>
+
+      <div class="dataset-table-wrap" style="max-height: 400px;">
+        <table class="dataset-table" id="preview-data-table">
+          <thead id="preview-table-head"></thead>
+          <tbody id="preview-table-body"></tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn-secondary" onclick="closeModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ── State Management ── */
+    let allDataSources = [];
+    let allDashboards = [];
+    let activeDashboardId = null;
+    let activeTab = 'dashboard';
+    let selectedUploadFile = null;
+
+    async function init() {
+      await loadDataSources();
+      await loadDashboards();
+    }
+
+    /* ── Tab Switcher ── */
+    function switchTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById(`tab-btn-${tab}`);
+      if (btn) btn.classList.add('active');
+
+      document.getElementById('tab-dashboard').style.display = tab === 'dashboard' ? 'flex' : 'none';
+      document.getElementById('tab-sources').style.display = tab === 'sources' ? 'flex' : 'none';
+      document.getElementById('tab-sandbox').style.display = tab === 'sandbox' ? 'flex' : 'none';
+
+      if (tab === 'sources') renderSourcesTable();
+      if (tab === 'sandbox') populateSandboxSources();
+    }
+
+    function refreshCurrentView() {
+      if (activeTab === 'dashboard' && activeDashboardId) {
+        loadDashboardDetails(activeDashboardId);
+      } else {
+        init();
+      }
+    }
+
+    /* ── Data Sources ── */
+    async function loadDataSources() {
+      try {
+        const res = await fetch('/api/data/sources');
+        const data = await res.json();
+        allDataSources = data.sources || [];
+        document.getElementById('active-dataset-count').textContent = `${allDataSources.length} Datasets`;
+        document.getElementById('source-tab-count').textContent = allDataSources.length;
+      } catch (err) {
+        console.error('Failed loading data sources:', err);
+      }
+    }
+
+    function renderSourcesTable() {
+      const tbody = document.getElementById('sources-table-body');
+      if (!tbody) return;
+
+      if (allDataSources.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text3);">No datasets connected. Click "Upload New Dataset" above.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = allDataSources.map(s => `
+        <tr>
+          <td><strong style="color:var(--text);">${escapeHtml(s.name)}</strong></td>
+          <td><span class="badge-ds">${escapeHtml(s.source_type.toUpperCase())}</span></td>
+          <td style="font-family:var(--mono);">${s.row_count.toLocaleString()}</td>
+          <td style="font-family:var(--mono);">${s.column_count}</td>
+          <td><code style="color:#38bdf8;">${escapeHtml(s.table_name)}</code></td>
+          <td style="font-size:11px; color:var(--text3); font-family:var(--mono);">${(s.created_at || '').slice(0, 10)}</td>
+          <td style="text-align:right;">
+            <button class="btn-icon" onclick="openPreviewModal(${s.id})" title="Inspect Schema &amp; Preview Rows">👁️</button>
+            <button class="btn-icon" onclick="deleteDataSource(${s.id})" title="Delete Dataset" style="color:var(--red);">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    async function deleteDataSource(sourceId) {
+      const confirmFn = (window.PmDialogs && window.PmDialogs.confirm) || window.showConfirmDialog;
+      let ok = false;
+      if (confirmFn) {
+        ok = await confirmFn({
+          title: 'Delete Dataset',
+          message: 'Are you sure you want to delete this dataset? Materialized analytics tables will be purged.',
+          isDanger: true,
+          danger: true,
+        });
+      } else {
+        ok = confirm('Delete this dataset?');
+      }
+      if (!ok) return;
+
+      try {
+        await fetch(`/api/data/sources/${sourceId}`, { method: 'DELETE' });
+        await init();
+        if (activeTab === 'sources') renderSourcesTable();
+      } catch (err) {
+        console.error('Failed deleting data source:', err);
+      }
+    }
+
+    /* ── Dashboards ── */
+    async function loadDashboards() {
+      try {
+        const res = await fetch('/api/dashboards');
+        const data = await res.json();
+        allDashboards = data.dashboards || [];
+
+        const sel = document.getElementById('dash-selector');
+        if (!sel) return;
+
+        if (allDashboards.length === 0) {
+          sel.innerHTML = '<option value="">(No Dashboards Yet)</option>';
+          document.getElementById('dash-meta-strip').style.display = 'none';
+          document.getElementById('kpi-grid').innerHTML = '';
+          document.getElementById('charts-grid').innerHTML = '';
+          document.getElementById('dash-empty-state').style.display = 'flex';
+          activeDashboardId = null;
+          return;
+        }
+
+        sel.innerHTML = allDashboards.map(d => `
+          <option value="${d.id}" ${d.id === activeDashboardId ? 'selected' : ''}>
+            ${escapeHtml(d.title)} (${d.widget_count || 0} widgets)
+          </option>
+        `).join('');
+
+        if (!activeDashboardId || !allDashboards.find(d => d.id === activeDashboardId)) {
+          activeDashboardId = allDashboards[0].id;
+        }
+        sel.value = activeDashboardId;
+
+        document.getElementById('dash-empty-state').style.display = 'none';
+        await loadDashboardDetails(activeDashboardId);
+      } catch (err) {
+        console.error('Failed loading dashboards:', err);
+      }
+    }
+
+    function onDashboardSelect(dashId) {
+      if (!dashId) return;
+      activeDashboardId = parseInt(dashId, 10);
+      loadDashboardDetails(activeDashboardId);
+    }
+
+    async function loadDashboardDetails(dashId) {
+      try {
+        const res = await fetch(`/api/dashboards/${dashId}`);
+        const data = await res.json();
+        if (!data || !data.dashboard) return;
+
+        const d = data.dashboard;
+        const widgets = data.widgets || [];
+
+        document.getElementById('dash-meta-strip').style.display = 'flex';
+        document.getElementById('dash-title-display').textContent = d.title;
+        document.getElementById('dash-desc-display').textContent = d.description || 'Configured KPI cards and analytical visualizations.';
+        document.getElementById('dash-source-badge').textContent = d.data_source_name ? `Dataset: ${d.data_source_name}` : 'Source: Multi-Dataset';
+
+        renderWidgets(widgets);
+      } catch (err) {
+        console.error('Failed loading dashboard details:', err);
+      }
+    }
+
+    function renderWidgets(widgets) {
+      const kpiContainer = document.getElementById('kpi-grid');
+      const chartsContainer = document.getElementById('charts-grid');
+
+      kpiContainer.innerHTML = '';
+      chartsContainer.innerHTML = '';
+
+      const kpis = widgets.filter(w => w.widget_type === 'kpi_card');
+      const charts = widgets.filter(w => w.widget_type !== 'kpi_card');
+
+      // Render KPI Cards
+      if (kpis.length > 0) {
+        kpiContainer.innerHTML = kpis.map(w => {
+          let compHtml = '';
+          if (w.comparison) {
+            compHtml = `<div class="kpi-comparison ${w.comparison.direction}">${w.comparison.label}</div>`;
+          }
+          return `
+            <div class="kpi-card" id="widget-card-${w.id}">
+              <div class="kpi-card-top">
+                <div class="kpi-title">${escapeHtml(w.title)}</div>
+                <div class="kpi-actions">
+                  <button class="btn-icon" onclick="deleteWidget(${w.id})" title="Delete Widget">✕</button>
+                </div>
+              </div>
+              <div class="kpi-value-wrap">
+                <div class="kpi-value">${escapeHtml(w.display_value || '—')}</div>
+              </div>
+              ${compHtml}
+              <div class="kpi-card-footer">
+                <span>${escapeHtml(w.data_source_name || 'Dataset')}</span>
+                <span>${(w.metric_op || 'count').toUpperCase()}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Render Charts
+      if (charts.length > 0) {
+        charts.forEach(w => {
+          const card = document.createElement('div');
+          card.className = 'chart-card';
+          card.id = `widget-card-${w.id}`;
+
+          card.innerHTML = `
+            <div class="chart-card-header">
+              <div>
+                <div class="chart-card-title">${escapeHtml(w.title)}</div>
+                <div class="chart-card-sub">${escapeHtml(w.data_source_name || '')} · Total: ${escapeHtml(w.display_total || '')}</div>
+              </div>
+              <button class="btn-icon" onclick="deleteWidget(${w.id})" title="Delete Chart">✕</button>
+            </div>
+            <div class="chart-render-area" id="chart-area-${w.id}"></div>
+          `;
+          chartsContainer.appendChild(card);
+
+          renderChartVisual(w, document.getElementById(`chart-area-${w.id}`));
+        });
+      }
+
+      if (widgets.length === 0) {
+        kpiContainer.innerHTML = `
+          <div class="empty-state" style="grid-column: 1 / -1; padding: 40px 20px;">
+            <div class="empty-icon">⚡</div>
+            <div class="empty-title">Dashboard Has No Widgets</div>
+            <div class="empty-desc">Click "+ KPI Card" or "+ Chart" in the top bar to define metrics from your connected datasets.</div>
+          </div>
+        `;
+      }
+    }
+
+    function renderChartVisual(widget, container) {
+      if (!container) return;
+      const series = widget.series || [];
+      if (series.length === 0) {
+        container.innerHTML = '<div style="color:var(--text3); font-size:12px;">No data points available for this query.</div>';
+        return;
+      }
+
+      const wType = widget.widget_type;
+
+      // 1. Horizontal / Vertical Bar Chart
+      if (wType === 'bar_chart') {
+        const maxVal = Math.max(...series.map(s => s.value), 1);
+        container.innerHTML = `
+          <div style="width:100%; display:flex; flex-direction:column; gap:8px;">
+            ${series.slice(0, 8).map(s => {
+              const widthPct = Math.max(4, Math.round((s.value / maxVal) * 100));
+              return `
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                  <div style="display:flex; justify-content:space-between; font-size:11px; font-family:var(--mono);">
+                    <span style="color:var(--text);">${escapeHtml(s.label)}</span>
+                    <span style="color:var(--amber);">${escapeHtml(s.display_value)} (${s.percent}%)</span>
+                  </div>
+                  <div style="height:8px; background:var(--surface2); border-radius:4px; overflow:hidden;">
+                    <div style="height:100%; width:${widthPct}%; background:${s.color}; border-radius:4px;"></div>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `;
+      }
+
+      // 2. Donut / Pie Breakdown Chart
+      else if (wType === 'pie_chart') {
+        container.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:space-around; width:100%; gap:16px;">
+            <svg viewBox="0 0 100 100" style="width:140px; height:140px; transform:rotate(-90deg);">
+              ${renderSvgDonutSlices(series)}
+            </svg>
+            <div style="display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;">
+              ${series.slice(0, 6).map(s => `
+                <div style="display:flex; align-items:center; gap:8px; font-size:11px; font-family:var(--mono);">
+                  <span style="width:10px; height:10px; border-radius:2px; background:${s.color}; flex-shrink:0;"></span>
+                  <span style="color:var(--text2);">${escapeHtml(s.label)}:</span>
+                  <span style="color:var(--text); font-weight:600;">${s.percent}%</span>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      // 3. Line Trend Chart
+      else if (wType === 'line_chart') {
+        container.innerHTML = renderSvgLineChart(series);
+      }
+
+      // 4. Table Preview Widget
+      else if (wType === 'table_view') {
+        const cols = widget.columns || [];
+        const rows = widget.rows || [];
+        container.innerHTML = `
+          <div class="dataset-table-wrap" style="max-height:220px; width:100%;">
+            <table class="dataset-table">
+              <thead><tr>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
+              <tbody>
+                ${rows.slice(0, 8).map(r => `
+                  <tr>${cols.map(c => `<td>${escapeHtml(String(r[c] ?? ''))}</td>`).join('')}</tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+    }
+
+    function renderSvgDonutSlices(series) {
+      let cumulativePercent = 0;
+      return series.map(s => {
+        const start = cumulativePercent;
+        const end = start + s.percent;
+        cumulativePercent = end;
+
+        const x1 = Math.cos(2 * Math.PI * (start / 100));
+        const y1 = Math.sin(2 * Math.PI * (start / 100));
+        const x2 = Math.cos(2 * Math.PI * (end / 100));
+        const y2 = Math.sin(2 * Math.PI * (end / 100));
+        const largeArc = s.percent > 50 ? 1 : 0;
+
+        return `<path d="M 50 50 L ${50 + 40 * x1} ${50 + 40 * y1} A 40 40 0 ${largeArc} 1 ${50 + 40 * x2} ${50 + 40 * y2} Z" fill="${s.color}"></path>`;
+      }).join('') + '<circle cx="50" cy="50" r="24" fill="var(--surface)"/>';
+    }
+
+    function renderSvgLineChart(series) {
+      const maxVal = Math.max(...series.map(s => s.value), 1);
+      const minVal = Math.min(...series.map(s => s.value), 0);
+      const range = maxVal - minVal || 1;
+      const count = series.length;
+      const stepX = 260 / (count > 1 ? count - 1 : 1);
+
+      const points = series.map((s, idx) => {
+        const x = 20 + idx * stepX;
+        const y = 140 - ((s.value - minVal) / range) * 110;
+        return `${x},${y}`;
+      }).join(' ');
+
+      return `
+        <svg viewBox="0 0 300 160" style="width:100%; height:180px;">
+          <!-- Grid lines -->
+          <line x1="20" y1="30" x2="280" y2="30" stroke="var(--border)" stroke-dasharray="3,3"/>
+          <line x1="20" y1="85" x2="280" y2="85" stroke="var(--border)" stroke-dasharray="3,3"/>
+          <line x1="20" y1="140" x2="280" y2="140" stroke="var(--border)"/>
+
+          <!-- Polyline Trend -->
+          <polyline fill="none" stroke="var(--amber)" stroke-width="2.5" points="${points}"/>
+          ${series.map((s, idx) => {
+            const x = 20 + idx * stepX;
+            const y = 140 - ((s.value - minVal) / range) * 110;
+            return `<circle cx="${x}" cy="${y}" r="4" fill="var(--amber)" stroke="var(--surface)" stroke-width="2"><title>${escapeHtml(s.label)}: ${escapeHtml(s.display_value)}</title></circle>`;
+          }).join('')}
+        </svg>
+      `;
+    }
+
+    async function deleteWidget(widgetId) {
+      try {
+        await fetch(`/api/dashboards/widgets/${widgetId}`, { method: 'DELETE' });
+        if (activeDashboardId) loadDashboardDetails(activeDashboardId);
+      } catch (err) {
+        console.error('Failed deleting widget:', err);
+      }
+    }
+
+    async function deleteCurrentDashboard() {
+      if (!activeDashboardId) return;
+      const confirmFn = (window.PmDialogs && window.PmDialogs.confirm) || window.showConfirmDialog;
+      let ok = false;
+      if (confirmFn) {
+        ok = await confirmFn({
+          title: 'Delete Dashboard',
+          message: 'Are you sure you want to delete this dashboard and all its configured widgets?',
+          isDanger: true,
+          danger: true,
+        });
+      } else {
+        ok = confirm('Delete this dashboard?');
+      }
+      if (!ok) return;
+
+      try {
+        await fetch(`/api/dashboards/${activeDashboardId}`, { method: 'DELETE' });
+        activeDashboardId = null;
+        await loadDashboards();
+      } catch (err) {
+        console.error('Failed deleting dashboard:', err);
+      }
+    }
+
+    /* ── SQL Sandbox ── */
+    function populateSandboxSources() {
+      const sel = document.getElementById('sandbox-source-select');
+      if (!sel) return;
+      sel.innerHTML = allDataSources.map(s => `
+        <option value="${s.id}">${escapeHtml(s.name)} (${s.table_name})</option>
+      `).join('');
+
+      if (allDataSources.length > 0) {
+        const first = allDataSources[0];
+        document.getElementById('sandbox-sql-input').value = `SELECT * FROM "${first.table_name}" LIMIT 15;`;
+      }
+    }
+
+    async function executeSandboxQuery() {
+      const sourceId = document.getElementById('sandbox-source-select').value;
+      const query = document.getElementById('sandbox-sql-input').value.trim();
+      const wrap = document.getElementById('sandbox-results-wrap');
+
+      if (!sourceId || !query) return;
+
+      try {
+        const res = await fetch('/api/data/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data_source_id: parseInt(sourceId, 10), query: query })
+        });
+        const data = await res.json();
+        wrap.style.display = 'block';
+
+        if (!res.ok || data.error) {
+          document.getElementById('sandbox-stat-count').textContent = 'Query Error';
+          document.getElementById('sandbox-stat-duration').textContent = `${data.duration_ms || 0} ms`;
+          document.getElementById('sandbox-results-head').innerHTML = '<tr><th>Error</th></tr>';
+          document.getElementById('sandbox-results-body').innerHTML = `<tr><td style="color:var(--red);">${escapeHtml(data.error || 'Execution failed.')}</td></tr>`;
+          return;
+        }
+
+        document.getElementById('sandbox-stat-count').textContent = `${data.row_count} rows retrieved`;
+        document.getElementById('sandbox-stat-duration').textContent = `${data.duration_ms} ms`;
+
+        const cols = (data.columns || []).filter(c => c !== '_row_id');
+        document.getElementById('sandbox-results-head').innerHTML = `<tr>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+
+        const rows = data.rows || [];
+        document.getElementById('sandbox-results-body').innerHTML = rows.map(r => `
+          <tr>${cols.map(c => `<td>${escapeHtml(String(r[c] ?? ''))}</td>`).join('')}</tr>
+        `).join('');
+      } catch (err) {
+        console.error('Safe query failed:', err);
+      }
+    }
+
+    /* ── Ask Copilot Integration ── */
+    function askCopilotAboutData() {
+      const prompt = "/data Analyze our connected business datasets and summarize the key KPI metrics, outliers, and strategic findings.";
+      window.parent.postMessage({
+        action: 'navigate_and_prompt',
+        tab: 'chat',
+        prompt: prompt
+      }, '*');
+    }
+
+    /* ── Modals & Actions ── */
+    function closeModals() {
+      document.querySelectorAll('.modal-backdrop').forEach(m => m.style.display = 'none');
+    }
+
+    function openUploadModal() {
+      document.getElementById('upload-name-input').value = '';
+      document.getElementById('dropzone-label').textContent = 'Click to select CSV, Excel, JSON, or SQLite file';
+      document.getElementById('upload-status').style.display = 'none';
+      selectedUploadFile = null;
+      document.getElementById('modal-upload').style.display = 'flex';
+    }
+
+    function onFileSelected(input) {
+      if (input.files && input.files[0]) {
+        selectedUploadFile = input.files[0];
+        document.getElementById('dropzone-label').textContent = `Selected: ${selectedUploadFile.name} (${Math.round(selectedUploadFile.size / 1024)} KB)`;
+        if (!document.getElementById('upload-name-input').value) {
+          document.getElementById('upload-name-input').value = selectedUploadFile.name.replace(/\.[^/.]+$/, '');
+        }
+      }
+    }
+
+    async function submitUploadDataset() {
+      if (!selectedUploadFile) {
+        alert('Please select a dataset file to upload.');
+        return;
+      }
+
+      const statusEl = document.getElementById('upload-status');
+      statusEl.style.display = 'block';
+      statusEl.textContent = 'Ingesting and parsing tabular data...';
+
+      const formData = new FormData();
+      formData.append('file', selectedUploadFile);
+      formData.append('name', document.getElementById('upload-name-input').value);
+
+      try {
+        const res = await fetch('/api/data/sources/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ingestion failed');
+
+        statusEl.textContent = 'Dataset registered successfully!';
+        setTimeout(async () => {
+          closeModals();
+          await init();
+          if (activeTab === 'sources') renderSourcesTable();
+        }, 500);
+      } catch (err) {
+        statusEl.textContent = 'Error: ' + err.message;
+      }
+    }
+
+    function openNewDashboardModal() {
+      document.getElementById('new-dash-title').value = '';
+      document.getElementById('new-dash-desc').value = '';
+
+      const sel = document.getElementById('new-dash-source');
+      sel.innerHTML = '<option value="">All / Multi-Dataset</option>' +
+        allDataSources.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+
+      document.getElementById('modal-new-dashboard').style.display = 'flex';
+    }
+
+    async function submitCreateDashboard() {
+      const title = document.getElementById('new-dash-title').value.trim();
+      const desc = document.getElementById('new-dash-desc').value.trim();
+      const srcId = document.getElementById('new-dash-source').value || null;
+
+      if (!title) {
+        alert('Please enter a dashboard title.');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/dashboards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: title,
+            description: desc,
+            data_source_id: srcId ? parseInt(srcId, 10) : null
+          })
+        });
+        const data = await res.json();
+        closeModals();
+        activeDashboardId = data.id;
+        await loadDashboards();
+      } catch (err) {
+        console.error('Failed creating dashboard:', err);
+      }
+    }
+
+    function openAddWidgetModal(initialType = 'kpi_card') {
+      if (!activeDashboardId) {
+        alert('Please create or select a dashboard first.');
+        return;
+      }
+      if (allDataSources.length === 0) {
+        alert('Please connect at least one dataset before adding widgets.');
+        return;
+      }
+
+      document.getElementById('widget-title-input').value = '';
+      document.getElementById('widget-type-select').value = initialType;
+      document.getElementById('widget-target-input').value = '';
+      document.getElementById('widget-filter-input').value = '';
+
+      const srcSel = document.getElementById('widget-source-select');
+      srcSel.innerHTML = allDataSources.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+
+      onWidgetTypeChange(initialType);
+      loadColumnsForWidget(srcSel.value);
+
+      document.getElementById('modal-add-widget').style.display = 'flex';
+    }
+
+    function onWidgetTypeChange(wType) {
+      const isChart = ['bar_chart', 'line_chart', 'pie_chart'].includes(wType);
+      const isKpi = wType === 'kpi_card';
+
+      document.getElementById('grp-breakdown-col').style.display = isChart ? 'flex' : 'none';
+      document.getElementById('grp-target-val').style.display = isKpi ? 'flex' : 'none';
+    }
+
+    async function loadColumnsForWidget(sourceId) {
+      if (!sourceId) return;
+      const s = allDataSources.find(item => String(item.id) === String(sourceId));
+      if (!s) return;
+
+      let cols = [];
+      try {
+        cols = JSON.parse(s.schema_json || '[]');
+      } catch (_) {}
+
+      const valSel = document.getElementById('widget-val-col-select');
+      const grpSel = document.getElementById('widget-grp-col-select');
+
+      valSel.innerHTML = '<option value="">(None / Row Count)</option>' +
+        cols.map(c => `<option value="${c.name}">${c.name} [${c.type}]</option>`).join('');
+
+      grpSel.innerHTML = cols.map(c => `<option value="${c.name}">${c.name} [${c.type}]</option>`).join('');
+    }
+
+    async function submitCreateWidget() {
+      const title = document.getElementById('widget-title-input').value.trim();
+      const wType = document.getElementById('widget-type-select').value;
+      const srcId = document.getElementById('widget-source-select').value;
+      const op = document.getElementById('widget-op-select').value;
+      const valCol = document.getElementById('widget-val-col-select').value;
+      const grpCol = document.getElementById('widget-grp-col-select').value;
+      const fmt = document.getElementById('widget-format-select').value;
+      const targetVal = document.getElementById('widget-target-input').value;
+      const filterSql = document.getElementById('widget-filter-input').value.trim();
+
+      if (!title) {
+        alert('Please provide a widget title.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/dashboards/${activeDashboardId}/widgets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data_source_id: parseInt(srcId, 10),
+            title: title,
+            widget_type: wType,
+            metric_op: op,
+            value_column: valCol,
+            group_by_column: grpCol,
+            format_type: fmt,
+            target_value: targetVal ? parseFloat(targetVal) : null,
+            filter_sql: filterSql,
+          })
+        });
+        const data = await res.json();
+        closeModals();
+        loadDashboardDetails(activeDashboardId);
+      } catch (err) {
+        console.error('Failed creating widget:', err);
+      }
+    }
+
+    async function openPreviewModal(sourceId) {
+      try {
+        const res = await fetch(`/api/data/sources/${sourceId}/preview?limit=50`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+
+        const source = allDataSources.find(s => s.id === sourceId);
+        document.getElementById('preview-modal-title').textContent = `Dataset: ${source ? source.name : 'Data Preview'}`;
+        document.getElementById('preview-meta-summary').textContent = `Showing 50 of ${data.total_rows.toLocaleString()} rows · Table: ${source.table_name}`;
+
+        const cols = data.columns || [];
+        document.getElementById('preview-table-head').innerHTML = `<tr>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+
+        const rows = data.rows || [];
+        document.getElementById('preview-table-body').innerHTML = rows.map(r => `
+          <tr>${cols.map(c => `<td>${escapeHtml(String(r[c] ?? ''))}</td>`).join('')}</tr>
+        `).join('');
+
+        document.getElementById('modal-preview').style.display = 'flex';
+      } catch (err) {
+        alert('Failed loading preview: ' + err.message);
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.action === 'tab_activated') {
+        refreshCurrentView();
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>

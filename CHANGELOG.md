@@ -3,6 +3,43 @@
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-04
+
+### 📊 Data Studio & Business Dashboard Engine (`data_engine.py` & `/dashboard`)
+- **Multi-Format Tabular Ingestion & Materialization**:
+  - Direct ingestion of Excel (`.xlsx`, `.xls` via `openpyxl`), CSV, TSV, JSON array documents, and SQLite databases.
+  - Automatic column schema discovery and affinity type inference (`INTEGER`, `REAL`, `DATETIME`, `TEXT`).
+  - Isolated table materialization in local `%LOCALAPPDATA%\PMTool\datasets\analytics_store.db` with auto-sanitized identifiers and batch insert acceleration.
+- **Custom User-Defined KPI Metrics & Dynamic Visualizations**:
+  - Configurable aggregation operations (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`) across any ingested numeric or categorical dimension.
+  - Flexible number formatting: Currency (USD `$`, EUR `€`, INR `₹`), Percentages (`%`), and formatted thousands.
+  - Target comparisons with automated delta percentages and visual trend badges (`+12.4% vs target`, `Ahead`/`Behind`).
+  - Pure SVG responsive chart components matching PM Tool's dark carbon design:
+    - Vertical Bar charts with hover tooltips and category labels.
+    - Donut charts with multi-color palette breakdowns and percentage shares.
+    - Paginated Tabular data views (first 50 rows).
+- **Safe Read-Only SQL Sandbox**:
+  - Interactive SQL console for analytical data exploration with syntax formatting, execution timer (`ms`), and table grid view.
+  - Multi-layered defense-in-depth:
+    1. Multi-statement injection block (disallowing `;`).
+    2. Statement whitelist: only `SELECT` and `WITH` allowed.
+    3. Mutation keyword blacklist: strictly blocking `INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `REPLACE`, `ATTACH`, `DETACH`, `PRAGMA`, `TRUNCATE`, `VACUUM`.
+    4. Mandatory ceiling: automatically enforces `LIMIT 100` caps.
+    5. Native driver enforcement: opened via SQLite URI `file:... ?mode=ro` preventing any disk write mutations.
+
+### 🛡️ Guarded AI Contextual Grounding & `/data` Slash Command
+- **AI Integration Awareness with Zero Data Leakage**:
+  - LLM Copilot system prompt dynamically receives structured schemas of connected business datasets (table names, row counts, column types, sample distributions) and live dashboard KPI values.
+  - Raw records and PII are never dumped into prompt context, maintaining strict confidentiality.
+- **Dedicated `/data` Slash Command (`templates/chat.html`)**:
+  - Instant command palette pill (`/data`) triggering executive analytical synthesis, trend insights, and KPI health assessments.
+
+### 🗄️ Database Schema Migration v6 (`db.py`)
+- **Analytical Tables**:
+  - `data_sources`: Ingested file paths, table names, schema JSON, row/column counts, and project associations.
+  - `dashboards`: Custom analytical boards with title, description, and timestamps.
+  - `dashboard_widgets`: Widget configuration cards, operations (`metric_op`, `value_column`, `group_by_column`), format types, target milestones, and display ordering.
+
 ## [1.3.0] - 2026-10-03
 
 ### 📋 Interactive Sprint Kanban Board & Agile Execution Engine

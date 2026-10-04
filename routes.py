@@ -6,6 +6,7 @@ import db
 import ai_db
 from llm import gateway as llm_gateway
 
+import os
 import sys
 from pathlib import Path
 
@@ -60,6 +61,11 @@ def documents_page():
     return render_template("documents.html")
 
 
+@bp.route("/dashboard")
+def dashboard_page():
+    return render_template("dashboard.html")
+
+
 @bp.route("/settings")
 def settings_page():
     return render_template("settings.html")
@@ -71,6 +77,17 @@ def settings_page():
 def ping():
     """Electron shell polls this endpoint to verify Flask is ready before launching the window."""
     return jsonify({"status": "ok", "app": "pm_tool"})
+
+
+def _get_app_version() -> str:
+    try:
+        import json
+        vf = _get_base_dir() / "version.json"
+        if vf.exists():
+            return json.loads(vf.read_text(encoding="utf-8")).get("version", "1.4.0")
+    except Exception:
+        pass
+    return "1.4.0"
 
 
 @bp.route("/api/status")
@@ -88,7 +105,7 @@ def status():
     return jsonify({
         "status": "healthy",
         "app": "PM Tool",
-        "version": "1.3.0",
+        "version": _get_app_version(),
         "counts": {
             "projects": project_count,
             "tasks": task_count,
@@ -475,6 +492,14 @@ def _build_pm_system_prompt(project_id: int | None = None) -> str:
         except Exception:
             pass
 
+    try:
+        import data_engine
+        analytics_ctx = data_engine.get_analytics_context_for_llm(project_id=project_id)
+        if analytics_ctx:
+            prompt.append("\n" + analytics_ctx)
+    except Exception:
+        pass
+
     return "\n".join(prompt)
 
 
@@ -592,6 +617,14 @@ def api_chat():
             "Synthesize an executive-ready document summary structured into: "
             "1. Executive Summary & Objective, 2. Core Architecture & Specs, 3. Decisions & Trade-Offs, "
             "4. Success Metrics, 5. Identified Risks, and 6. Actionable Next Steps."
+        )
+    elif lower_msg.startswith("/data") or lower_msg.startswith("/insights") or lower_msg.startswith("/kpi"):
+        clean_query = re.sub(r"^/(?:data|insights|kpi)\s*", "", message, flags=re.IGNORECASE).strip() or message
+        system_prompt += (
+            "\n\n### SPECIAL DIRECTIVE: /data (Data Studio & KPI Insights Mode)\n"
+            "Analyze the connected business datasets, schema metrics, and dashboard KPIs provided in the context. "
+            "Synthesize an executive data insights brief: 1. Core Trends & Findings, 2. Key Metrics & Outliers, "
+            "3. Root-Cause Hypotheses, 4. Actionable Next Steps. Cite specific dataset tables, column dimensions, and values."
         )
 
     # 4c. Retrieve verified evidence from local company documents (RAG)
@@ -876,4 +909,240 @@ def api_export_markdown():
         download_name=f"{safe_name}.md",
         mimetype="text/markdown"
     )
+
+
+# ── Data Studio & Dashboards APIs ──────────────────────────────────────────────
+
+@bp.route("/api/data/sources", methods=["GET"])
+def api_data_sources_list():
+    project_id = request.args.get("project_id", type=int)
+    sources = db.list_data_sources(project_id=project_id)
+    return jsonify({"sources": sources, "count": len(sources)})
+
+
+@bp.route("/api/data/sources/upload", methods=["POST"])
+def api_data_sources_upload():
+    if "file" not in request.files:
+        return jsonify({"error": "No file attached."}), 400
+    f = request.files["file"]
+    if not f or not f.filename:
+        return jsonify({"error": "No file selected."}), 400
+
+    from pathlib import Path
+    import werkzeug.utils
+    import data_engine
+
+    safe_filename = werkzeug.utils.secure_filename(f.filename)
+    if not safe_filename:
+        safe_filename = "dataset"
+
+    suffix = Path(safe_filename).suffix.lower()
+    if suffix not in data_engine.ALLOWED_DATASET_EXTENSIONS:
+        allowed_list = ", ".join(sorted(data_engine.ALLOWED_DATASET_EXTENSIONS))
+        return jsonify({"error": f"File type '{suffix}' not supported. Allowed: {allowed_list}"}), 400
+
+    upload_dir = data_engine._get_datasets_dir()
+    target_path = (upload_dir / safe_filename).resolve()
+
+    if not str(target_path).startswith(str(upload_dir.resolve())):
+        return jsonify({"error": "Path traversal detected."}), 400
+
+    counter = 1
+    stem = target_path.stem
+    while target_path.exists():
+        target_path = upload_dir / f"{stem}_{counter}{suffix}"
+        counter += 1
+
+    f.save(str(target_path))
+
+    name = (request.form.get("name") or stem).strip()
+    project_id = request.form.get("project_id", type=int)
+
+    try:
+        source_record = data_engine.ingest_data_source(
+            file_path=str(target_path),
+            name=name,
+            project_id=project_id,
+        )
+        return jsonify(source_record), 201
+    except Exception as e:
+        if target_path.exists():
+            try:
+                target_path.unlink()
+            except Exception:
+                pass
+        return jsonify({"error": f"Ingestion failed: {str(e)}"}), 400
+
+
+@bp.route("/api/data/sources/<int:source_id>", methods=["GET", "DELETE"])
+def api_data_source_detail(source_id: int):
+    if request.method == "GET":
+        source = db.get_data_source(source_id)
+        if not source:
+            return jsonify({"error": "Data source not found"}), 404
+        return jsonify(source)
+    elif request.method == "DELETE":
+        source = db.get_data_source(source_id)
+        if not source:
+            return jsonify({"error": "Data source not found"}), 404
+
+        table_name = source.get("table_name")
+        import data_engine
+        try:
+            with data_engine.get_analytics_db() as con:
+                con.execute(f'DROP TABLE IF EXISTS "{table_name}"')
+                con.commit()
+        except Exception:
+            pass
+
+        file_path = source.get("file_path")
+        if file_path and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
+        db.delete_data_source(source_id)
+        return jsonify({"status": "deleted", "id": source_id})
+
+
+@bp.route("/api/data/sources/<int:source_id>/preview", methods=["GET"])
+def api_data_source_preview(source_id: int):
+    import data_engine
+    limit = min(request.args.get("limit", default=100, type=int), 100)
+    source = db.get_data_source(source_id)
+    if not source:
+        return jsonify({"error": "Data source not found"}), 404
+
+    table_name = source["table_name"]
+    res = data_engine.execute_safe_query(source_id, f'SELECT * FROM "{table_name}" LIMIT {limit}', max_rows=limit)
+    if "error" in res:
+        return jsonify(res), 400
+    cols = [c for c in res["columns"] if c != "_row_id"]
+    return jsonify({
+        "columns": cols,
+        "rows": res["rows"],
+        "row_count": len(res["rows"]),
+        "total_rows": source["row_count"],
+    })
+
+
+@bp.route("/api/data/query", methods=["POST"])
+def api_data_query():
+    import data_engine
+    data = request.get_json(force=True) or {}
+    source_id = data.get("data_source_id")
+    sql_query = data.get("query", "").strip()
+    max_rows = min(int(data.get("max_rows", 100)), 200)
+
+    if not source_id or not sql_query:
+        return jsonify({"error": "data_source_id and query are required."}), 400
+
+    res = data_engine.execute_safe_query(int(source_id), sql_query, max_rows=max_rows)
+    if "error" in res:
+        return jsonify(res), 400
+    return jsonify(res)
+
+
+# ── Dashboards API ─────────────────────────────────────────────────────────────
+
+@bp.route("/api/dashboards", methods=["GET", "POST"])
+def api_dashboards():
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        title = (data.get("title") or "").strip()
+        if not title:
+            return jsonify({"error": "Dashboard title is required"}), 400
+        dash = db.create_dashboard(
+            title=title,
+            description=data.get("description", ""),
+            data_source_id=data.get("data_source_id"),
+            project_id=data.get("project_id"),
+        )
+        return jsonify(dash), 201
+
+    project_id = request.args.get("project_id", type=int)
+    dashboards = db.list_dashboards(project_id=project_id)
+    return jsonify({"dashboards": dashboards, "count": len(dashboards)})
+
+
+@bp.route("/api/dashboards/<int:dash_id>", methods=["GET", "PATCH", "DELETE"])
+def api_dashboard_detail(dash_id: int):
+    if request.method == "GET":
+        dash = db.get_dashboard(dash_id)
+        if not dash:
+            return jsonify({"error": "Dashboard not found"}), 404
+
+        raw_widgets = db.list_dashboard_widgets(dash_id)
+        import data_engine
+        evaluated_widgets = []
+        for w in raw_widgets:
+            computed = data_engine.compute_widget_data(w["id"])
+            merged = {**w, **computed}
+            evaluated_widgets.append(merged)
+
+        return jsonify({"dashboard": dash, "widgets": evaluated_widgets})
+
+    elif request.method == "PATCH":
+        data = request.get_json(force=True) or {}
+        updated = db.update_dashboard(dash_id, **data)
+        if not updated:
+            return jsonify({"error": "Dashboard not found"}), 404
+        return jsonify(updated)
+
+    elif request.method == "DELETE":
+        ok = db.delete_dashboard(dash_id)
+        if not ok:
+            return jsonify({"error": "Dashboard not found"}), 404
+        return jsonify({"status": "deleted", "id": dash_id})
+
+
+# ── Widgets API ────────────────────────────────────────────────────────────────
+
+@bp.route("/api/dashboards/<int:dash_id>/widgets", methods=["POST"])
+def api_dashboard_widgets(dash_id: int):
+    data = request.get_json(force=True) or {}
+    title = (data.get("title") or "").strip()
+    data_source_id = data.get("data_source_id")
+
+    if not title:
+        return jsonify({"error": "Widget title is required"}), 400
+    if not data_source_id:
+        return jsonify({"error": "data_source_id is required"}), 400
+
+    widget = db.create_dashboard_widget(
+        dashboard_id=dash_id,
+        data_source_id=int(data_source_id),
+        title=title,
+        widget_type=data.get("widget_type", "kpi_card"),
+        metric_op=data.get("metric_op", "count"),
+        value_column=data.get("value_column", ""),
+        group_by_column=data.get("group_by_column", ""),
+        filter_sql=data.get("filter_sql", ""),
+        format_type=data.get("format_type", "number"),
+        target_value=data.get("target_value"),
+        order_idx=data.get("order_idx", 0),
+    )
+    import data_engine
+    computed = data_engine.compute_widget_data(widget["id"])
+    return jsonify({**widget, **computed}), 201
+
+
+@bp.route("/api/dashboards/widgets/<int:widget_id>", methods=["PATCH", "DELETE"])
+def api_widget_detail(widget_id: int):
+    if request.method == "PATCH":
+        data = request.get_json(force=True) or {}
+        updated = db.update_dashboard_widget(widget_id, **data)
+        if not updated:
+            return jsonify({"error": "Widget not found"}), 404
+        import data_engine
+        computed = data_engine.compute_widget_data(widget_id)
+        return jsonify({**updated, **computed})
+
+    elif request.method == "DELETE":
+        ok = db.delete_dashboard_widget(widget_id)
+        if not ok:
+            return jsonify({"error": "Widget not found"}), 404
+        return jsonify({"status": "deleted", "id": widget_id})
+
 

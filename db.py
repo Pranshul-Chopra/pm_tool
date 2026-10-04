@@ -207,6 +207,53 @@ def init_db():
                         pass
                 con.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (5)")
 
+            if current_ver < 6:
+                con.executescript("""
+                    CREATE TABLE IF NOT EXISTS data_sources (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT NOT NULL,
+                        source_type TEXT NOT NULL,
+                        file_path TEXT NOT NULL,
+                        file_size INTEGER DEFAULT 0,
+                        table_name TEXT NOT NULL,
+                        row_count INTEGER DEFAULT 0,
+                        column_count INTEGER DEFAULT 0,
+                        schema_json TEXT NOT NULL DEFAULT '[]',
+                        project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    CREATE TABLE IF NOT EXISTS dashboards (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title TEXT NOT NULL,
+                        description TEXT DEFAULT '',
+                        data_source_id INTEGER REFERENCES data_sources(id) ON DELETE SET NULL,
+                        project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    CREATE TABLE IF NOT EXISTS dashboard_widgets (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        dashboard_id INTEGER NOT NULL REFERENCES dashboards(id) ON DELETE CASCADE,
+                        data_source_id INTEGER NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
+                        widget_type TEXT NOT NULL DEFAULT 'kpi_card',
+                        title TEXT NOT NULL,
+                        metric_op TEXT DEFAULT 'count',
+                        value_column TEXT DEFAULT '',
+                        group_by_column TEXT DEFAULT '',
+                        filter_sql TEXT DEFAULT '',
+                        format_type TEXT DEFAULT 'number',
+                        target_value REAL DEFAULT NULL,
+                        order_idx INTEGER DEFAULT 0,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    INSERT OR IGNORE INTO schema_version (version) VALUES (6);
+                """)
+
 
 # ── AI Config CRUD ─────────────────────────────────────────────────────────────
 
@@ -683,3 +730,231 @@ def delete_doc_folder(folder_id: int) -> bool:
         with con:
             cur = con.execute("DELETE FROM doc_folders WHERE id = ?", (folder_id,))
             return cur.rowcount > 0
+
+
+# ── Data Sources CRUD ──────────────────────────────────────────────────────────
+
+def create_data_source(
+    name: str,
+    source_type: str,
+    file_path: str,
+    table_name: str,
+    file_size: int = 0,
+    row_count: int = 0,
+    column_count: int = 0,
+    schema_json: str = "[]",
+    project_id: int | None = None,
+) -> dict:
+    """Register a new structured data source."""
+    with get_db() as con:
+        with con:
+            cur = con.execute(
+                """INSERT INTO data_sources (name, source_type, file_path, table_name, file_size, row_count, column_count, schema_json, project_id)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   RETURNING *""",
+                (
+                    name.strip(),
+                    source_type.strip().lower(),
+                    file_path.strip(),
+                    table_name.strip(),
+                    file_size,
+                    row_count,
+                    column_count,
+                    schema_json,
+                    project_id,
+                ),
+            )
+            return dict(cur.fetchone())
+
+
+def get_data_source(source_id: int) -> dict | None:
+    """Retrieve data source by ID."""
+    with get_db() as con:
+        row = con.execute("SELECT * FROM data_sources WHERE id = ?", (source_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def list_data_sources(project_id: int | None = None) -> list[dict]:
+    """List data sources, optionally filtered by project."""
+    query = "SELECT * FROM data_sources"
+    params = []
+    if project_id is not None and project_id != 0:
+        query += " WHERE project_id = ? OR project_id IS NULL"
+        params.append(project_id)
+    query += " ORDER BY created_at DESC"
+    with get_db() as con:
+        rows = con.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def delete_data_source(source_id: int) -> bool:
+    """Delete data source metadata and cascade associated widgets."""
+    with get_db() as con:
+        with con:
+            cur = con.execute("DELETE FROM data_sources WHERE id = ?", (source_id,))
+            return cur.rowcount > 0
+
+
+# ── Dashboards CRUD ────────────────────────────────────────────────────────────
+
+def create_dashboard(
+    title: str,
+    description: str = "",
+    data_source_id: int | None = None,
+    project_id: int | None = None,
+) -> dict:
+    """Create a new analytics dashboard."""
+    with get_db() as con:
+        with con:
+            cur = con.execute(
+                """INSERT INTO dashboards (title, description, data_source_id, project_id)
+                   VALUES (?, ?, ?, ?)
+                   RETURNING *""",
+                (title.strip(), description.strip(), data_source_id, project_id),
+            )
+            return dict(cur.fetchone())
+
+
+def get_dashboard(dash_id: int) -> dict | None:
+    """Retrieve dashboard with linked data source info."""
+    with get_db() as con:
+        row = con.execute(
+            """SELECT d.*, ds.name AS data_source_name, ds.source_type, ds.row_count, ds.table_name
+               FROM dashboards d
+               LEFT JOIN data_sources ds ON d.data_source_id = ds.id
+               WHERE d.id = ?""",
+            (dash_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def list_dashboards(project_id: int | None = None) -> list[dict]:
+    """List dashboards with widget counts and data source names."""
+    query = """
+        SELECT d.*, ds.name AS data_source_name, ds.source_type,
+               COUNT(w.id) as widget_count
+        FROM dashboards d
+        LEFT JOIN data_sources ds ON d.data_source_id = ds.id
+        LEFT JOIN dashboard_widgets w ON w.dashboard_id = d.id
+    """
+    params = []
+    if project_id is not None and project_id != 0:
+        query += " WHERE d.project_id = ? OR d.project_id IS NULL"
+        params.append(project_id)
+    query += " GROUP BY d.id ORDER BY d.updated_at DESC"
+    with get_db() as con:
+        rows = con.execute(query, params).fetchall()
+        return [dict(r) for r in rows]
+
+
+def update_dashboard(dash_id: int, **fields) -> dict | None:
+    """Update dashboard properties."""
+    allowed = {"title", "description", "data_source_id", "project_id"}
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return get_dashboard(dash_id)
+    set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+    values = list(updates.values())
+    values.append(dash_id)
+    with get_db() as con:
+        with con:
+            con.execute(f"UPDATE dashboards SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?", values)
+    return get_dashboard(dash_id)
+
+
+def delete_dashboard(dash_id: int) -> bool:
+    """Delete dashboard and its widgets."""
+    with get_db() as con:
+        with con:
+            cur = con.execute("DELETE FROM dashboards WHERE id = ?", (dash_id,))
+            return cur.rowcount > 0
+
+
+# ── Dashboard Widgets CRUD ─────────────────────────────────────────────────────
+
+def create_dashboard_widget(
+    dashboard_id: int,
+    data_source_id: int,
+    title: str,
+    widget_type: str = "kpi_card",
+    metric_op: str = "count",
+    value_column: str = "",
+    group_by_column: str = "",
+    filter_sql: str = "",
+    format_type: str = "number",
+    target_value: float | None = None,
+    order_idx: int = 0,
+) -> dict:
+    """Create a new metric card, breakdown chart, or data view widget."""
+    with get_db() as con:
+        with con:
+            cur = con.execute(
+                """INSERT INTO dashboard_widgets (
+                       dashboard_id, data_source_id, widget_type, title,
+                       metric_op, value_column, group_by_column, filter_sql,
+                       format_type, target_value, order_idx
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   RETURNING *""",
+                (
+                    dashboard_id,
+                    data_source_id,
+                    widget_type.strip(),
+                    title.strip(),
+                    metric_op.strip().lower(),
+                    value_column.strip(),
+                    group_by_column.strip(),
+                    filter_sql.strip(),
+                    format_type.strip().lower(),
+                    target_value,
+                    order_idx,
+                ),
+            )
+            return dict(cur.fetchone())
+
+
+def get_dashboard_widget(widget_id: int) -> dict | None:
+    """Retrieve single widget configuration."""
+    with get_db() as con:
+        row = con.execute("SELECT * FROM dashboard_widgets WHERE id = ?", (widget_id,)).fetchone()
+        return dict(row) if row else None
+
+
+def list_dashboard_widgets(dashboard_id: int) -> list[dict]:
+    """List all widgets for a dashboard in display order."""
+    with get_db() as con:
+        rows = con.execute(
+            """SELECT w.*, ds.name AS data_source_name, ds.table_name
+               FROM dashboard_widgets w
+               LEFT JOIN data_sources ds ON w.data_source_id = ds.id
+               WHERE w.dashboard_id = ?
+               ORDER BY w.order_idx ASC, w.id ASC""",
+            (dashboard_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def update_dashboard_widget(widget_id: int, **fields) -> dict | None:
+    """Update widget configuration."""
+    allowed = {
+        "title", "widget_type", "metric_op", "value_column", "group_by_column",
+        "filter_sql", "format_type", "target_value", "order_idx", "data_source_id"
+    }
+    updates = {k: v for k, v in fields.items() if k in allowed}
+    if not updates:
+        return get_dashboard_widget(widget_id)
+    set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+    values = list(updates.values())
+    values.append(widget_id)
+    with get_db() as con:
+        with con:
+            con.execute(f"UPDATE dashboard_widgets SET {set_clause}, updated_at = CURRENT_TIMESTAMP WHERE id = ?", values)
+    return get_dashboard_widget(widget_id)
+
+
+def delete_dashboard_widget(widget_id: int) -> bool:
+    """Delete a widget."""
+    with get_db() as con:
+        with con:
+            cur = con.execute("DELETE FROM dashboard_widgets WHERE id = ?", (widget_id,))
+            return cur.rowcount > 0
+

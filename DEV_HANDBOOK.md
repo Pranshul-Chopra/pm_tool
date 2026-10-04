@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 1.3.0  
+**Current Version:** 1.4.0  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -88,7 +88,7 @@ pm_tool/
 ├── CHANGELOG.md             # Semantic versioning history
 ├── DEV_HANDBOOK.md          # Technical handbook and architecture specification
 ├── requirements.txt         # Python dependencies (Flask, requests, plyer, pypdf, python-docx)
-├── version.json             # Single source of truth for app version (v1.3.0)
+├── version.json             # Single source of truth for app version (v1.4.0)
 ├── main.py                  # Flask application factory, server lifecycle, ping checks
 ├── routes.py                # REST API controllers and template renderers
 ├── db.py                    # SQLite connection pool, WAL mode, schema migrations (pmtool.db)
@@ -572,52 +572,62 @@ Triggered via `/breakdown` or the board header:
 
 ---
 
-## 15. Future Architecture Blueprint: DB/Data-to-Dashboard Engine & Safe AI Guardrails (Roadmap Vision)
+## 15. Data Studio & Analytical Engine Architecture (`data_engine.py`)
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│               INTELLIGENT DB / FILE TO DASHBOARD STUDIO                │
+│                      DATA STUDIO & KPI ENGINE                          │
 ├──────────────────────────┬─────────────────────────────────────────────┤
 │  Data Source Connectors  │  • Excel (.xlsx/.xls via openpyxl)          │
-│                          │  • CSV / JSON Data Files                    │
-│                          │  • Relational DBs (SQLite, PostgreSQL, MySQL)│
+│                          │  • CSV / TSV / JSON Array Data Files        │
+│                          │  • SQLite Databases (.db, .sqlite)          │
 ├──────────────────────────┼─────────────────────────────────────────────┤
-│  User KPI Studio         │  • Metric schema: name, formula, target     │
-│                          │  • Aggregation: SUM, AVG, COUNT, GROWTH     │
-│                          │  • Visual tiles: burnup, velocity, charts   │
+│  Materialization Store   │  • %LOCALAPPDATA%\PMTool\datasets\          │
+│                          │  • analytics_store.db with type inference   │
+│                          │  • Batch insert & sanitized identifiers     │
+├──────────────────────────┼─────────────────────────────────────────────┤
+│  Custom KPI & Charts     │  • Operations: SUM, AVG, COUNT, MIN, MAX    │
+│                          │  • Formatting: Currency ($, €, ₹), %, #,### │
+│                          │  • Target benchmarks: ahead/behind tracking │
+│                          │  • Pure SVG Bar, Donut, and Table views     │
 ├──────────────────────────┼─────────────────────────────────────────────┤
 │  Guarded AI Sandbox      │  • Schema-only context (zero PII exposure)  │
-│  (Controlled Access)     │  • Read-only query contracts (no mutations) │
-│                          │  • OOM & Row Ceiling Guard (max 100 rows)   │
-│                          │  • Sensitive column redaction / PII masking │
-│                          │  • Audit logging in ai_context.db           │
+│  (Safe Controlled Access)│  • Multi-statement block (no semicolons)    │
+│                          │  • SELECT/WITH whitelist only               │
+│                          │  • Mutation blacklist (DROP, DELETE, etc.)  │
+│                          │  • Mandatory LIMIT 100 ceiling              │
+│                          │  • Read-only SQLite URI (file:... ?mode=ro) │
+│                          │  • /data slash command in Copilot           │
 └──────────────────────────┴─────────────────────────────────────────────┘
 ```
 
-### 1. Data Ingestion & Metric Definition Schema
-Users connect external data files or databases to derive business KPIs:
-- **Connectors**:
-  - File: Local Excel spreadsheets (`.xlsx`, `.xls`), CSV exports, and structured JSON.
-  - Relational: Read-only SQLite files, local/remote PostgreSQL and MySQL connection handles.
-- **KPI Entity Schema (`kpis` table in `pmtool.db`)**:
-  - `name`: Human-readable KPI label (e.g. "Sprint Story Completion Velocity").
-  - `data_source_id`: Reference to connected database or file dataset.
-  - `calculation_type`: Analytical function (`sum`, `avg`, `count`, `ratio`, `growth_rate`).
-  - `target_value`: Milestone goal or SLA threshold.
-  - `dimension_column` & `time_grain`: Grouping parameters (Daily, Weekly, Monthly, Sprint).
+### 1. Ingestion & Materialization Flow
+When a user uploads a dataset (`/api/data/sources/upload`):
+1. **Validation & Isolation**: Suffix is checked against `ALLOWED_DATASET_EXTENSIONS`. Files are written into `%LOCALAPPDATA%\PMTool\datasets\`.
+2. **Schema & Affinity Inference**: `_infer_type()` scans sample values to infer SQLite types (`INTEGER`, `REAL`, `DATETIME`, `TEXT`).
+3. **Table Materialization**: Table is generated in `analytics_store.db` with prefix `ds_{timestamp}_{slug}` and populated via chunked `executemany` batches.
+4. **Metadata Registration**: Recorded in `data_sources` table in `pmtool.db` with column schemas and sample values.
 
-### 2. The "Guarded Data Sandbox": Safe AI Access Principles
-To grant AI contextual awareness of integrations without risking security or privacy, access is governed by strict boundaries:
+### 2. Guarded SQL Execution Sandbox
+Queries submitted through the UI Sandbox or AI data inspection route to `execute_safe_query(data_source_id, sql_query, max_rows)`:
+- **Defense in Depth**:
+  1. Blocks semicolons to prohibit multi-statement injections.
+  2. Ensures queries strictly begin with `SELECT` or `WITH`.
+  3. Scans tokens against `DISALLOWED_SQL_KEYWORDS` (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `ALTER`, `CREATE`, `REPLACE`, `ATTACH`, `DETACH`, `TRUNCATE`, `PRAGMA`, `VACUUM`).
+  4. Injects `LIMIT 100` ceiling if no smaller limit is specified.
+  5. Opens SQLite connection with URI `mode=ro` preventing any disk writes at the driver layer.
 
-1. **Schema-Only Context Ingestion:**
-   The AI context engine only sees table schemas, column data types, field descriptions, and statistical value ranges (e.g. *"table orders has 14,000 rows, date span Q1-Q3 2026"*). Raw user records and sensitive row data are NEVER dumped into LLM prompt context.
-2. **Read-Only Analytical Contract:**
-   The AI cannot execute arbitrary SQL queries. All AI data requests must route through a guarded analytical dispatcher (`run_analytics_query`) with an AST validator blocking any DDL or DML statements (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `GRANT`, `EXEC`).
-3. **Resource & OOM Bounds:**
-   Queries enforced with mandatory `LIMIT 100` caps and execution timeouts (max 3,000ms) to ensure desktop responsiveness.
-4. **PII Masking & Column Blacklists:**
-   Fields classified as sensitive (`email`, `phone`, `password`, `ssn`, `auth_token`, `compensation`) are automatically redacted from analytical results returned to the AI.
-5. **Auditing & Human-in-the-Loop Confirmation:**
-   Every query executed is recorded in `ai_context.db` (`tool_runs`), with user confirmation prompts required for external database connections.
+### 3. KPI Computation & Dynamic Visualizations
+`compute_widget_data(widget_id)` handles real-time metric evaluation:
+- **KPI Cards**: Computes aggregated single values with unit formatting (`format_metric_value`) and benchmarks (`diff_pct`, `direction: "up" | "down"`, target display).
+- **Bar & Donut Visualizations**: Groups data by categorical dimensions (`GROUP BY {group_by_col}`) with automated percentage share calculation and amber-carbon color palette rotation.
+- **Table Views**: Safe 50-row paginated data previews.
+
+### 4. Guarded AI Copilot Integration
+- `get_analytics_context_for_llm(project_id)` generates a compact, high-leverage context block embedded into the Copilot's system prompt.
+- Injects dataset names, row/column counts, table names, and column types alongside active KPI values and benchmark states.
+- Raw sensitive records are never leaked to LLM context.
+- Dedicated `/data` command in `chat.html` guides the assistant to deliver executive data synthesis and KPI health summaries.
+
 
 

@@ -3,18 +3,25 @@
 <div align="center">
   <img src="static/icon.png" width="96" height="96" alt="PM Tool Logo" />
   <h3>Enterprise Product Management Copilot &amp; Sprint Execution Workstation</h3>
-  <p><b>Version 1.3.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
+  <p><b>Version 1.4.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
 </div>
 
 ---
 
 ## ⚡ Overview
 
-**PM Tool** is an enterprise-grade product management copilot designed as a high-performance, local-first desktop application. It unifies traditional project and task management with an autonomous AI reasoning engine capable of ingesting local company documentation, drafting comprehensive Product Requirement Documents (PRDs), decomposing initiatives into agile user stories, and providing high-leverage PM insights.
+**PM Tool** is an enterprise-grade product management copilot designed as a high-performance, local-first desktop application. It unifies traditional project and task management with an autonomous AI reasoning engine capable of ingesting local company documentation, drafting comprehensive Product Requirement Documents (PRDs), decomposing initiatives into agile user stories, connecting business databases/spreadsheets to interactive KPI dashboards, and providing high-leverage PM insights.
 
 ---
 
 ## 🌟 Key Features
+
+### 📊 Data Studio, Custom KPI Dashboards & Guarded AI Integrations (`v1.4.0`)
+- **Multi-Format Dataset Ingestion**: Ingests Excel (`.xlsx`, `.xls` via `openpyxl`), CSV, TSV, JSON records, and SQLite databases directly into an isolated local analytics store (`analytics_store.db`).
+- **User-Defined KPI Cards & Benchmark Comparisons**: Configurable operations (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`), currency formatting (`$`, `€`, `₹`, `%`), target milestones, and dynamic ahead/behind tracking badges.
+- **Pure SVG Responsive Charts**: Category-grouped Vertical Bar charts with hover tooltips, multi-color Donut share breakdowns, and safe 50-row paginated data tables.
+- **Guarded SQL Sandbox**: Interactive read-only SQL exploration with AST validation, prohibited mutation blocking (`DROP`, `DELETE`, etc.), and driver-level read-only SQLite URI enforcement (`mode=ro`).
+- **Contextual Copilot Knowledge & `/data` Command**: LLM system prompt receives schema metadata, column types, and live KPI metrics with zero raw PII leakage. Instant `/data` slash command pill for rapid analytical briefing.
 
 ### 📋 Interactive Sprint Kanban Board (`v1.3.0`)
 - **4 Agile Workflow Lanes**: Backlog (`todo`), In Progress (`in_progress`), Blocked (`blocked`), and Completed (`done`).
@@ -70,7 +77,7 @@ pm_tool/
 ├── CHANGELOG.md                 # Semantic versioning history
 ├── DEV_HANDBOOK.md              # Technical engineering handbook & architecture spec
 ├── requirements.txt             # Python dependencies
-├── version.json                 # Single source of truth for version (1.3.0)
+├── version.json                 # Single source of truth for version (1.4.0)
 ├── main.py                      # Flask factory, server lifecycle, ping checks
 ├── routes.py                    # REST API controllers & Jinja template routes
 ├── db.py                        # SQLite connection pool, schema migrations (pmtool.db)
@@ -164,9 +171,9 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 ```
 
 Output assets will be generated in `release/`:
-- `release/PM Tool-Setup-1.3.0.exe` (1-Click NSIS Installer)
-- `release/PM Tool-1.3.0.exe` (Portable Executable)
-- `release/PM Tool-Setup-1.3.0.exe.blockmap` (Differential update map)
+- `release/PM Tool-Setup-1.4.0.exe` (1-Click NSIS Installer)
+- `release/PM Tool-1.4.0.exe` (Portable Executable)
+- `release/PM Tool-Setup-1.4.0.exe.blockmap` (Differential update map)
 - `release/latest.yml` (Auto-update manifest)
 
 ---

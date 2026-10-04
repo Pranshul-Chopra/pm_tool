@@ -399,6 +399,10 @@
           <span class="nav-icon">📁</span>
           <span>Knowledge Base</span>
         </a>
+        <a class="nav-item" id="nav-dashboard" data-src="/dashboard" onclick="navigate(this)">
+          <span class="nav-icon">📊</span>
+          <span>Data & Insights</span>
+        </a>
         <div class="nav-label">System</div>
         <a class="nav-item" id="nav-settings" data-src="/settings" onclick="navigate(this)">
           <span class="nav-icon">⚙️</span>
@@ -409,7 +413,7 @@
       <div class="sb-version-strip" onclick="AppUpdater.checkManual()" title="Click to check for updates">
         <div style="display:flex; align-items:center; gap:6px;">
           <span class="sb-update-dot" id="sb-update-indicator" style="display:none;" title="Update ready!"></span>
-          <span id="sb-ver-text">v1.3.0 · PM Tool</span>
+          <span id="sb-ver-text">v1.4.0 · PM Tool</span>
         </div>
         <span class="sb-ver-hint">Check updates ↺</span>
       </div>
@@ -440,6 +444,7 @@
       <iframe id="view-board" class="content-frame" src="/board" style="display:none;"></iframe>
       <iframe id="view-chat" class="content-frame" src="/chat" style="display:none;"></iframe>
       <iframe id="view-documents" class="content-frame" src="/documents" style="display:none;"></iframe>
+      <iframe id="view-dashboard" class="content-frame" src="/dashboard" style="display:none;"></iframe>
       <iframe id="view-settings" class="content-frame" src="/settings" style="display:none;"></iframe>
     </main>
   </div>
@@ -486,7 +491,7 @@
     }
 
     function broadcastToFrames(payload) {
-      ['view-home', 'view-board', 'view-chat', 'view-documents', 'view-settings'].forEach(id => {
+      ['view-home', 'view-board', 'view-chat', 'view-documents', 'view-dashboard', 'view-settings'].forEach(id => {
         const frame = document.getElementById(id);
         if (frame && frame.contentWindow) {
           try {
