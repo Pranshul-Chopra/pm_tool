@@ -126,6 +126,17 @@ pm_tool/
 
 ---
 
+## 🗺️ Project Roadmap & Status
+
+| Release Milestone | Key Capabilities | Status & Priority |
+| :--- | :--- | :--- |
+| **v2.0.0 (NEW)** | **Desktop SPA Modernization**<br>• Vite + React 18/19 + TypeScript inside Electron<br>• Zero-Iframe single DOM architecture<br>• Unified `AppBridge` (Electron IPC + Flask REST)<br>• 60 FPS `@dnd-kit` Kanban board with optimistic UI<br>• Unified Tailwind dark carbon design tokens | 🔥 **IN PROGRESS (PRIORITY 1)** |
+| **v1.4.0 (Latest)** | **Data Studio & Safe SQL Analytics**<br>• Guarded SQLite sandbox with AST/whitelist checks<br>• Dynamic KPI cards, benchmarks, and SVG charts<br>• Excel (.xlsx), CSV, TSV dataset materialization | ✅ **Shipped** |
+| **v1.3.0** | **Agile Sprint Board & PRD Decomposer**<br>• Story points, acceptance criteria, assignee tracking<br>• Automated PRD-to-Story AI generator (`/breakdown`) | ✅ **Shipped** |
+| **v1.2.0** | **In-App Auto-Updater & Assets**<br>• Differential delta background auto-updater<br>• Dynamic cascading port fallback (`5050`–`5065`) | ✅ **Shipped** |
+
+---
+
 ## 🛠️ Getting Started (Development)
 
 ### 1. Prerequisites
@@ -171,9 +182,9 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 ```
 
 Output assets will be generated in `release/`:
-- `release/PM Tool-Setup-1.4.0.exe` (1-Click NSIS Installer)
-- `release/PM Tool-1.4.0.exe` (Portable Executable)
-- `release/PM Tool-Setup-1.4.0.exe.blockmap` (Differential update map)
+- `release/PM-Tool-Setup-1.4.0.exe` (1-Click NSIS Installer)
+- `release/PM-Tool-1.4.0.exe` (Portable Executable)
+- `release/PM-Tool-Setup-1.4.0.exe.blockmap` (Differential update map)
 - `release/latest.yml` (Auto-update manifest)
 
 ---

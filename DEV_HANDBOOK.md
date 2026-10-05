@@ -629,5 +629,58 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 - Raw sensitive records are never leaked to LLM context.
 - Dedicated `/data` command in `chat.html` guides the assistant to deliver executive data synthesis and KPI health summaries.
 
+---
 
+## 16. Engineering Roadmap & Architecture Evolution (2026)
 
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│                   PM TOOL STRATEGIC ROADMAP (2026)                     │
+├──────────────┬───────────────────────────────┬─────────────────────────┤
+│ Milestone    │ Theme & Deliverables          │ Status & Priority       │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v2.0.0 (NEW) │ Desktop SPA Modernization     │ 🔥 IN PROGRESS          │
+│              │ • Vite + React + TypeScript   │ (PRIORITY 1 - ACTIVE)   │
+│              │ • Zero-Iframe App Shell       │                         │
+│              │ • Unified AppBridge IPC       │                         │
+│              │ • 60 FPS @dnd-kit Kanban      │                         │
+│              │ • Shared Tailwind Tokens      │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v1.4.0       │ Data Studio & SQL Sandbox     │ ✅ COMPLETED            │
+│              │ • Guarded SQLite Analytics    │ (Shipped)               │
+│              │ • Dynamic KPI Cards & Charts  │                         │
+│              │ • Excel/CSV Auto-Ingestion    │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v1.3.0       │ Agile Sprint Board Engine     │ ✅ COMPLETED            │
+│              │ • Story Points & Criteria     │ (Shipped)               │
+│              │ • PRD-to-Story Decomposer     │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v1.2.0       │ In-App Auto-Updater & Assets  │ ✅ COMPLETED            │
+│              │ • Differential Delta Updates  │ (Shipped)               │
+│              │ • Cascading Port Handshake    │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v2.1.0       │ Team Workspaces & Multi-Vault │ 📅 PLANNED              │
+│              │ • Project Workspace Switching │ (Post v2.0 Transition)  │
+│              │ • Exportable Workspaces       │                         │
+└──────────────┴───────────────────────────────┴─────────────────────────┘
+```
+
+### Active Priority 1: v2.0.0 Desktop SPA Transition
+The current primary development effort is focused on transitioning PM Tool's presentation layer from legacy multi-frame Vanilla JS (`shell.html` + `<iframe>`) into a high-performance, single-DOM Single Page Application (SPA):
+
+1. **Phase 1: Foundation & Shell**
+   - Initialize Vite + React 18/19 + TypeScript + Tailwind inside `electron/`.
+   - Build unified dark carbon application frame (Titlebar, Collapsible Sidebar, Breadcrumbs).
+   - Implement `AppBridge` (`bridge.ts`) to cleanly coordinate Electron IPC and local Flask REST calls.
+2. **Phase 2: Kanban & Home Experience**
+   - Re-architect Agile Sprint Board using `@dnd-kit/core` and `@dnd-kit/sortable` for 60 FPS hardware-accelerated drag-and-drop.
+   - Introduce optimistic state mutations and non-blocking background synchronization.
+3. **Phase 3: Knowledge Base & AI Copilot**
+   - Streamline Document Manager with virtualized lists and sticky headers.
+   - Streamline Copilot chat with streaming markdown token parsing, copy buttons, and interactive slash command pills.
+4. **Phase 4: Data Studio & SQL Sandbox**
+   - Port SQLite dataset explorer and SQL sandbox editor using `@tanstack/react-table`.
+   - Connect dynamic SVG and Recharts KPI widgets with reactive state bindings.
+5. **Phase 5: Packaging & CI/CD Pipeline Update**
+   - Update `build.bat` and `.github/workflows/release.yml` to compile the Vite bundle into `electron/dist/renderer`.
+   - Verify differential updates (`latest.yml`, `.blockmap`) and cross-process tree-kill functionality.
