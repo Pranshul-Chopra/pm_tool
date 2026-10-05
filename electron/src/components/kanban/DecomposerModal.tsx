@@ -2,17 +2,26 @@ import React, { useState } from 'react';
 import { X, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 import AppBridge from '../../services/bridge';
 
+import type { Project } from '../../types';
+
 interface DecomposerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  projectId?: number | null;
+  projects?: Project[];
 }
 
 export const DecomposerModal: React.FC<DecomposerModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  projectId,
+  projects = [],
 }) => {
+  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(
+    projectId ? projectId : projects.length > 0 ? projects[0].id : undefined
+  );
   const [prdText, setPrdText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +38,7 @@ export const DecomposerModal: React.FC<DecomposerModalProps> = ({
     setError(null);
     try {
       const res = await AppBridge.api.decomposePRD({
+        project_id: selectedProjectId,
         prd_text: prdText.trim(),
       });
       if (res && res.success) {
@@ -73,6 +83,25 @@ export const DecomposerModal: React.FC<DecomposerModalProps> = ({
             <div className="p-3 rounded-lg bg-[#e85c4c]/10 border border-[#e85c4c]/30 text-[#e85c4c] text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-[#9b9690] mb-1">
+                Target Project Initiative
+              </label>
+              <select
+                value={selectedProjectId || ''}
+                onChange={(e) => setSelectedProjectId(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full bg-[#111110] border border-[#2e2c2a] focus:border-[#e8a84c] rounded-lg px-3 py-2 text-xs text-[#edeae4] focus:outline-none"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.domain || 'Platform'})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

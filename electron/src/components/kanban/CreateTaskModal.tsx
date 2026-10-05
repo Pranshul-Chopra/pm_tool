@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { X, Plus, User, AlertCircle } from 'lucide-react';
-import type { Task, TaskStatus, TaskPriority } from '../../types';
+import type { Task, TaskStatus, TaskPriority, Project } from '../../types';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
   initialStatus: TaskStatus;
   onClose: () => void;
   onCreate: (taskData: Partial<Task>) => void;
+  projectId?: number | null;
+  projects?: Project[];
 }
 
 const FIBONACCI_POINTS = [1, 2, 3, 5, 8, 13];
@@ -16,7 +18,12 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   initialStatus,
   onClose,
   onCreate,
+  projectId,
+  projects = [],
 }) => {
+  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(
+    projectId ? projectId : projects.length > 0 ? projects[0].id : undefined
+  );
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<TaskStatus>(initialStatus);
@@ -36,6 +43,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     }
 
     onCreate({
+      project_id: selectedProjectId,
       title: title.trim(),
       description: description.trim(),
       status,
@@ -78,6 +86,25 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
             <div className="p-3 rounded-lg bg-[#e85c4c]/10 border border-[#e85c4c]/30 text-[#e85c4c] text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {projects.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-[#9b9690] mb-1">
+                Project Initiative
+              </label>
+              <select
+                value={selectedProjectId || ''}
+                onChange={(e) => setSelectedProjectId(e.target.value ? Number(e.target.value) : undefined)}
+                className="w-full bg-[#111110] border border-[#2e2c2a] focus:border-[#e8a84c] rounded-lg px-3 py-2 text-xs text-[#edeae4] focus:outline-none"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.domain || 'Platform'})
+                  </option>
+                ))}
+              </select>
             </div>
           )}
 

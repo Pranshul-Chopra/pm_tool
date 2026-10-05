@@ -25,8 +25,36 @@ export interface Project {
   id: number;
   name: string;
   description?: string;
+  domain?: string;
+  priority?: string;
+  health?: string;
+  owner?: string;
+  target_date?: string;
+  goals?: string;
+  tech_stack?: string;
+  status?: string;
+  task_count?: number;
+  done_task_count?: number;
+  in_progress_task_count?: number;
+  todo_task_count?: number;
+  progress_pct?: number;
   color?: string;
   created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateProjectPayload {
+  name: string;
+  domain?: string;
+  priority?: string;
+  health?: string;
+  owner?: string;
+  target_date?: string;
+  goals?: string;
+  tech_stack?: string;
+  description?: string;
+  seed_tasks?: boolean;
+  initial_tasks?: Array<[string, string] | string>;
 }
 
 export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'done';

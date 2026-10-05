@@ -1,5 +1,6 @@
 import type {
   Project,
+  CreateProjectPayload,
   Task,
   Decision,
   KnowledgeDocument,
@@ -58,12 +59,35 @@ class BridgeService {
     getVersion: () => this.request<{ version: string; app_name: string; build_date: string }>('/api/version'),
 
     // Projects
-    getProjects: () => this.request<{ projects: Project[] }>('/api/projects'),
-    createProject: (name: string, description?: string) =>
-      this.request<{ project: Project }>('/api/projects', {
+    getProjects: (params?: { search?: string; status?: string; health?: string; domain?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.search) q.set('search', params.search);
+      if (params?.status) q.set('status', params.status);
+      if (params?.health) q.set('health', params.health);
+      if (params?.domain) q.set('domain', params.domain);
+      const queryString = q.toString() ? `?${q.toString()}` : '';
+      return this.request<{ projects: Project[]; count?: number }>(`/api/projects${queryString}`);
+    },
+    getProject: (id: number) => this.request<{ project: Project; tasks: Task[] }>(`/api/projects/${id}`),
+    createProject: async (payload: string | CreateProjectPayload, description?: string): Promise<Project> => {
+      const body = typeof payload === 'string' ? { name: payload, description } : payload;
+      const res = await this.request<any>('/api/projects', {
         method: 'POST',
-        body: JSON.stringify({ name, description }),
+        body: JSON.stringify(body),
+      });
+      return res.project || res;
+    },
+    updateProject: (id: number, patch: Partial<Project>) =>
+      this.request<Project>(`/api/projects/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch),
       }),
+    deleteProject: (id: number) =>
+      this.request<{ status: string; id: number }>(`/api/projects/${id}`, {
+        method: 'DELETE',
+      }),
+    getProjectTasks: (id: number) =>
+      this.request<{ tasks: Task[] }>(`/api/projects/${id}/tasks`),
 
     // Tasks / Kanban Tickets
     getTasks: (projectId?: number, status?: string) => {

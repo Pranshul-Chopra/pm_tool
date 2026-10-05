@@ -13,6 +13,7 @@ import AppBridge from './services/bridge';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [updateData, setUpdateData] = useState<UpdateData>({ status: 'idle' });
 
   useEffect(() => {
@@ -48,6 +49,13 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleNavigate = (tab: NavTab, projectId?: number | null) => {
+    if (projectId !== undefined) {
+      setSelectedProjectId(projectId);
+    }
+    navigateWithTransition(tab);
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#111110] text-[#edeae4] overflow-hidden select-none">
       {/* Native Drag Titlebar */}
@@ -62,10 +70,15 @@ export const App: React.FC = () => {
         />
 
         <main className="flex-1 h-full overflow-hidden bg-[#111110] relative">
-          {activeTab === 'home' && <HomeView onNavigate={navigateWithTransition} />}
-          {activeTab === 'board' && <BoardView />}
+          {activeTab === 'home' && <HomeView onNavigate={handleNavigate} />}
+          {activeTab === 'board' && (
+            <BoardView
+              selectedProjectId={selectedProjectId}
+              onProjectChange={setSelectedProjectId}
+            />
+          )}
           {activeTab === 'dashboard' && <StudioView />}
-          {activeTab === 'documents' && <DocsView />}
+          {activeTab === 'documents' && <DocsView initialProjectId={selectedProjectId} />}
           {activeTab === 'chat' && <ChatView />}
           {activeTab === 'settings' && <SettingsView />}
         </main>

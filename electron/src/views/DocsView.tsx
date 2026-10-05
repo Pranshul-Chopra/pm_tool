@@ -17,10 +17,16 @@ import {
 import type { KnowledgeDocument, Project } from '../types';
 import AppBridge from '../services/bridge';
 
-export const DocsView: React.FC = () => {
+interface DocsViewProps {
+  initialProjectId?: number | null;
+}
+
+export const DocsView: React.FC<DocsViewProps> = ({ initialProjectId }) => {
   const [docs, setDocs] = useState<KnowledgeDocument[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | 'all'>('all');
+  const [selectedProjectId, setSelectedProjectId] = useState<number | 'all'>(
+    initialProjectId ? initialProjectId : 'all'
+  );
   const [totalChunks, setTotalChunks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -70,6 +76,12 @@ export const DocsView: React.FC = () => {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (initialProjectId) {
+      setSelectedProjectId(initialProjectId);
+    }
+  }, [initialProjectId]);
 
   useEffect(() => {
     fetchDocs();

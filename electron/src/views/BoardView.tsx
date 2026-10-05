@@ -25,7 +25,7 @@ import {
   CheckCircle2,
   Clock,
 } from 'lucide-react';
-import type { Task, TaskStatus, TaskPriority } from '../types';
+import type { Task, TaskStatus, TaskPriority, Project } from '../types';
 import AppBridge from '../services/bridge';
 import KanbanColumn from '../components/kanban/KanbanColumn';
 import TaskCard from '../components/kanban/TaskCard';
@@ -40,8 +40,20 @@ const COLUMNS: { id: TaskStatus; title: string; color: string }[] = [
   { id: 'done', title: 'Completed', color: '#5aab7f' },
 ];
 
-export const BoardView: React.FC = () => {
+interface BoardViewProps {
+  selectedProjectId?: number | null;
+  onProjectChange?: (id: number | null) => void;
+}
+
+export const BoardView: React.FC<BoardViewProps> = ({
+  selectedProjectId,
+  onProjectChange,
+}) => {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<number | null>(
+    selectedProjectId ?? null
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,9 +108,25 @@ export const BoardView: React.FC = () => {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const res = await AppBridge.api.getProjects();
+      setProjects(res.projects || []);
+    } catch (err) {
+      console.error('Failed to load projects on board:', err);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
+    fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (selectedProjectId !== undefined) {
+      setCurrentProjectId(selectedProjectId);
+    }
+  }, [selectedProjectId]);
 
   // Filtered Tasks
   const filteredTasks = useMemo(() => {
@@ -112,22 +140,24 @@ export const BoardView: React.FC = () => {
       const matchesPriority =
         priorityFilter === 'all' || t.priority === priorityFilter;
 
-      return matchesSearch && matchesPriority;
+      const matchesProject = !currentProjectId || t.project_id === currentProjectId;
+
+      return matchesSearch && matchesPriority && matchesProject;
     });
-  }, [tasks, searchQuery, priorityFilter]);
+  }, [tasks, searchQuery, priorityFilter, currentProjectId]);
 
   // Sprint Velocity Metrics
   const metrics = useMemo(() => {
-    const totalPoints = tasks.reduce((sum, t) => sum + (t.story_points || 0), 0);
-    const completedPoints = tasks
+    const totalPoints = filteredTasks.reduce((sum, t) => sum + (t.story_points || 0), 0);
+    const completedPoints = filteredTasks
       .filter((t) => t.status === 'done')
       .reduce((sum, t) => sum + (t.story_points || 0), 0);
-    const inProgressPoints = tasks
+    const inProgressPoints = filteredTasks
       .filter((t) => t.status === 'in_progress')
       .reduce((sum, t) => sum + (t.story_points || 0), 0);
 
     return { totalPoints, completedPoints, inProgressPoints };
-  }, [tasks]);
+  }, [filteredTasks]);
 
   // ── Drag & Drop Handlers ───────────────────────────────────────────────────
 
@@ -357,6 +387,26 @@ export const BoardView: React.FC = () => {
             />
           </div>
 
+          {/* Project Filter */}
+          <div className="flex items-center gap-1">
+            <select
+              value={currentProjectId ?? 'all'}
+              onChange={(e) => {
+                const val = e.target.value === 'all' ? null : Number(e.target.value);
+                setCurrentProjectId(val);
+                onProjectChange?.(val);
+              }}
+              className="bg-[#1a1918] border border-[#2e2c2a] focus:border-[#e8a84c] rounded-lg px-2.5 py-1.5 text-xs text-[#edeae4] focus:outline-none max-w-[180px] truncate font-medium"
+            >
+              <option value="all">All Initiatives ({projects.length})</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Priority Filter */}
           <div className="flex items-center gap-1">
             <select
@@ -462,12 +512,16 @@ export const BoardView: React.FC = () => {
         initialStatus={createInitialStatus}
         onClose={() => setIsCreateOpen(false)}
         onCreate={handleCreateTask}
+        projectId={currentProjectId}
+        projects={projects}
       />
 
       <DecomposerModal
         isOpen={isDecomposerOpen}
         onClose={() => setIsDecomposerOpen(false)}
         onSuccess={fetchTasks}
+        projectId={currentProjectId}
+        projects={projects}
       />
     </div>
   );
