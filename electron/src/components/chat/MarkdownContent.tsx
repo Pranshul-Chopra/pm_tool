@@ -1,0 +1,725 @@
+import React, { useState } from 'react';
+import {
+  Check,
+  Copy,
+  FileText,
+  ExternalLink,
+  ChevronRight,
+  Sparkles,
+  Bot,
+  Layers,
+  ArrowRight,
+} from 'lucide-react';
+
+interface MarkdownContentProps {
+  content: string;
+  onPromptClick?: (prompt: string) => void;
+}
+
+// ── Math & LaTeX Formatter ───────────────────────────────────────────────────
+
+function formatLatex(tex: string): React.ReactNode {
+  let s = tex.trim();
+
+  // 1. Common Greek Letters
+  const greek: Record<string, string> = {
+    '\\alpha': 'α',
+    '\\beta': 'β',
+    '\\gamma': 'γ',
+    '\\delta': 'δ',
+    '\\epsilon': 'ε',
+    '\\varepsilon': 'ε',
+    '\\zeta': 'ζ',
+    '\\eta': 'η',
+    '\\theta': 'θ',
+    '\\iota': 'ι',
+    '\\kappa': 'κ',
+    '\\lambda': 'λ',
+    '\\mu': 'μ',
+    '\\nu': 'ν',
+    '\\xi': 'ξ',
+    '\\pi': 'π',
+    '\\rho': 'ρ',
+    '\\sigma': 'σ',
+    '\\tau': 'τ',
+    '\\upsilon': 'υ',
+    '\\phi': 'φ',
+    '\\varphi': 'φ',
+    '\\chi': 'χ',
+    '\\psi': 'ψ',
+    '\\omega': 'ω',
+    '\\Gamma': 'Γ',
+    '\\Delta': 'Δ',
+    '\\Theta': 'Θ',
+    '\\Lambda': 'Λ',
+    '\\Xi': 'Ξ',
+    '\\Pi': 'Π',
+    '\\Sigma': 'Σ',
+    '\\Phi': 'Φ',
+    '\\Psi': 'Ψ',
+    '\\Omega': 'Ω',
+  };
+
+  for (const [cmd, sym] of Object.entries(greek)) {
+    s = s.split(cmd).join(sym);
+  }
+
+  // 2. Statistical operators and bars/hats
+  s = s.replace(/\\bar\{([A-Za-z0-9])\}/g, '$1̄');
+  s = s.replace(/\\hat\{([A-Za-z0-9α-ωΑ-Ω])\}/g, '$1̂');
+  s = s.replace(/\\tilde\{([A-Za-z0-9])\}/g, '$1̃');
+  s = s.replace(/\\vec\{([A-Za-z0-9])\}/g, '$1⃗');
+
+  // Math words
+  s = s.replace(/\\Var\b/g, 'Var');
+  s = s.replace(/\\Cov\b/g, 'Cov');
+  s = s.replace(/\\mathbb\{E\}/g, 'E');
+  s = s.replace(/\\mathbb\{P\}/g, 'P');
+  s = s.replace(/\\mathbb\{R\}/g, 'ℝ');
+  s = s.replace(/\\text\{([^}]+)\}/g, '$1');
+  s = s.replace(/\\sqrt\{([^}]+)\}/g, '√($1)');
+  s = s.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1 / $2)');
+
+  // Common operators
+  s = s.replace(/\\le\b|\\leq\b/g, '≤');
+  s = s.replace(/\\ge\b|\\geq\b/g, '≥');
+  s = s.replace(/\\neq\b/g, '≠');
+  s = s.replace(/\\approx\b/g, '≈');
+  s = s.replace(/\\pm\b/g, '±');
+  s = s.replace(/\\times\b/g, '×');
+  s = s.replace(/\\cdot\b/g, '·');
+  s = s.replace(/\\div\b/g, '÷');
+  s = s.replace(/\\infty\b/g, '∞');
+  s = s.replace(/\\to\b/g, '→');
+  s = s.replace(/\\in\b/g, '∈');
+  s = s.replace(/\\notin\b/g, '∉');
+  s = s.replace(/\\sum\b/g, '∑');
+  s = s.replace(/\\prod\b/g, '∏');
+
+  // Superscript mapping
+  const supers: Record<string, string> = {
+    '0': '⁰',
+    '1': '¹',
+    '2': '²',
+    '3': '³',
+    '4': '⁴',
+    '5': '⁵',
+    '6': '⁶',
+    '7': '⁷',
+    '8': '⁸',
+    '9': '⁹',
+    '+': '⁺',
+    '-': '⁻',
+    '=': '⁼',
+    '(': '⁽',
+    ')': '⁾',
+    'n': 'ⁿ',
+    'i': 'ⁱ',
+    'x': 'ˣ',
+    'y': 'ʸ',
+  };
+
+  s = s.replace(/\^([0-9nixy\+\-\(\)])/g, (_, c) => supers[c] || `^${c}`);
+  s = s.replace(/\^\{([0-9nixy\+\-\(\)]+)\}/g, (_, chars) =>
+    chars.split('').map((c: string) => supers[c] || c).join('')
+  );
+
+  // Subscript mapping
+  const subs: Record<string, string> = {
+    '0': '₀',
+    '1': '₁',
+    '2': '₂',
+    '3': '₃',
+    '4': '₄',
+    '5': '₅',
+    '6': '₆',
+    '7': '₇',
+    '8': '₈',
+    '9': '₉',
+    '+': '₊',
+    '-': '₋',
+    '=': '₌',
+    '(': '₍',
+    ')': '₎',
+    'a': 'ₐ',
+    'e': 'ₑ',
+    'i': 'ᵢ',
+    'j': 'ⱼ',
+    'k': 'ₖ',
+    'l': 'ₗ',
+    'm': 'ₘ',
+    'n': 'ₙ',
+    'o': 'ₒ',
+    'p': 'ₚ',
+    'r': 'ᵣ',
+    's': 'ₛ',
+    't': 'ₜ',
+    'u': 'ᵤ',
+    'v': 'ᵥ',
+    'x': 'ₓ',
+  };
+
+  s = s.replace(/_([0-9aeijk-nx\+\-\(\)])/g, (_, c) => subs[c] || `_${c}`);
+  s = s.replace(/_\{([0-9aeijk-nx\+\-\(\)]+)\}/g, (_, chars) =>
+    chars.split('').map((c: string) => subs[c] || c).join('')
+  );
+
+  // Clean unescaped remaining braces
+  s = s.replace(/[{}]/g, '');
+
+  return s;
+}
+
+// ── Inline Markdown Renderer ─────────────────────────────────────────────────
+
+export function renderInline(
+  text: string,
+  onPromptClick?: (prompt: string) => void
+): React.ReactNode[] {
+  if (!text) return [];
+
+  // Split line by <br> or <br/> first to support multiline table cells and paragraphs
+  const brSegments = text.split(/(<br\s*\/?>)/gi);
+
+  return brSegments.flatMap((segment, segIdx) => {
+    if (/^<br\s*\/?>$/i.test(segment)) {
+      return [<br key={`br-${segIdx}`} className="my-1" />];
+    }
+
+    // Tokenize segment into:
+    // 1. Interactive prompt suggestions: [label](prompt:text)
+    // 2. Bracketed prompt suggestions: [prompt: text]
+    // 3. Document Source Citations: [Source: MAS2001_Assignment3_1.pdf]
+    // 4. Inline Math: $...$
+    // 5. Inline Code: `...`
+    // 6. Bold: **...**
+    // 7. Strikethrough: ~~...~~
+    // 8. Italics: *...*
+    // 9. Links: [label](url)
+    // Tokenize segment safely without confusing Tailwind class scanner
+    const promptLinkPat = '\\' + '[([^\\]]+)\\]\\((?:prompt|suggest):([^)]+)\\)';
+    const promptBracketPat = '\\' + '[(?:prompt|suggest):\\s*([^\\]]+)\\]';
+    const sourcePat = '\\' + '[Source:\\s*([^\\]]+)\\]';
+    const mathPat = '\\$[^$\\n]+\\$';
+    const codePat = '`[^`]+`';
+    const boldPat = '\\*\\*[^*]+\\*\\*';
+    const strikePat = '~~[^~]+~~';
+    const italicPat = '\\*[^*]+\\*';
+    const linkPat = '\\' + '[([^\\]]+)\\]\\(([^)]+)\\)';
+
+    const tokenRegex = new RegExp(
+      `(${promptLinkPat}|${promptBracketPat}|${sourcePat}|${mathPat}|${codePat}|${boldPat}|${strikePat}|${italicPat}|${linkPat})`,
+      'g'
+    );
+
+    const parts = segment.split(tokenRegex);
+
+    return parts.map((part, pIdx) => {
+      const key = `${segIdx}-${pIdx}`;
+
+      // 1. Interactive Prompt Suggestion [label](prompt:text)
+      const promptLinkMatch = part.match(new RegExp('^\\' + '[([^\\]]+)\\]\\((?:prompt|suggest):([^)]+)\\)$'));
+      if (promptLinkMatch) {
+        const label = promptLinkMatch[1].replace(/[*_`]/g, '').trim();
+        const promptTarget = promptLinkMatch[2].trim();
+
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onPromptClick && onPromptClick(promptTarget)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-[#222120] hover:bg-[#282725] border border-[#e8a84c]/30 hover:border-[#e8a84c] text-xs text-[#edeae4] transition-all cursor-pointer shadow-sm group font-medium"
+            title={`Click to run: ${promptTarget}`}
+          >
+            <span className="text-[#e8a84c] group-hover:scale-110 transition-transform">⚡</span>
+            <span>{label}</span>
+            <span className="font-mono text-[10px] text-[#e8a84c] px-1 py-0.2 rounded bg-[#e8a84c]/10 border border-[#e8a84c]/20 ml-1">
+              ↵ send
+            </span>
+          </button>
+        );
+      }
+
+      // 2. Bracketed prompt suggestion [prompt: /breakdown ...]
+      const promptBracketMatch = part.match(new RegExp('^\\' + '[(?:prompt|suggest):\\s*([^\\]]+)\\]$', 'i'));
+      if (promptBracketMatch) {
+        const promptTarget = promptBracketMatch[1].trim();
+        return (
+          <button
+            key={key}
+            type="button"
+            onClick={() => onPromptClick && onPromptClick(promptTarget)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-[#222120] hover:bg-[#282725] border border-[#4c97e8]/30 hover:border-[#4c97e8] text-xs text-[#edeae4] transition-all cursor-pointer shadow-sm group font-medium"
+            title={`Click to run: ${promptTarget}`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-[#4c97e8] group-hover:scale-110 transition-transform" />
+            <span>{promptTarget}</span>
+            <span className="font-mono text-[10px] text-[#4c97e8] px-1 py-0.2 rounded bg-[#4c97e8]/10 border border-[#4c97e8]/20 ml-1">
+              ↵ send
+            </span>
+          </button>
+        );
+      }
+
+      // 3. Document Source Badge [Source: MAS2001_Assignment3_1.pdf]
+      const sourceMatch = part.match(new RegExp('^\\' + '[Source:\\s*([^\\]]+)\\]$', 'i'));
+      if (sourceMatch) {
+        const srcName = sourceMatch[1].trim();
+        return (
+          <span
+            key={key}
+            className="inline-flex items-center gap-1 px-2 py-0.5 my-0.5 rounded-md bg-[#e8a84c]/10 text-[#e8a84c] border border-[#e8a84c]/25 text-[11px] font-mono select-text"
+            title={`Grounded from indexed document: ${srcName}`}
+          >
+            <FileText className="w-3 h-3 text-[#e8a84c] flex-shrink-0" />
+            <span className="truncate max-w-[200px]">{srcName}</span>
+          </span>
+        );
+      }
+
+      // 4. Inline Math ($ ... $)
+      if (part.startsWith('$') && part.endsWith('$') && part.length > 2) {
+        const mathContent = part.slice(1, -1);
+        const formatted = formatLatex(mathContent);
+        return (
+          <span
+            key={key}
+            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded bg-[#1f1e1c] border border-[#2e2c2a] text-[#e8a84c] font-mono text-xs select-text tracking-wide shadow-inner"
+          >
+            {formatted}
+          </span>
+        );
+      }
+
+      // 5. Inline Code (` ... `)
+      if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+        return (
+          <code
+            key={key}
+            className="px-1.5 py-0.5 rounded bg-[#111110] border border-[#2e2c2a] text-[#e8a84c] font-mono text-[11px]"
+          >
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+
+      // 6. Bold (** ... **)
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        return (
+          <strong key={key} className="font-semibold text-[#edeae4]">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+
+      // 7. Strikethrough (~~ ... ~~)
+      if (part.startsWith('~~') && part.endsWith('~~') && part.length >= 4) {
+        return (
+          <del key={key} className="line-through text-[#78746f]">
+            {part.slice(2, -2)}
+          </del>
+        );
+      }
+
+      // 8. Italics (* ... *)
+      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+        return (
+          <em key={key} className="italic text-[#d6d3cd]">
+            {part.slice(1, -1)}
+          </em>
+        );
+      }
+
+      // 9. Safe Hyperlink [label](url)
+      const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (linkMatch) {
+        const linkText = linkMatch[1];
+        const linkUrl = linkMatch[2].trim();
+        const isSafe = /^(?:https?:\/\/|mailto:)/i.test(linkUrl);
+
+        if (isSafe) {
+          return (
+            <a
+              key={key}
+              href={linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#e8a84c] hover:underline inline-flex items-center gap-0.5 font-medium"
+            >
+              <span>{linkText}</span>
+              <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+            </a>
+          );
+        }
+        return `${linkText} (${linkUrl})`;
+      }
+
+      return part;
+    });
+  });
+}
+
+// ── Code Block Item with Copy Button ─────────────────────────────────────────
+
+const CodeBlock: React.FC<{ code: string; language: string }> = ({ code, language }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="my-3 rounded-lg overflow-hidden border border-[#2e2c2a] bg-[#111110] font-mono text-xs shadow-sm">
+      <div className="px-3 py-1.5 bg-[#161514] border-b border-[#2e2c2a] flex items-center justify-between text-[11px] text-[#9b9690]">
+        <span className="text-[#e8a84c] uppercase tracking-wider font-semibold font-mono">
+          {language || 'code'}
+        </span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1.5 hover:text-[#edeae4] text-[#9b9690] transition-colors"
+          title="Copy snippet"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3 h-3 text-[#5aab7f]" />
+              <span className="text-[#5aab7f]">Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3 h-3" />
+              <span>Copy</span>
+            </>
+          )}
+        </button>
+      </div>
+      <pre className="p-3 overflow-x-auto text-[#edeae4] leading-relaxed">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+};
+
+// ── Markdown Table Component ─────────────────────────────────────────────────
+
+const MarkdownTable: React.FC<{
+  lines: string[];
+  onPromptClick?: (prompt: string) => void;
+}> = ({ lines, onPromptClick }) => {
+  if (lines.length < 2) return null;
+
+  const parseRow = (line: string): string[] => {
+    let cells = line.trim().split('|');
+    if (cells.length > 0 && cells[0].trim() === '') cells.shift();
+    if (cells.length > 0 && cells[cells.length - 1].trim() === '') cells.pop();
+    return cells.map((c) => c.trim());
+  };
+
+  const headerCells = parseRow(lines[0]);
+  const separatorCells = parseRow(lines[1]);
+
+  const alignments = separatorCells.map((cell) => {
+    const trimmed = cell.trim();
+    const left = trimmed.startsWith(':');
+    const right = trimmed.endsWith(':');
+    if (left && right) return 'text-center';
+    if (right) return 'text-right';
+    return 'text-left';
+  });
+
+  const dataRows: string[][] = [];
+  for (let i = 2; i < lines.length; i++) {
+    const row = parseRow(lines[i]);
+    if (row.length === 0 || (row.length === 1 && !row[0])) continue;
+    dataRows.push(row);
+  }
+
+  return (
+    <div className="overflow-x-auto my-3 rounded-lg border border-[#2e2c2a] bg-[#161514] shadow-sm">
+      <table className="w-full border-collapse text-xs">
+        <thead className="bg-[#1f1e1c] border-b border-[#2e2c2a] text-[#e8a84c] font-mono text-[11px] uppercase tracking-wider">
+          <tr>
+            {headerCells.map((th, i) => (
+              <th
+                key={i}
+                className={`px-3.5 py-2.5 font-semibold border-r border-[#2e2c2a] last:border-r-0 ${
+                  alignments[i] || 'text-left'
+                }`}
+              >
+                {renderInline(th, onPromptClick)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {dataRows.map((row, rIdx) => (
+            <tr
+              key={rIdx}
+              className="border-b border-[#2e2c2a] last:border-b-0 hover:bg-[#1a1918]/80 transition-colors odd:bg-[#161514] even:bg-[#141312]"
+            >
+              {headerCells.map((_, cIdx) => (
+                <td
+                  key={cIdx}
+                  className={`px-3.5 py-2.5 leading-relaxed text-[#edeae4] border-r border-[#2e2c2a] last:border-r-0 align-top ${
+                    alignments[cIdx] || 'text-left'
+                  }`}
+                >
+                  {renderInline(row[cIdx] || '', onPromptClick)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// ── Main Markdown Content Parser & Renderer ──────────────────────────────────
+
+export const MarkdownContent: React.FC<MarkdownContentProps> = ({
+  content,
+  onPromptClick,
+}) => {
+  if (!content) return null;
+
+  // Process text into major structural blocks:
+  // 1. Code blocks (```lang ... ```)
+  // 2. Display math ($$ ... $$)
+  // 3. Tables (| ... |)
+  // 4. Lines (headers, lists, blockquotes, horizontal rules, prompt actions, paragraphs)
+
+  const elements: React.ReactNode[] = [];
+  const lines = content.split(/\r?\n/);
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // 1. Code Block (```)
+    if (line.trim().startsWith('```')) {
+      const langMatch = line.trim().match(/^```([a-zA-Z0-9_-]*)/);
+      const language = langMatch ? langMatch[1] : '';
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // Skip closing ```
+      elements.push(
+        <CodeBlock
+          key={`code-${i}`}
+          language={language}
+          code={codeLines.join('\n')}
+        />
+      );
+      continue;
+    }
+
+    // 2. Display Math ($$ ... $$)
+    if (line.trim().startsWith('$$')) {
+      const mathLines: string[] = [];
+      if (line.trim().endsWith('$$') && line.trim().length > 2) {
+        mathLines.push(line.trim().slice(2, -2));
+        i++;
+      } else {
+        i++;
+        while (i < lines.length && !lines[i].trim().endsWith('$$')) {
+          mathLines.push(lines[i]);
+          i++;
+        }
+        i++;
+      }
+      elements.push(
+        <div
+          key={`disp-math-${i}`}
+          className="my-3 p-3 overflow-x-auto text-center font-mono text-xs text-[#e8a84c] bg-[#161514] border border-[#2e2c2a] rounded-lg shadow-inner select-text"
+        >
+          {formatLatex(mathLines.join(' '))}
+        </div>
+      );
+      continue;
+    }
+
+    // 3. Markdown Table (| ... |)
+    // Check if current line starts with '|' and next line is a table divider '| --- |'
+    if (
+      line.trim().startsWith('|') &&
+      i + 1 < lines.length &&
+      lines[i + 1].trim().startsWith('|') &&
+      lines[i + 1].includes('-') &&
+      /^\|[\s|:\-]+\|$/.test(lines[i + 1].trim())
+    ) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      elements.push(
+        <MarkdownTable
+          key={`table-${i}`}
+          lines={tableLines}
+          onPromptClick={onPromptClick}
+        />
+      );
+      continue;
+    }
+
+    // 4. Horizontal Rule (---, ***, ___)
+    if (/^(?:---|[*]{3}|___)\s*$/.test(line.trim())) {
+      elements.push(<hr key={`hr-${i}`} className="my-4 border-[#2e2c2a]" />);
+      i++;
+      continue;
+    }
+
+    // 5. Headers (# ... #####)
+    if (line.startsWith('##### ')) {
+      elements.push(
+        <h5 key={`h5-${i}`} className="text-xs font-bold text-[#edeae4] mt-3 mb-1">
+          {renderInline(line.slice(6), onPromptClick)}
+        </h5>
+      );
+      i++;
+      continue;
+    }
+    if (line.startsWith('#### ')) {
+      elements.push(
+        <h4 key={`h4-${i}`} className="text-xs font-bold text-[#e8a84c] mt-3 mb-1">
+          {renderInline(line.slice(5), onPromptClick)}
+        </h4>
+      );
+      i++;
+      continue;
+    }
+    if (line.startsWith('### ')) {
+      elements.push(
+        <h3 key={`h3-${i}`} className="text-sm font-bold text-[#edeae4] mt-3 mb-1">
+          {renderInline(line.slice(4), onPromptClick)}
+        </h3>
+      );
+      i++;
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      elements.push(
+        <h2 key={`h2-${i}`} className="text-base font-bold text-[#e8a84c] mt-4 mb-1">
+          {renderInline(line.slice(3), onPromptClick)}
+        </h2>
+      );
+      i++;
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      elements.push(
+        <h1
+          key={`h1-${i}`}
+          className="text-lg font-bold text-[#edeae4] mt-4 mb-2 pb-1 border-b border-[#2e2c2a]"
+        >
+          {renderInline(line.slice(2), onPromptClick)}
+        </h1>
+      );
+      i++;
+      continue;
+    }
+
+    // 6. Blockquote (> ...)
+    if (line.startsWith('> ')) {
+      elements.push(
+        <blockquote
+          key={`quote-${i}`}
+          className="border-l-2 border-[#e8a84c] pl-3 py-1 my-2 bg-[#222120]/50 rounded-r text-xs text-[#9b9690] italic"
+        >
+          {renderInline(line.slice(2), onPromptClick)}
+        </blockquote>
+      );
+      i++;
+      continue;
+    }
+
+    // 7. Task Checklists (- [ ] or - [x])
+    const taskMatch = line.match(/^\s*-\s*\[([ xX])\]\s+(.*)$/);
+    if (taskMatch) {
+      const isDone = taskMatch[1].toLowerCase() === 'x';
+      elements.push(
+        <div key={`task-${i}`} className="flex items-center gap-2.5 my-1 ml-1 text-xs">
+          <input
+            type="checkbox"
+            checked={isDone}
+            readOnly
+            className="w-3.5 h-3.5 rounded border-[#2e2c2a] text-[#5aab7f] focus:ring-0 cursor-default"
+          />
+          <span className={isDone ? 'line-through text-[#78746f]' : 'text-[#edeae4]'}>
+            {renderInline(taskMatch[2], onPromptClick)}
+          </span>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // 8. Bullet Lists (- or *)
+    if (/^\s*[*•\-]\s+/.test(line)) {
+      const contentText = line.replace(/^\s*[*•\-]\s+/, '');
+      elements.push(
+        <div key={`bullet-${i}`} className="flex items-start gap-2 ml-2 my-1 text-xs">
+          <span className="text-[#e8a84c] mt-0.5 text-xs font-bold">•</span>
+          <div className="flex-1 leading-relaxed text-[#edeae4]">
+            {renderInline(contentText, onPromptClick)}
+          </div>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // 9. Numbered Lists (1. , 2. )
+    const olMatch = line.match(/^\s*(\d+)\.\s+(.*)$/);
+    if (olMatch) {
+      elements.push(
+        <div key={`ol-${i}`} className="flex items-start gap-2 ml-2 my-1 text-xs">
+          <span className="text-[#e8a84c] font-mono text-[11px] font-semibold mt-0.5">
+            {olMatch[1]}.
+          </span>
+          <div className="flex-1 leading-relaxed text-[#edeae4]">
+            {renderInline(olMatch[2], onPromptClick)}
+          </div>
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // 10. Standalone Prompt Action Button Line
+    const promptActionMatch = line.trim().match(new RegExp('^\\' + '[([^\\]]+)\\]\\((?:prompt|suggest):([^)]+)\\)$'));
+    if (promptActionMatch) {
+      elements.push(
+        <div key={`prompt-line-${i}`} className="my-2">
+          {renderInline(line.trim(), onPromptClick)}
+        </div>
+      );
+      i++;
+      continue;
+    }
+
+    // 11. Empty lines
+    if (!line.trim()) {
+      elements.push(<div key={`empty-${i}`} className="h-2" />);
+      i++;
+      continue;
+    }
+
+    // 12. Standard Paragraph
+    elements.push(
+      <p key={`p-${i}`} className="my-1.5 leading-relaxed text-xs text-[#edeae4]">
+        {renderInline(line, onPromptClick)}
+      </p>
+    );
+    i++;
+  }
+
+  return <div className="space-y-0.5 text-xs leading-relaxed">{elements}</div>;
+};
+
+export default MarkdownContent;

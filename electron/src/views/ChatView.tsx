@@ -16,6 +16,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import AppBridge from '../services/bridge';
+import MarkdownContent from '../components/chat/MarkdownContent';
 
 interface ChatMessage {
   id: string;
@@ -62,7 +63,6 @@ export const ChatView: React.FC = () => {
   const [input, setInput] = useState('');
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [copiedCodeId, setCopiedCodeId] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -249,126 +249,6 @@ export const ChatView: React.FC = () => {
     }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCodeId(id);
-    setTimeout(() => setCopiedCodeId(null), 2000);
-  };
-
-  // ── Markdown Parser Helper ─────────────────────────────────────────────────
-
-  const renderMarkdown = (text: string) => {
-    // Process code blocks first
-    const parts = text.split(/(```[\s\S]*?```)/g);
-
-    return parts.map((part, index) => {
-      if (part.startsWith('```') && part.endsWith('```')) {
-        const lines = part.slice(3, -3).trim().split('\n');
-        const language = lines[0].match(/^[a-zA-Z0-9_-]+$/) ? lines[0] : '';
-        const codeContent = language ? lines.slice(1).join('\n') : lines.join('\n');
-        const codeId = `code-${index}`;
-
-        return (
-          <div
-            key={index}
-            className="my-3 rounded-lg overflow-hidden border border-[#2e2c2a] bg-[#111110] font-mono text-xs"
-          >
-            <div className="px-3 py-1.5 bg-[#161514] border-b border-[#2e2c2a] flex items-center justify-between text-[11px] text-[#9b9690]">
-              <span>{language || 'code'}</span>
-              <button
-                onClick={() => copyToClipboard(codeContent, codeId)}
-                className="flex items-center gap-1 hover:text-[#edeae4] transition-colors"
-                title="Copy snippet"
-              >
-                {copiedCodeId === codeId ? (
-                  <>
-                    <Check className="w-3 h-3 text-[#5aab7f]" />
-                    <span className="text-[#5aab7f]">Copied</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-3 h-3" />
-                    <span>Copy</span>
-                  </>
-                )}
-              </button>
-            </div>
-            <pre className="p-3 overflow-x-auto text-[#edeae4] leading-relaxed">
-              <code>{codeContent}</code>
-            </pre>
-          </div>
-        );
-      }
-
-      // Format headers, bold, lists, and inline code
-      const formattedLines = part.split('\n').map((line, lIdx) => {
-        // Headers
-        if (line.startsWith('### ')) {
-          return (
-            <h4 key={lIdx} className="text-sm font-bold text-[#edeae4] mt-3 mb-1">
-              {line.replace('### ', '')}
-            </h4>
-          );
-        }
-        if (line.startsWith('## ')) {
-          return (
-            <h3 key={lIdx} className="text-base font-bold text-[#e8a84c] mt-4 mb-1">
-              {line.replace('## ', '')}
-            </h3>
-          );
-        }
-        if (line.startsWith('# ')) {
-          return (
-            <h2 key={lIdx} className="text-lg font-bold text-[#edeae4] mt-4 mb-2 pb-1 border-b border-[#2e2c2a]">
-              {line.replace('# ', '')}
-            </h2>
-          );
-        }
-
-        // Bullet list
-        if (line.startsWith('- ') || line.startsWith('* ')) {
-          return (
-            <div key={lIdx} className="flex items-start gap-2 ml-2 my-0.5">
-              <span className="text-[#e8a84c] mt-1 text-xs">•</span>
-              <span className="flex-1">{formatInline(line.slice(2))}</span>
-            </div>
-          );
-        }
-
-        // Standard line
-        return (
-          <p key={lIdx} className="my-1 leading-relaxed">
-            {formatInline(line)}
-          </p>
-        );
-      });
-
-      return <div key={index}>{formattedLines}</div>;
-    });
-  };
-
-  const formatInline = (str: string) => {
-    // Bold, inline code, italics
-    const inlineParts = str.split(/(`[^`]+`|\*\*[^*]+\*\*)/g);
-    return inlineParts.map((sub, i) => {
-      if (sub.startsWith('`') && sub.endsWith('`')) {
-        return (
-          <code key={i} className="px-1.5 py-0.5 rounded bg-[#111110] border border-[#2e2c2a] text-[#e8a84c] font-mono text-[11px]">
-            {sub.slice(1, -1)}
-          </code>
-        );
-      }
-      if (sub.startsWith('**') && sub.endsWith('**')) {
-        return (
-          <strong key={i} className="font-semibold text-[#edeae4]">
-            {sub.slice(2, -2)}
-          </strong>
-        );
-      }
-      return sub;
-    });
-  };
-
   return (
     <div className="h-full w-full flex overflow-hidden">
       {/* ── Collapsible & Resizable Conversations Sidebar ──────────────────── */}
@@ -464,7 +344,16 @@ export const ChatView: React.FC = () => {
                 }`}
               >
                 {/* Message Body */}
-                <div>{m.sender === 'assistant' ? renderMarkdown(m.content) : m.content}</div>
+                <div>
+                  {m.sender === 'assistant' ? (
+                    <MarkdownContent
+                      content={m.content}
+                      onPromptClick={(prompt) => handleSendMessage(prompt)}
+                    />
+                  ) : (
+                    <div className="whitespace-pre-wrap">{m.content}</div>
+                  )}
+                </div>
 
                 {/* Grounding Sources Badge */}
                 {m.sources && m.sources.length > 0 && (
