@@ -1,8 +1,10 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
+  rectIntersection,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -10,6 +12,7 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
+  CollisionDetection,
 } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import {
@@ -48,6 +51,7 @@ export const BoardView: React.FC = () => {
 
   // Drag Overlay State
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const originalStatusRef = useRef<TaskStatus | null>(null);
 
   // Modal States
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -60,11 +64,24 @@ export const BoardView: React.FC = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 4, // 4px drag threshold prevents accidental drags on clicks
+        distance: 5, // 5px drag threshold prevents accidental drags on clicks
       },
     }),
     useSensor(KeyboardSensor)
   );
+
+  // Robust Collision Detection: Prioritize pointer container, then rect, then center
+  const collisionDetectionStrategy: CollisionDetection = (args) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    const rectCollisions = rectIntersection(args);
+    if (rectCollisions.length > 0) {
+      return rectCollisions;
+    }
+    return closestCenter(args);
+  };
 
   const fetchTasks = async () => {
     setLoading(true);
@@ -119,6 +136,7 @@ export const BoardView: React.FC = () => {
     const task = tasks.find((t) => t.id.toString() === active.id);
     if (task) {
       setActiveTask(task);
+      originalStatusRef.current = task.status;
     }
   };
 
@@ -159,47 +177,70 @@ export const BoardView: React.FC = () => {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
-    setActiveTask(null);
-
-    if (!over) return;
-
     const activeId = active.id.toString();
-    const overId = over.id.toString();
+    const initialStatus = originalStatusRef.current;
+    originalStatusRef.current = null;
+    setActiveTask(null);
 
     const activeTaskItem = tasks.find((t) => t.id.toString() === activeId);
     if (!activeTaskItem) return;
 
     let targetStatus: TaskStatus = activeTaskItem.status;
 
-    // If dropped on column container
-    if (COLUMNS.some((c) => c.id === overId)) {
-      targetStatus = overId as TaskStatus;
-    } else {
-      const overTask = tasks.find((t) => t.id.toString() === overId);
-      if (overTask) {
-        targetStatus = overTask.status;
+    if (over) {
+      const overId = over.id.toString();
+      // If dropped on column container
+      if (COLUMNS.some((c) => c.id === overId)) {
+        targetStatus = overId as TaskStatus;
+      } else {
+        const overTask = tasks.find((t) => t.id.toString() === overId);
+        if (overTask) {
+          targetStatus = overTask.status;
+        }
+      }
+
+      // Reorder in array if needed
+      if (activeId !== overId && !COLUMNS.some((c) => c.id === overId)) {
+        const oldIndex = tasks.findIndex((t) => t.id.toString() === activeId);
+        const newIndex = tasks.findIndex((t) => t.id.toString() === overId);
+        if (oldIndex !== -1 && newIndex !== -1) {
+          setTasks((prev) => arrayMove(prev, oldIndex, newIndex));
+        }
       }
     }
 
-    // Reorder in array if needed
-    if (activeId !== overId && !COLUMNS.some((c) => c.id === overId)) {
-      const oldIndex = tasks.findIndex((t) => t.id.toString() === activeId);
-      const newIndex = tasks.findIndex((t) => t.id.toString() === overId);
-      if (oldIndex !== -1 && newIndex !== -1) {
-        setTasks((prev) => arrayMove(prev, oldIndex, newIndex));
-      }
+    // Ensure status in state matches targetStatus
+    if (activeTaskItem.status !== targetStatus) {
+      setTasks((prev) =>
+        prev.map((t) => (t.id.toString() === activeId ? { ...t, status: targetStatus } : t))
+      );
     }
 
-    // Persist status change to Flask backend
-    try {
-      await AppBridge.api.updateTask(activeTaskItem.id, {
-        status: targetStatus,
-      });
-    } catch (err: any) {
-      console.error('Failed to sync card drop with core:', err);
-      // Re-fetch to rollback on network error
-      fetchTasks();
+    // Persist status change to Flask backend whenever targetStatus changed
+    if (initialStatus && targetStatus !== initialStatus) {
+      try {
+        await AppBridge.api.updateTask(activeTaskItem.id, {
+          status: targetStatus,
+        });
+      } catch (err: any) {
+        console.error('Failed to sync card drop with core:', err);
+        // Rollback to initial status on network error
+        setTasks((prev) =>
+          prev.map((t) => (t.id.toString() === activeId ? { ...t, status: initialStatus } : t))
+        );
+      }
     }
+  };
+
+  const handleDragCancel = () => {
+    if (originalStatusRef.current && activeTask) {
+      const orig = originalStatusRef.current;
+      setTasks((prev) =>
+        prev.map((t) => (t.id === activeTask.id ? { ...t, status: orig } : t))
+      );
+    }
+    setActiveTask(null);
+    originalStatusRef.current = null;
   };
 
   // ── Card Operations ────────────────────────────────────────────────────────
@@ -365,10 +406,11 @@ export const BoardView: React.FC = () => {
       {/* Kanban Drag-and-Drop Columns Grid */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetectionStrategy}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
       >
         <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 overflow-hidden min-h-0 pt-1">
           {COLUMNS.map((col) => {

@@ -27,6 +27,10 @@ export const DocsView: React.FC = () => {
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // In-App Delete Confirmation State
+  const [deleteConfirmDoc, setDeleteConfirmDoc] = useState<{ id: number; filename: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   // Chunk Inspector Drawer
   const [inspectDoc, setInspectDoc] = useState<KnowledgeDocument | null>(null);
   const [inspectChunks, setInspectChunks] = useState<any[]>([]);
@@ -65,15 +69,16 @@ export const DocsView: React.FC = () => {
     setUploadStatus(null);
 
     try {
-      const res = await AppBridge.api.uploadDocument(formData);
-      if (res.success) {
+      const res: any = await AppBridge.api.uploadDocument(formData);
+      if (res && !res.error && (res.document || res.chunks_count !== undefined || res.status === 'indexed' || res.success)) {
+        const count = res.chunks_count ?? res.document?.chunk_count ?? 0;
         setUploadStatus({
           type: 'success',
-          message: `Successfully ingested "${file.name}" with ${res.document?.chunk_count || 0} chunks.`,
+          message: `Successfully ingested "${file.name}" with ${count} chunks.`,
         });
         fetchDocs();
       } else {
-        setUploadStatus({ type: 'error', message: 'Upload completed with warnings.' });
+        setUploadStatus({ type: 'error', message: res?.error || 'Upload completed with warnings.' });
       }
     } catch (err: any) {
       setUploadStatus({ type: 'error', message: err.message || 'Failed to upload document.' });
@@ -83,19 +88,31 @@ export const DocsView: React.FC = () => {
     }
   };
 
-  const handleDelete = async (docId: number, filename: string) => {
-    if (!window.confirm(`Permanently remove "${filename}" and all its vector chunks from Knowledge Base?`)) {
-      return;
-    }
+  const promptDelete = (docId: number, filename: string) => {
+    setDeleteConfirmDoc({ id: docId, filename });
+  };
 
+  const confirmDelete = async () => {
+    if (!deleteConfirmDoc) return;
+    setDeleting(true);
     try {
-      await AppBridge.api.deleteDocument(docId);
-      setDocs((prev) => prev.filter((d) => d.id !== docId));
-      if (inspectDoc && inspectDoc.id === docId) {
+      await AppBridge.api.deleteDocument(deleteConfirmDoc.id);
+      setDocs((prev) => prev.filter((d) => d.id !== deleteConfirmDoc.id));
+      if (inspectDoc && inspectDoc.id === deleteConfirmDoc.id) {
         setInspectDoc(null);
       }
+      setUploadStatus({
+        type: 'success',
+        message: `Removed "${deleteConfirmDoc.filename}" from Knowledge Base.`,
+      });
+      setDeleteConfirmDoc(null);
     } catch (err: any) {
-      alert(`Failed to delete document: ${err.message}`);
+      setUploadStatus({
+        type: 'error',
+        message: `Failed to delete document: ${err.message}`,
+      });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -274,7 +291,7 @@ export const DocsView: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => handleDelete(doc.id, doc.filename)}
+                      onClick={() => promptDelete(doc.id, doc.filename)}
                       className="p-1 rounded text-[#5c5955] hover:text-[#e85c4c] hover:bg-[#e85c4c]/10 transition-colors"
                       title="Delete document"
                     >
@@ -396,8 +413,57 @@ export const DocsView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Dark Carbon Delete Confirmation Modal */}
+      {deleteConfirmDoc && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl max-w-md w-full p-5 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-lg bg-[#e85c4c]/10 text-[#e85c4c] border border-[#e85c4c]/20 flex-shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-semibold text-[#edeae4]">Delete Document</h3>
+                <p className="text-xs text-[#9b9690] mt-1.5 leading-relaxed">
+                  Permanently remove <strong className="text-[#edeae4]">"{deleteConfirmDoc.filename}"</strong> and all its indexed vector chunks from Knowledge Base? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#2e2c2a]">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmDoc(null)}
+                disabled={deleting}
+                className="px-3.5 py-1.5 rounded-lg bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-xs text-[#edeae4] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={deleting}
+                className="px-3.5 py-1.5 rounded-lg bg-[#e85c4c] hover:bg-[#d64b3b] text-xs text-white font-medium shadow transition-colors flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {deleting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Document</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default DocsView;
+

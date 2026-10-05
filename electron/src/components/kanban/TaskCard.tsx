@@ -41,21 +41,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onOpenDetail, onDelete
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       onClick={() => onOpenDetail(task)}
-      className="p-3.5 rounded-lg bg-[#1e1d1b] border border-[#2e2c2a] hover:border-[#3a3835] hover:bg-[#232220] text-xs shadow-sm hover:shadow transition-all group cursor-pointer relative"
+      className="p-3.5 rounded-lg bg-[#1e1d1b] border border-[#2e2c2a] hover:border-[#3a3835] hover:bg-[#232220] text-xs shadow-sm hover:shadow transition-all group cursor-grab active:cursor-grabbing relative select-none"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-start gap-1.5 flex-1 min-w-0">
-          <button
-            {...attributes}
-            {...listeners}
-            onClick={(e) => e.stopPropagation()}
-            className="text-[#5c5955] hover:text-[#9b9690] cursor-grab active:cursor-grabbing p-0.5 -ml-1 mt-0.5 rounded"
-            title="Drag to reorder"
-            aria-label="Drag ticket"
+          <div
+            className="text-[#5c5955] group-hover:text-[#9b9690] p-0.5 -ml-1 mt-0.5 rounded cursor-grab active:cursor-grabbing flex-shrink-0"
+            title="Drag ticket to reorder or move across lanes"
           >
             <GripVertical className="w-3.5 h-3.5" />
-          </button>
+          </div>
           <span className="font-semibold text-[#edeae4] leading-snug line-clamp-2">
             {task.title}
           </span>
@@ -77,6 +75,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onOpenDetail, onDelete
           </span>
 
           <button
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={handleDeleteClick}
             className="opacity-0 group-hover:opacity-100 p-1 text-[#5c5955] hover:text-[#e85c4c] hover:bg-[#e85c4c]/10 rounded transition-all"
             title="Delete ticket"

@@ -93,3 +93,30 @@ export interface KPIWidget {
   position: number;
   created_at: string;
 }
+
+export type LLMProviderPref = 'auto' | 'ollama' | 'api';
+
+export interface LLMStatus {
+  active_provider: string;
+  active_model: string;
+  ollama: {
+    available: boolean;
+    models: string[];
+    selected_model?: string;
+    warning?: string;
+  };
+  api_configured: boolean;
+  api_key_display?: string;
+  api_base?: string;
+  saved_model?: string;
+  saved_provider_pref?: string;
+  setup_required: boolean;
+}
+
+export interface LLMConfigPayload {
+  provider: LLMProviderPref;
+  api_key?: string;
+  api_base?: string;
+  model_name?: string;
+}
+

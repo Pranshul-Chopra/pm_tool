@@ -6,6 +6,8 @@ import type {
   DataSource,
   KPIWidget,
   UpdateData,
+  LLMStatus,
+  LLMConfigPayload,
 } from '../types';
 
 class BridgeService {
@@ -104,7 +106,7 @@ class BridgeService {
     // Knowledge Base Documents
     getDocuments: () => this.request<{ documents: KnowledgeDocument[]; count: number; total_chunks: number }>('/api/documents'),
     uploadDocument: (formData: FormData) =>
-      this.request<{ success: boolean; document: KnowledgeDocument }>('/api/documents/upload', {
+      this.request<{ success?: boolean; document?: KnowledgeDocument; chunks_count?: number; error?: string }>('/api/documents/upload', {
         method: 'POST',
         body: formData,
       }),
@@ -195,7 +197,44 @@ class BridgeService {
       const q = projectId ? `?project_id=${projectId}` : '';
       return this.request<{ decisions: Decision[] }>(`/api/decisions${q}`);
     },
+
+    // LLM Gateway & Provider Configuration
+    getLLMStatus: () => this.request<LLMStatus>('/api/llm/status'),
+
+    saveLLMConfig: (payload: LLMConfigPayload) =>
+      this.request<{ success?: boolean; error?: string; message?: string }>('/api/llm/config', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    probeOllama: () =>
+      this.request<{
+        available: boolean;
+        models: string[];
+        selected_model?: string;
+        warning?: string;
+      }>('/api/llm/ollama/probe'),
+
+    getOllamaModels: () =>
+      this.request<{
+        available: boolean;
+        models: string[];
+        warning?: string;
+      }>('/api/llm/ollama/models'),
+
+    discoverGeminiModels: (apiKey?: string) =>
+      this.request<{ models: string[]; count: number; error?: string }>('/api/llm/gemini/models', {
+        method: 'POST',
+        body: JSON.stringify({ api_key: apiKey }),
+      }),
+
+    probeCustomLLM: (url: string) =>
+      this.request<{ ok: boolean; message: string; models?: string[]; error?: string }>('/api/llm/custom/probe', {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+      }),
   };
+
 
   // ── Native OS Plane ────────────────────────────────────────────────────────
   public os = {
