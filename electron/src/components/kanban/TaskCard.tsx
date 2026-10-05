@@ -1,0 +1,118 @@
+import React from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { Trash2, GripVertical, User } from 'lucide-react';
+import type { Task } from '../../types';
+
+interface TaskCardProps {
+  task: Task;
+  onOpenDetail: (task: Task) => void;
+  onDelete: (taskId: number) => void;
+}
+
+export const TaskCard: React.FC<TaskCardProps> = ({ task, onOpenDetail, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: task.id.toString(),
+    data: {
+      type: 'Task',
+      task,
+    },
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    opacity: isDragging ? 0.35 : 1,
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onDelete(task.id);
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={() => onOpenDetail(task)}
+      className="p-3.5 rounded-lg bg-[#1e1d1b] border border-[#2e2c2a] hover:border-[#3a3835] hover:bg-[#232220] text-xs shadow-sm hover:shadow transition-all group cursor-pointer relative"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-1.5 flex-1 min-w-0">
+          <button
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="text-[#5c5955] hover:text-[#9b9690] cursor-grab active:cursor-grabbing p-0.5 -ml-1 mt-0.5 rounded"
+            title="Drag to reorder"
+            aria-label="Drag ticket"
+          >
+            <GripVertical className="w-3.5 h-3.5" />
+          </button>
+          <span className="font-semibold text-[#edeae4] leading-snug line-clamp-2">
+            {task.title}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span
+            className={`text-[9px] uppercase font-mono px-1.5 py-0.5 rounded border ${
+              task.priority === 'urgent'
+                ? 'bg-[#e85c4c]/10 text-[#e85c4c] border-[#e85c4c]/30'
+                : task.priority === 'high'
+                ? 'bg-[#e8a84c]/10 text-[#e8a84c] border-[#e8a84c]/30'
+                : task.priority === 'med'
+                ? 'bg-[#4c97e8]/10 text-[#4c97e8] border-[#4c97e8]/30'
+                : 'bg-[#222120] text-[#9b9690] border-[#2e2c2a]'
+            }`}
+          >
+            {task.priority}
+          </span>
+
+          <button
+            onClick={handleDeleteClick}
+            className="opacity-0 group-hover:opacity-100 p-1 text-[#5c5955] hover:text-[#e85c4c] hover:bg-[#e85c4c]/10 rounded transition-all"
+            title="Delete ticket"
+            aria-label="Delete ticket"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {task.description && (
+        <p className="text-[11px] text-[#9b9690] mt-2 line-clamp-2 leading-relaxed">
+          {task.description}
+        </p>
+      )}
+
+      {/* Footer Info: Task ID, Points, Assignee */}
+      <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#2e2c2a]/60 text-[10px] font-mono text-[#5c5955]">
+        <div className="flex items-center gap-2">
+          <span>#{task.id}</span>
+          {task.assignee && (
+            <span className="flex items-center gap-1 text-[#9b9690] bg-[#161514] px-1.5 py-0.5 rounded border border-[#2e2c2a]">
+              <User className="w-2.5 h-2.5" />
+              <span>{task.assignee}</span>
+            </span>
+          )}
+        </div>
+
+        {task.story_points ? (
+          <span className="text-[#e8a84c] bg-[#e8a84c]/10 px-1.5 py-0.5 rounded border border-[#e8a84c]/20 font-bold">
+            {task.story_points} pts
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+};
+
+export default TaskCard;

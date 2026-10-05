@@ -71,19 +71,34 @@ class BridgeService {
       const query = params.toString() ? `?${params.toString()}` : '';
       return this.request<{ tasks: Task[] }>(`/api/tasks${query}`);
     },
-    createTask: (task: Partial<Task>) =>
-      this.request<{ task: Task }>('/api/tasks', {
+    createTask: async (task: Partial<Task>): Promise<Task> => {
+      const res = await this.request<any>('/api/tasks', {
         method: 'POST',
         body: JSON.stringify(task),
-      }),
-    updateTask: (id: number, patch: Partial<Task>) =>
-      this.request<{ task: Task }>(`/api/tasks/${id}`, {
+      });
+      return res.task || res;
+    },
+    updateTask: async (id: number, patch: Partial<Task>): Promise<Task> => {
+      const res = await this.request<any>(`/api/tasks/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(patch),
-      }),
-    deleteTask: (id: number) =>
-      this.request<{ success: boolean; id: number }>(`/api/tasks/${id}`, {
+      });
+      return res.task || res;
+    },
+    deleteTask: async (id: number): Promise<{ success: boolean; id: number }> => {
+      const res = await this.request<any>(`/api/tasks/${id}`, {
         method: 'DELETE',
+      });
+      return { success: res.status === 'deleted' || res.success === true, id: res.id || id };
+    },
+    getTaskMetrics: (projectId?: number) => {
+      const q = projectId ? `?project_id=${projectId}` : '';
+      return this.request<any>(`/api/tasks/metrics${q}`);
+    },
+    decomposePRD: (payload: { project_id?: number; prd_text: string }) =>
+      this.request<any>('/api/tools/breakdown', {
+        method: 'POST',
+        body: JSON.stringify(payload),
       }),
 
     // Knowledge Base Documents
