@@ -102,15 +102,46 @@ class BridgeService {
       }),
 
     // Knowledge Base Documents
-    getDocuments: () => this.request<{ documents: KnowledgeDocument[] }>('/api/documents'),
+    getDocuments: () => this.request<{ documents: KnowledgeDocument[]; count: number; total_chunks: number }>('/api/documents'),
     uploadDocument: (formData: FormData) =>
       this.request<{ success: boolean; document: KnowledgeDocument }>('/api/documents/upload', {
         method: 'POST',
         body: formData,
       }),
     deleteDocument: (id: number) =>
-      this.request<{ success: boolean; id: number }>(`/api/documents/${id}`, {
+      this.request<{ status: string; id: number }>(`/api/documents/${id}`, {
         method: 'DELETE',
+      }),
+    getDocumentChunks: (id: number) =>
+      this.request<{ document: KnowledgeDocument; chunks: any[]; count: number }>(`/api/documents/${id}/chunks`),
+    queryDocuments: (query: string, projectId?: number, topK = 5) =>
+      this.request<{ query: string; chunks: any[]; count: number }>('/api/documents/query', {
+        method: 'POST',
+        body: JSON.stringify({ query, project_id: projectId, top_k: topK }),
+      }),
+
+    // AI Copilot & Conversations
+    getConversations: (projectId?: number) => {
+      const q = projectId ? `?project_id=${projectId}` : '';
+      return this.request<{ conversations: any[] }>(`/api/conversations${q}`);
+    },
+    getConversation: (convId: string) =>
+      this.request<{ conversation: any; messages: any[] }>(`/api/conversations/${convId}`),
+    deleteConversation: (convId: string) =>
+      this.request<{ status: string; id: string }>(`/api/conversations/${convId}`, {
+        method: 'DELETE',
+      }),
+    sendChatMessage: (payload: { message: string; conversation_id?: string; project_id?: number }) =>
+      this.request<{
+        response: string;
+        provider?: string;
+        model?: string;
+        conversation_id: string;
+        conversation_title: string;
+        sources?: any[];
+      }>('/api/chat', {
+        method: 'POST',
+        body: JSON.stringify(payload),
       }),
 
     // Data Studio & Analytics
@@ -118,10 +149,19 @@ class BridgeService {
       const q = projectId ? `?project_id=${projectId}` : '';
       return this.request<{ data_sources: DataSource[] }>(`/api/data/sources${q}`);
     },
-    getWidgets: (projectId?: number) => {
-      const q = projectId ? `?project_id=${projectId}` : '';
-      return this.request<{ widgets: KPIWidget[] }>(`/api/data/widgets${q}`);
-    },
+    uploadDataSource: (formData: FormData) =>
+      this.request<{ success: boolean; data_source: DataSource }>('/api/data/sources/upload', {
+        method: 'POST',
+        body: formData,
+      }),
+    deleteDataSource: (id: number) =>
+      this.request<{ status: string; id: number }>(`/api/data/sources/${id}`, {
+        method: 'DELETE',
+      }),
+    getDataSourcePreview: (id: number, limit = 50) =>
+      this.request<{ columns: string[]; rows: any[][]; row_count: number; total_rows: number }>(
+        `/api/data/sources/${id}/preview?limit=${limit}`
+      ),
     executeSafeSQL: (dataSourceId: number, sql: string, maxRows = 100) =>
       this.request<{
         success: boolean;
@@ -130,10 +170,25 @@ class BridgeService {
         row_count: number;
         execution_time_ms: number;
         error?: string;
-      }>('/api/data/sandbox/query', {
+      }>('/api/data/query', {
         method: 'POST',
-        body: JSON.stringify({ data_source_id: dataSourceId, sql_query: sql, max_rows: maxRows }),
+        body: JSON.stringify({ data_source_id: dataSourceId, query: sql, max_rows: maxRows }),
       }),
+    getDashboards: (projectId?: number) => {
+      const q = projectId ? `?project_id=${projectId}` : '';
+      return this.request<{ dashboards: any[]; count: number }>(`/api/dashboards${q}`);
+    },
+    getDashboardDetail: (id: number) =>
+      this.request<{ dashboard: any; widgets: any[] }>(`/api/dashboards/${id}`),
+    createDashboard: (data: { title: string; description?: string; data_source_id?: number; project_id?: number }) =>
+      this.request<any>('/api/dashboards', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    getWidgets: (projectId?: number) => {
+      const q = projectId ? `?project_id=${projectId}` : '';
+      return this.request<{ widgets: KPIWidget[] }>(`/api/data/widgets${q}`);
+    },
 
     // Decisions
     getDecisions: (projectId?: number) => {
