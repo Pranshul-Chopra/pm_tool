@@ -57,30 +57,39 @@ Source Tree
 
 ## 3. Automated CI/CD Release Workflow (GitHub Actions)
 
-PM Tool includes a fully automated GitHub Actions pipeline in [`.github/workflows/release.yml`](file:///.github/workflows/release.yml).
+PM Tool includes a fully automated, rock-solid GitHub Actions pipeline in [`.github/workflows/release.yml`](file:///.github/workflows/release.yml).
 
 ### How It Works:
-1. Pushing a tag prefixed with `v` (e.g. `v1.2.0`) triggers the release runner on `windows-latest`.
-2. The runner checks out the repo, sets up Python 3.11, and compiles the Flask backend via `PyInstaller flask.spec`.
-3. Sets up Node.js 20, runs `npm ci` in `electron/`, and executes `electron-builder --publish always`.
-4. The runner drafts and publishes the GitHub Release, automatically uploading:
-   - `PM Tool-Setup-<version>.exe`
-   - `PM Tool-<version>.exe`
-   - `latest.yml`
-   - `PM Tool-Setup-<version>.exe.blockmap`
+1. **Triggers:**
+   - **Tag Push:** Pushing a tag prefixed with `v` (e.g. `git push origin v1.4.0`) automatically kicks off the workflow.
+   - **Manual Dispatch:** Run anytime via the **Actions** tab with optional custom tag input (auto-detects version from `electron/package.json` if omitted).
+2. **Compilation & Packaging:**
+   - Compiles the backend Flask executable with `PyInstaller flask.spec`.
+   - Packages desktop binaries using `npx electron-builder --win --publish never` into the `release/` directory.
+3. **Artifact Integrity Verification:**
+   - Automatically verifies that `latest.yml` and all `.exe` executables exist in `release/` before publishing.
+4. **Reliable GitHub Release Publication (`softprops/action-gh-release@v2`):**
+   - Decoupled from `electron-builder`'s internal publisher (which can silently skip uploads or draft releases if tags already exist or git roots differ).
+   - Guarantees immediate public publication (`draft: false`, `prerelease: false`, `make_latest: true`).
+   - Automatically generates release notes from commit history.
+   - Reliably attaches:
+     - `PM-Tool-Setup-<version>.exe` (NSIS Installer)
+     - `PM-Tool-<version>.exe` (Portable edition)
+     - `latest.yml` (Auto-updater discovery metadata)
+     - `PM-Tool-Setup-<version>.exe.blockmap` (Differential delta updates)
 
 ### Triggering a Release via Git:
 ```powershell
 # 1. Update version numbers (see Step 4 below)
 git add -A
-git commit -m "chore(release): bump version to 1.2.0"
+git commit -m "chore(release): bump version to 1.4.0"
 
 # 2. Create an annotated git tag
-git tag -a v1.2.0 -m "Release v1.2.0 - Auto-updater, PmT branding, and 8K token summarizer"
+git tag -a v1.4.0 -m "Release v1.4.0 - Data Studio, DB-to-Dashboard, Safe SQL Sandbox, KPIs"
 
 # 3. Push commit and tag to GitHub
 git push origin main
-git push origin v1.2.0
+git push origin v1.4.0
 ```
 
 ---
@@ -94,20 +103,20 @@ Ensure the target version string is synchronized across all core files:
 1. `version.json`:
    ```json
    {
-     "version": "1.2.0",
+     "version": "1.4.0",
      "app_name": "PM Tool",
-     "build_date": "2026-10-03"
+     "build_date": "2026-10-05"
    }
    ```
 2. `electron/package.json`:
    ```json
    {
      "name": "pm-tool",
-     "version": "1.2.0"
+     "version": "1.4.0"
    }
    ```
-3. `CHANGELOG.md`: Document release notes under `## [1.2.0] - YYYY-MM-DD`.
-4. `DEV_HANDBOOK.md`: Update version header to `1.2.0`.
+3. `CHANGELOG.md`: Document release notes under `## [1.4.0] - YYYY-MM-DD`.
+4. `DEV_HANDBOOK.md`: Update version header to `1.4.0`.
 
 ### Step 2: Run the Local Build Script
 From the repository root in PowerShell:
@@ -124,14 +133,14 @@ The script runs the 4-stage pipeline:
 
 ### Step 3: Manual GitHub Release Publication
 1. Navigate to: `https://github.com/Pranshul-Chopra/pm_tool/releases/new`
-2. **Tag:** `v1.2.0`
-3. **Release Title:** `PM Tool v1.2.0`
+2. **Tag:** `v1.4.0`
+3. **Release Title:** `PM Tool v1.4.0`
 4. **Notes:** Copy the markdown summary from `CHANGELOG.md`.
 5. **Assets to Attach (Drag & Drop all 4 files from `release\`):**
-   - `PM Tool-Setup-1.2.0.exe` *(Primary installer)*
-   - `PM Tool-1.2.0.exe` *(Portable edition)*
+   - `PM-Tool-Setup-1.4.0.exe` *(Primary installer)*
+   - `PM-Tool-1.4.0.exe` *(Portable edition)*
    - `latest.yml` *(CRITICAL for electron-updater background detection)*
-   - `PM Tool-Setup-1.2.0.exe.blockmap` *(CRITICAL for differential delta updates)*
+   - `PM-Tool-Setup-1.4.0.exe.blockmap` *(CRITICAL for differential delta updates)*
 6. Click **Publish release**.
 
 ---
