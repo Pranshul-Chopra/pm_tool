@@ -12,12 +12,15 @@ import {
   AlertCircle,
   X,
   FileUp,
+  FolderKanban,
 } from 'lucide-react';
-import type { KnowledgeDocument } from '../types';
+import type { KnowledgeDocument, Project } from '../types';
 import AppBridge from '../services/bridge';
 
 export const DocsView: React.FC = () => {
   const [docs, setDocs] = useState<KnowledgeDocument[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | 'all'>('all');
   const [totalChunks, setTotalChunks] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -41,10 +44,20 @@ export const DocsView: React.FC = () => {
   const [testResults, setTestResults] = useState<any[] | null>(null);
   const [testingQuery, setTestingQuery] = useState(false);
 
+  const fetchProjects = async () => {
+    try {
+      const res = await AppBridge.api.getProjects();
+      setProjects(res.projects || []);
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+    }
+  };
+
   const fetchDocs = async () => {
     setLoading(true);
     try {
-      const res = await AppBridge.api.getDocuments();
+      const pId = selectedProjectId === 'all' ? undefined : selectedProjectId;
+      const res = await AppBridge.api.getDocuments(pId);
       setDocs(res.documents || []);
       setTotalChunks(res.total_chunks || 0);
     } catch (err) {
@@ -55,8 +68,12 @@ export const DocsView: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchDocs();
+    fetchProjects();
   }, []);
+
+  useEffect(() => {
+    fetchDocs();
+  }, [selectedProjectId]);
 
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -64,6 +81,9 @@ export const DocsView: React.FC = () => {
 
     const formData = new FormData();
     formData.append('file', file);
+    if (selectedProjectId !== 'all') {
+      formData.append('project_id', selectedProjectId.toString());
+    }
 
     setUploading(true);
     setUploadStatus(null);
@@ -134,7 +154,8 @@ export const DocsView: React.FC = () => {
     if (!testQuery.trim()) return;
     setTestingQuery(true);
     try {
-      const res = await AppBridge.api.queryDocuments(testQuery.trim(), undefined, 4);
+      const pId = selectedProjectId === 'all' ? undefined : selectedProjectId;
+      const res = await AppBridge.api.queryDocuments(testQuery.trim(), pId, 4);
       setTestResults(res.chunks || []);
     } catch (err: any) {
       console.error('RAG test search failed:', err);
@@ -224,19 +245,42 @@ export const DocsView: React.FC = () => {
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 overflow-hidden min-h-0">
         {/* Left Column: Documents Manager (7 cols) */}
         <div className="lg:col-span-7 flex flex-col bg-[#161514] border border-[#2e2c2a] rounded-xl overflow-hidden min-h-0">
-          <div className="p-3 border-b border-[#2e2c2a] flex items-center justify-between bg-[#1a1918] flex-shrink-0">
-            <div className="relative flex-1 max-w-xs">
-              <Search className="w-3.5 h-3.5 text-[#5c5955] absolute left-2.5 top-2.5" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search indexed files..."
-                className="w-full bg-[#111110] border border-[#2e2c2a] focus:border-[#e8a84c] rounded-lg pl-8 pr-3 py-1 text-xs text-[#edeae4] focus:outline-none"
-              />
+          <div className="p-3 border-b border-[#2e2c2a] flex items-center justify-between bg-[#1a1918] flex-shrink-0 gap-3">
+            <div className="flex items-center gap-2 flex-1 max-w-md">
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 text-[#5c5955] absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search indexed files..."
+                  className="w-full bg-[#111110] border border-[#2e2c2a] focus:border-[#e8a84c] rounded-lg pl-8 pr-3 py-1 text-xs text-[#edeae4] focus:outline-none"
+                />
+              </div>
+
+              {projects.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <FolderKanban className="w-3.5 h-3.5 text-[#4c97e8]" />
+                  <select
+                    value={selectedProjectId}
+                    onChange={(e) =>
+                      setSelectedProjectId(e.target.value === 'all' ? 'all' : Number(e.target.value))
+                    }
+                    className="bg-[#111110] border border-[#2e2c2a] focus:border-[#4c97e8] rounded-lg px-2 py-1 text-xs text-[#edeae4] outline-none max-w-[150px] truncate"
+                    title="Filter documents by project"
+                  >
+                    <option value="all">All Projects</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
-            <div className="text-[11px] font-mono text-[#9b9690]">
+            <div className="text-[11px] font-mono text-[#9b9690] flex-shrink-0">
               <span>{filteredDocs.length} files</span>
               <span className="text-[#5c5955] mx-1.5">·</span>
               <span className="text-[#e8a84c]">{totalChunks} total chunks</span>
@@ -270,12 +314,22 @@ export const DocsView: React.FC = () => {
 
                     <div className="truncate">
                       <div className="font-semibold text-[#edeae4] truncate">{doc.filename}</div>
-                      <div className="text-[10px] text-[#9b9690] font-mono mt-0.5 flex items-center gap-2">
+                      <div className="text-[10px] text-[#9b9690] font-mono mt-0.5 flex items-center gap-1.5 flex-wrap">
                         <span>{doc.word_count || 0} words</span>
                         <span>·</span>
                         <span className="text-[#e8a84c] font-bold">{doc.chunk_count || 0} chunks</span>
                         <span>·</span>
                         <span className="uppercase">{doc.file_type}</span>
+                        <span>·</span>
+                        {doc.project_name ? (
+                          <span className="text-[9px] font-sans font-medium px-1.5 py-0.5 rounded bg-[#4c97e8]/10 text-[#4c97e8] border border-[#4c97e8]/30">
+                            {doc.project_name}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-sans px-1.5 py-0.5 rounded bg-[#222120] text-[#9b9690] border border-[#2e2c2a]">
+                            Global
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>

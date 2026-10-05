@@ -674,17 +674,22 @@ def get_document_by_path(file_path: str) -> dict | None:
 
 def list_documents(project_id: int | None = None, file_type: str | None = None) -> list[dict]:
     """List indexed documents with optional project and file_type filters."""
-    query = "SELECT * FROM documents WHERE 1=1"
+    query = """
+        SELECT d.*, p.name AS project_name
+        FROM documents d
+        LEFT JOIN projects p ON d.project_id = p.id
+        WHERE 1=1
+    """
     params = []
 
     if project_id is not None:
-        query += " AND project_id = ?"
+        query += " AND d.project_id = ?"
         params.append(project_id)
     if file_type and file_type != "all":
-        query += " AND file_type = ?"
+        query += " AND d.file_type = ?"
         params.append(file_type)
 
-    query += " ORDER BY updated_at DESC"
+    query += " ORDER BY d.updated_at DESC"
 
     with get_db() as con:
         rows = con.execute(query, params).fetchall()

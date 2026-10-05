@@ -104,7 +104,13 @@ class BridgeService {
       }),
 
     // Knowledge Base Documents
-    getDocuments: () => this.request<{ documents: KnowledgeDocument[]; count: number; total_chunks: number }>('/api/documents'),
+    getDocuments: (projectId?: number, fileType?: string) => {
+      const params = new URLSearchParams();
+      if (projectId) params.set('project_id', projectId.toString());
+      if (fileType) params.set('file_type', fileType);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      return this.request<{ documents: KnowledgeDocument[]; count: number; total_chunks: number }>(`/api/documents${query}`);
+    },
     uploadDocument: (formData: FormData) =>
       this.request<{ success?: boolean; document?: KnowledgeDocument; chunks_count?: number; error?: string }>('/api/documents/upload', {
         method: 'POST',

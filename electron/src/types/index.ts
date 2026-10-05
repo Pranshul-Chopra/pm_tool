@@ -58,6 +58,8 @@ export interface Decision {
 
 export interface KnowledgeDocument {
   id: number;
+  project_id?: number | null;
+  project_name?: string | null;
   filename: string;
   file_type: string;
   file_size?: number;
