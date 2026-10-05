@@ -581,7 +581,7 @@ export const SettingsView: React.FC = () => {
           <div className="grid grid-cols-2 gap-3 text-xs font-mono">
             <div className="p-2.5 rounded-lg bg-[#222120] border border-[#2e2c2a]">
               <div className="text-[10px] text-[#9b9690] uppercase">Version</div>
-              <div className="text-[#e8a84c] font-bold mt-0.5">v{versionInfo?.version || '1.4.0'}</div>
+              <div className="text-[#e8a84c] font-bold mt-0.5">v{versionInfo?.version || '1.5.0'}</div>
             </div>
 
             <div className="p-2.5 rounded-lg bg-[#222120] border border-[#2e2c2a]">

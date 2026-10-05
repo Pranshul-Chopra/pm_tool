@@ -137,7 +137,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, update
             />
             {!collapsed && (
               <span className="truncate group-hover:text-[#edeae4]">
-                v{updateData.version || '1.4.0'}
+                v{updateData.version || '1.5.0'}
               </span>
             )}
           </div>

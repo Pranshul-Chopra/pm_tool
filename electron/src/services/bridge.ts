@@ -372,7 +372,7 @@ class BridgeService {
       if (window.electronUpdater) {
         return await window.electronUpdater.getInfo();
       }
-      return { version: '1.4.0', isPackaged: false, isPortable: false };
+      return { version: '1.5.0', isPackaged: false, isPortable: false };
     },
 
     notify: (title: string, body: string) => {

@@ -21,7 +21,7 @@ export const Titlebar: React.FC<TitlebarProps> = ({ activeTab, projectName = 'Ge
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[#1a1918] border border-[#2e2c2a]">
           <span className="text-xs font-mono font-bold text-[#e8a84c]">PmT</span>
-          <span className="text-[11px] text-[#9b9690] font-mono">v1.4.0</span>
+          <span className="text-[11px] text-[#9b9690] font-mono">v1.5.0</span>
         </div>
 
         <div className="h-3.5 w-[1px] bg-[#2e2c2a] mx-1" />
