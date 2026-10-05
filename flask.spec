@@ -8,6 +8,8 @@ docx_datas = collect_data_files('docx')
 docx_hidden = collect_submodules('docx')
 pypdf_datas = collect_data_files('pypdf')
 pypdf_hidden = collect_submodules('pypdf')
+openpyxl_datas = collect_data_files('openpyxl')
+openpyxl_hidden = collect_submodules('openpyxl')
 
 a = Analysis(
     ['main.py'],
@@ -17,10 +19,13 @@ a = Analysis(
         ('templates', 'templates'),
         ('static',    'static'),
         ('version.json', '.'),
-    ] + docx_datas + pypdf_datas,
+    ] + docx_datas + pypdf_datas + openpyxl_datas,
     hiddenimports=[
         'plyer.platforms.win.notification',
         'sqlite3',
+        'ai_db',
+        'data_engine',
+        'notifier',
         'rag',
         'rag.parsers',
         'rag.chunker',
@@ -30,7 +35,7 @@ a = Analysis(
         'tools.summarizer',
         'llm',
         'llm.gateway',
-    ] + docx_hidden + pypdf_hidden,
+    ] + docx_hidden + pypdf_hidden + openpyxl_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

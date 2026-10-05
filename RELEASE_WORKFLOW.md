@@ -61,7 +61,7 @@ PM Tool includes a fully automated, rock-solid GitHub Actions pipeline in [`.git
 
 ### How It Works:
 1. **Triggers:**
-   - **Tag Push:** Pushing a tag prefixed with `v` (e.g. `git push origin v1.4.0`) automatically kicks off the workflow.
+   - **Tag Push:** Pushing a tag prefixed with `v` (e.g. `git push origin v1.5.0`) automatically kicks off the workflow.
    - **Manual Dispatch:** Run anytime via the **Actions** tab with optional custom tag input (auto-detects version from `electron/package.json` if omitted).
 2. **Compilation & Packaging:**
    - Compiles the backend Flask executable with `PyInstaller flask.spec`.
@@ -82,14 +82,14 @@ PM Tool includes a fully automated, rock-solid GitHub Actions pipeline in [`.git
 ```powershell
 # 1. Update version numbers (see Step 4 below)
 git add -A
-git commit -m "chore(release): bump version to 1.4.0"
+git commit -m "chore(release): bump version to 1.5.0"
 
 # 2. Create an annotated git tag
-git tag -a v1.4.0 -m "Release v1.4.0 - Data Studio, DB-to-Dashboard, Safe SQL Sandbox, KPIs"
+git tag -a v1.5.0 -m "Release v1.5.0 - AI Workspace PM Document Generator & Multi-Format Export"
 
 # 3. Push commit and tag to GitHub
-git push origin main
-git push origin v1.4.0
+git push origin master
+git push origin v1.5.0
 ```
 
 ---
@@ -103,7 +103,7 @@ Ensure the target version string is synchronized across all core files:
 1. `version.json`:
    ```json
    {
-     "version": "1.4.0",
+     "version": "1.5.0",
      "app_name": "PM Tool",
      "build_date": "2026-10-05"
    }
@@ -112,11 +112,11 @@ Ensure the target version string is synchronized across all core files:
    ```json
    {
      "name": "pm-tool",
-     "version": "1.4.0"
+     "version": "1.5.0"
    }
    ```
-3. `CHANGELOG.md`: Document release notes under `## [1.4.0] - YYYY-MM-DD`.
-4. `DEV_HANDBOOK.md`: Update version header to `1.4.0`.
+3. `CHANGELOG.md`: Document release notes under `## [1.5.0] - YYYY-MM-DD`.
+4. `DEV_HANDBOOK.md`: Update version header to `1.5.0`.
 
 ### Step 2: Run the Local Build Script
 From the repository root in PowerShell:
@@ -133,14 +133,14 @@ The script runs the 4-stage pipeline:
 
 ### Step 3: Manual GitHub Release Publication
 1. Navigate to: `https://github.com/Pranshul-Chopra/pm_tool/releases/new`
-2. **Tag:** `v1.4.0`
-3. **Release Title:** `PM Tool v1.4.0`
+2. **Tag:** `v1.5.0`
+3. **Release Title:** `PM Tool v1.5.0`
 4. **Notes:** Copy the markdown summary from `CHANGELOG.md`.
 5. **Assets to Attach (Drag & Drop all 4 files from `release\`):**
-   - `PM-Tool-Setup-1.4.0.exe` *(Primary installer)*
-   - `PM-Tool-1.4.0.exe` *(Portable edition)*
+   - `PM-Tool-Setup-1.5.0.exe` *(Primary installer)*
+   - `PM-Tool-1.5.0.exe` *(Portable edition)*
    - `latest.yml` *(CRITICAL for electron-updater background detection)*
-   - `PM-Tool-Setup-1.4.0.exe.blockmap` *(CRITICAL for differential delta updates)*
+   - `PM-Tool-Setup-1.5.0.exe.blockmap` *(CRITICAL for differential delta updates)*
 6. Click **Publish release**.
 
 ---

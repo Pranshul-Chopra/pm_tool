@@ -1,6 +1,6 @@
 {
   "name": "pm-tool",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "PM Tool — Local-First Project Management Desktop Application",
   "main": "main.js",
   "author": "Pranshul Chopra",

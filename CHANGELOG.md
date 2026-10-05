@@ -3,6 +3,47 @@
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-05
+
+### 📝 AI Workspace PM Document Generator (`DocumentGeneratorModal.tsx`)
+- **Interactive 1-Click Document Generator**:
+  - Accessible directly from the AI Copilot workspace header toolbar via the **`+ Generate Document`** action.
+  - Scaffolds 5 structured, executive-ready PM templates:
+    1. **Product Requirement Document (PRD)**: Executive summary, target personas, functional requirements, technical architecture, and phased rollout guardrails.
+    2. **Technical Architecture Spec**: System context, API contracts, relational schemas, latency budgets, and security audits.
+    3. **Agile Sprint Story Breakdown**: Epics, prioritized user stories, Fibonacci point estimates, and Given/When/Then acceptance criteria.
+    4. **Product Strategy & KPI Plan**: North Star KPI definitions, L1/L2 metric trees, counter metrics, and analytics event telemetry schemas.
+    5. **Executive Brief & Evidence Synthesis**: TL;DR synthesis, strategic alignments, and risk matrices grounded in indexed documents.
+  - Configurable contextual inputs: Document Title, Project Scope, Analytical Focus directive, Requirements Context, and Technical Stack constraints.
+
+### 📄 Multi-Format Export Subsystem (`tools/document_generator.py` & `/api/export`)
+- **Native Microsoft Word (`.docx`) Export**:
+  - Backend endpoint `POST /api/export/docx` generating in-memory binary `.docx` files using `python-docx`.
+  - Professional formatting: 1-inch margins, custom headers, styled metadata tables (Author, Date, Status, Project Scope), formatted bullet lists, and Consolas code blocks.
+- **Clean Markdown (`.md`) Export**:
+  - Backend endpoint `POST /api/export/markdown` generating downloadable `.md` files for direct wiki or git integration.
+- **Action Toolbar on All Assistant Responses**:
+  - Quick action toolbar under every assistant message:
+    - 📋 **Copy Markdown**: 1-click clipboard copy.
+    - 📄 **Word (DOCX)**: 1-click DOCX download with loading spinner feedback.
+    - ⬇️ **Markdown**: Direct `.md` file download.
+    - 📁 **Save to Docs**: 1-click direct ingestion into the project Knowledge Base (`POST /api/documents/upload`), immediately indexing into SQLite FTS5 for grounded RAG.
+    - ⚡ **Decompose**: Instant transfer of generated PRD text into `DecomposerModal` for automated Fibonacci estimation and sprint Kanban ticket generation.
+
+### 🛡️ Zero-Crash Resilience & Markdown Parser Hardening (`MarkdownContent.tsx`)
+- **Tokenization Regular Expression Fix**:
+  - Converted regex sub-patterns in `renderInline` to non-capturing groups and added strict defensive type-checking to prevent `undefined` match exceptions during markdown rendering.
+- **Enterprise Error Boundaries (`ErrorBoundary.tsx`)**:
+  - Integrated Dark Carbon styled Error Boundary in the application shell (`App.tsx`), guaranteeing that transient rendering errors never cause a blank screen or unmount the desktop shell.
+
+### 📦 Build Pipeline & Packaging Enhancements (`flask.spec` & GitHub Workflows)
+- **PyInstaller Hardening**:
+  - Added `openpyxl` data files and submodules, `ai_db`, and analytics engines to `flask.spec` for standalone binary packaging.
+- **Continuous Integration (`.github/workflows/ci.yml`)**:
+  - Added automated build verification workflow for pushes and pull requests to ensure all frontend builds and backend imports succeed prior to release tagging.
+- **Resilient Release Packaging (`.github/workflows/release.yml`)**:
+  - Added fallback dependencies installation and target commitish tagging for reproducible releases.
+
 ## [1.4.0] - 2026-10-04
 
 ### 📊 Data Studio & Business Dashboard Engine (`data_engine.py` & `/dashboard`)

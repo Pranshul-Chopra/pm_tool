@@ -3,7 +3,7 @@
 <div align="center">
   <img src="static/icon.png" width="96" height="96" alt="PM Tool Logo" />
   <h3>Enterprise Product Management Copilot &amp; Sprint Execution Workstation</h3>
-  <p><b>Version 1.4.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
+  <p><b>Version 1.5.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
 </div>
 
 ---
@@ -15,6 +15,13 @@
 ---
 
 ## 🌟 Key Features
+
+### 📝 AI Workspace PM Document Generator & Multi-Format Export (`v1.5.0`)
+- **1-Click Interactive PM Document Generator**: Dedicated modal accessible from the AI Copilot toolbar scaffolding 5 standard PM templates (PRD, Technical Architecture Spec, Agile Sprint Story Breakdown, Product Strategy & KPI Plan, Executive Brief).
+- **Native Microsoft Word (`.docx`) & Markdown (`.md`) Export**: In-memory DOCX generation via `python-docx` with custom headers, styled metadata tables (Author, Date, Status, Project), and Consolas code blocks, alongside clean Markdown downloads.
+- **Direct 1-Click Knowledge Base (RAG) Ingestion**: Instantly saves AI-generated specifications into the active project Knowledge Base, automatically triggering text chunking and SQLite FTS5 indexation for grounded retrieval.
+- **Agile Sprint Backlog Decomposition**: 1-click transfer of generated PRD text into `DecomposerModal` for automated Fibonacci estimation and sprint Kanban ticket generation.
+- **Zero-Crash Resilience & Hardened Markdown Parser**: Non-capturing regex tokenization and defensive filtering in `MarkdownContent.tsx` with top-level `ErrorBoundary` protection preventing blank screens.
 
 ### 📊 Data Studio, Custom KPI Dashboards & Guarded AI Integrations (`v1.4.0`)
 - **Multi-Format Dataset Ingestion**: Ingests Excel (`.xlsx`, `.xls` via `openpyxl`), CSV, TSV, JSON records, and SQLite databases directly into an isolated local analytics store (`analytics_store.db`).
@@ -77,7 +84,7 @@ pm_tool/
 ├── CHANGELOG.md                 # Semantic versioning history
 ├── DEV_HANDBOOK.md              # Technical engineering handbook & architecture spec
 ├── requirements.txt             # Python dependencies
-├── version.json                 # Single source of truth for version (1.4.0)
+├── version.json                 # Single source of truth for version (1.5.0)
 ├── main.py                      # Flask factory, server lifecycle, ping checks
 ├── routes.py                    # REST API controllers & Jinja template routes
 ├── db.py                        # SQLite connection pool, schema migrations (pmtool.db)
@@ -131,7 +138,8 @@ pm_tool/
 | Release Milestone | Key Capabilities | Status & Priority |
 | :--- | :--- | :--- |
 | **v2.0.0 (NEW)** | **Desktop SPA Modernization**<br>• Vite + React 18/19 + TypeScript inside Electron<br>• Zero-Iframe single DOM architecture<br>• Unified `AppBridge` (Electron IPC + Flask REST)<br>• 60 FPS `@dnd-kit` Kanban board with optimistic UI<br>• Unified Tailwind dark carbon design tokens | 🔥 **IN PROGRESS (PRIORITY 1)** |
-| **v1.4.0 (Latest)** | **Data Studio & Safe SQL Analytics**<br>• Guarded SQLite sandbox with AST/whitelist checks<br>• Dynamic KPI cards, benchmarks, and SVG charts<br>• Excel (.xlsx), CSV, TSV dataset materialization | ✅ **Shipped** |
+| **v1.5.0 (Latest)** | **AI Document Generator & Multi-Format Export**<br>• 1-click PM document modal (PRDs, specs, breakdowns, strategy)<br>• In-memory Word (.docx) & Markdown (.md) exports<br>• 1-click Knowledge Base ingestion & FTS5 indexing<br>• Direct PRD sprint board decomposition<br>• Hardened zero-crash Markdown parser & ErrorBoundary | ✅ **Shipped** |
+| **v1.4.0** | **Data Studio & Safe SQL Analytics**<br>• Guarded SQLite sandbox with AST/whitelist checks<br>• Dynamic KPI cards, benchmarks, and SVG charts<br>• Excel (.xlsx), CSV, TSV dataset materialization | ✅ **Shipped** |
 | **v1.3.0** | **Agile Sprint Board & PRD Decomposer**<br>• Story points, acceptance criteria, assignee tracking<br>• Automated PRD-to-Story AI generator (`/breakdown`) | ✅ **Shipped** |
 | **v1.2.0** | **In-App Auto-Updater & Assets**<br>• Differential delta background auto-updater<br>• Dynamic cascading port fallback (`5050`–`5065`) | ✅ **Shipped** |
 
@@ -182,9 +190,9 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 ```
 
 Output assets will be generated in `release/`:
-- `release/PM-Tool-Setup-1.4.0.exe` (1-Click NSIS Installer)
-- `release/PM-Tool-1.4.0.exe` (Portable Executable)
-- `release/PM-Tool-Setup-1.4.0.exe.blockmap` (Differential update map)
+- `release/PM-Tool-Setup-1.5.0.exe` (1-Click NSIS Installer)
+- `release/PM-Tool-1.5.0.exe` (Portable Executable)
+- `release/PM-Tool-Setup-1.5.0.exe.blockmap` (Differential update map)
 - `release/latest.yml` (Auto-update manifest)
 
 ---

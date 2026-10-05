@@ -178,50 +178,44 @@ export function renderInline(
 ): React.ReactNode[] {
   if (!text) return [];
 
-  // Split line by <br> or <br/> first to support multiline table cells and paragraphs
-  const brSegments = text.split(/(<br\s*\/?>)/gi);
+  try {
+    // Split line by <br> or <br/> first to support multiline table cells and paragraphs
+    const brSegments = text.split(/(<br\s*\/?>)/gi);
 
-  return brSegments.flatMap((segment, segIdx) => {
-    if (/^<br\s*\/?>$/i.test(segment)) {
-      return [<br key={`br-${segIdx}`} className="my-1" />];
-    }
+    return brSegments.flatMap((segment, segIdx) => {
+      if (/^<br\s*\/?>$/i.test(segment)) {
+        return [<br key={`br-${segIdx}`} className="my-1" />];
+      }
 
-    // Tokenize segment into:
-    // 1. Interactive prompt suggestions: [label](prompt:text)
-    // 2. Bracketed prompt suggestions: [prompt: text]
-    // 3. Document Source Citations: [Source: MAS2001_Assignment3_1.pdf]
-    // 4. Inline Math: $...$
-    // 5. Inline Code: `...`
-    // 6. Bold: **...**
-    // 7. Strikethrough: ~~...~~
-    // 8. Italics: *...*
-    // 9. Links: [label](url)
-    // Tokenize segment safely without confusing Tailwind class scanner
-    const promptLinkPat = '\\' + '[([^\\]]+)\\]\\((?:prompt|suggest):([^)]+)\\)';
-    const promptBracketPat = '\\' + '[(?:prompt|suggest):\\s*([^\\]]+)\\]';
-    const sourcePat = '\\' + '[Source:\\s*([^\\]]+)\\]';
-    const mathPat = '\\$[^$\\n]+\\$';
-    const codePat = '`[^`]+`';
-    const boldPat = '\\*\\*[^*]+\\*\\*';
-    const strikePat = '~~[^~]+~~';
-    const italicPat = '\\*[^*]+\\*';
-    const linkPat = '\\' + '[([^\\]]+)\\]\\(([^)]+)\\)';
+      // Tokenize segment safely with NON-CAPTURING inner groups
+      const promptLinkPat = '\\' + '\\[[^\\]]+\\]\\((?:prompt|suggest):[^)]+\\)';
+      const promptBracketPat = '\\' + '\\[(?:prompt|suggest):\\s*[^\\]]+\\]';
+      const sourcePat = '\\' + '\\[Source:\\s*[^\\]]+\\]';
+      const mathPat = '\\$[^$\\n]+\\$';
+      const codePat = '`[^`]+`';
+      const boldPat = '\\*\\*[^*]+\\*\\*';
+      const strikePat = '~~[^~]+~~';
+      const italicPat = '\\*[^*]+\\*';
+      const linkPat = '\\' + '\\[[^\\]]+\\]\\([^)]+\\)';
 
-    const tokenRegex = new RegExp(
-      `(${promptLinkPat}|${promptBracketPat}|${sourcePat}|${mathPat}|${codePat}|${boldPat}|${strikePat}|${italicPat}|${linkPat})`,
-      'g'
-    );
+      const tokenRegex = new RegExp(
+        `(${promptLinkPat}|${promptBracketPat}|${sourcePat}|${mathPat}|${codePat}|${boldPat}|${strikePat}|${italicPat}|${linkPat})`,
+        'g'
+      );
 
-    const parts = segment.split(tokenRegex);
+      const parts = segment.split(tokenRegex);
 
-    return parts.map((part, pIdx) => {
-      const key = `${segIdx}-${pIdx}`;
+      return parts
+        .filter((part): part is string => typeof part === 'string' && part.length > 0)
+        .map((part, pIdx) => {
+          if (!part) return null;
+          const key = `${segIdx}-${pIdx}`;
 
-      // 1. Interactive Prompt Suggestion [label](prompt:text)
-      const promptLinkMatch = part.match(new RegExp('^\\' + '[([^\\]]+)\\]\\((?:prompt|suggest):([^)]+)\\)$'));
-      if (promptLinkMatch) {
-        const label = promptLinkMatch[1].replace(/[*_`]/g, '').trim();
-        const promptTarget = promptLinkMatch[2].trim();
+          // 1. Interactive Prompt Suggestion [label](prompt:text)
+          const promptLinkMatch = part.match(new RegExp('^\\' + '\\[([^\\]]+)\\]\\((?:prompt|suggest):([^)]+)\\)$'));
+          if (promptLinkMatch) {
+            const label = promptLinkMatch[1].replace(/[*_`]/g, '').trim();
+            const promptTarget = promptLinkMatch[2].trim();
 
         return (
           <button
@@ -355,8 +349,12 @@ export function renderInline(
       }
 
       return part;
-    });
+    }).filter(Boolean);
   });
+  } catch (err) {
+    console.error('Error in renderInline:', err);
+    return [text];
+  }
 }
 
 // ── Code Block Item with Copy Button ─────────────────────────────────────────
@@ -484,15 +482,16 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
 }) => {
   if (!content) return null;
 
-  // Process text into major structural blocks:
-  // 1. Code blocks (```lang ... ```)
-  // 2. Display math ($$ ... $$)
-  // 3. Tables (| ... |)
-  // 4. Lines (headers, lists, blockquotes, horizontal rules, prompt actions, paragraphs)
+  try {
+    // Process text into major structural blocks:
+    // 1. Code blocks (```lang ... ```)
+    // 2. Display math ($$ ... $$)
+    // 3. Tables (| ... |)
+    // 4. Lines (headers, lists, blockquotes, horizontal rules, prompt actions, paragraphs)
 
-  const elements: React.ReactNode[] = [];
-  const lines = content.split(/\r?\n/);
-  let i = 0;
+    const elements: React.ReactNode[] = [];
+    const lines = content.split(/\r?\n/);
+    let i = 0;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -720,6 +719,10 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
   }
 
   return <div className="space-y-0.5 text-xs leading-relaxed">{elements}</div>;
+  } catch (err) {
+    console.error('Failed to parse MarkdownContent:', err);
+    return <div className="whitespace-pre-wrap text-xs text-[#edeae4] leading-relaxed">{content}</div>;
+  }
 };
 
 export default MarkdownContent;

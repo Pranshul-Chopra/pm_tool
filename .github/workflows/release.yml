@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release Tag (e.g. v1.4.0 - leave empty to auto-detect from package.json)'
+        description: 'Release Tag (e.g. v1.5.0 - leave empty to auto-detect from package.json)'
         required: false
         default: ''
 
 jobs:
   build-and-release:
     runs-on: windows-latest
+    timeout-minutes: 45
 
     permissions:
       contents: write
@@ -48,7 +49,7 @@ jobs:
 
       - name: Install Electron dependencies
         working-directory: ./electron
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Build Vite React SPA Frontend
         working-directory: ./electron
@@ -96,6 +97,7 @@ jobs:
         with:
           tag_name: ${{ steps.release_info.outputs.tag }}
           name: PM Tool ${{ steps.release_info.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           draft: false
           prerelease: false
           generate_release_notes: true

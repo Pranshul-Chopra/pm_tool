@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 1.4.0  
+**Current Version:** 1.5.0  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -81,14 +81,15 @@ Instead of the standard brittle approach of dumping all files into a vector stor
 pm_tool/
 ├── .github/
 │   └── workflows/
-│       └── release.yml      # Automated GitHub Actions CI/CD for packaging & releases
+│       ├── release.yml      # Automated GitHub Actions CI/CD for packaging & releases
+│       └── ci.yml           # Automated CI build verification for PRs & pushes
 ├── .gitignore               # Git exclusion list
 ├── README.md                # Quick-start instructions
 ├── RELEASE_WORKFLOW.md      # Automated packaging, publishing, and auto-update guide
 ├── CHANGELOG.md             # Semantic versioning history
 ├── DEV_HANDBOOK.md          # Technical handbook and architecture specification
-├── requirements.txt         # Python dependencies (Flask, requests, plyer, pypdf, python-docx)
-├── version.json             # Single source of truth for app version (v1.4.0)
+├── requirements.txt         # Python dependencies (Flask, requests, plyer, pypdf, python-docx, openpyxl)
+├── version.json             # Single source of truth for app version (v1.5.0)
 ├── main.py                  # Flask application factory, server lifecycle, ping checks
 ├── routes.py                # REST API controllers and template renderers
 ├── db.py                    # SQLite connection pool, WAL mode, schema migrations (pmtool.db)
@@ -645,6 +646,13 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 │              │ • Unified AppBridge IPC       │                         │
 │              │ • 60 FPS @dnd-kit Kanban      │                         │
 │              │ • Shared Tailwind Tokens      │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v1.5.0       │ AI Doc Generator & Export     │ ✅ COMPLETED            │
+│              │ • 1-Click PRD & Spec Modal    │ (Shipped)               │
+│              │ • Word (.docx) & .md Exporter │                         │
+│              │ • Direct RAG Ingestion        │                         │
+│              │ • Zero-Crash Markdown Parser  │                         │
+│              │ • Enterprise ErrorBoundary    │                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
 │ v1.4.0       │ Data Studio & SQL Sandbox     │ ✅ COMPLETED            │
 │              │ • Guarded SQLite Analytics    │ (Shipped)               │

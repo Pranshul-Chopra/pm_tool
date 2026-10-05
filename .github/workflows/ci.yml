@@ -1,0 +1,51 @@
+name: CI Build Verification
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+jobs:
+  verify-build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'electron/package-lock.json'
+
+      - name: Install Electron & Frontend dependencies
+        working-directory: ./electron
+        run: npm ci || npm install
+
+      - name: Build Vite React SPA Frontend
+        working-directory: ./electron
+        run: npm run build:ui
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Verify Backend Modules Import Cleanly
+        run: |
+          python -c "import main, routes, db, ai_db, data_engine, notifier; from tools.document_generator import generate_docx_from_markdown; print('Backend modules verified successfully!')"

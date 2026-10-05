@@ -101,10 +101,10 @@ def _get_app_version() -> str:
         import json
         vf = _get_base_dir() / "version.json"
         if vf.exists():
-            return json.loads(vf.read_text(encoding="utf-8")).get("version", "1.4.0")
+            return json.loads(vf.read_text(encoding="utf-8")).get("version", "1.5.0")
     except Exception:
         pass
-    return "1.4.0"
+    return "1.5.0"
 
 
 @bp.route("/api/status")

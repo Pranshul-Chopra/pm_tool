@@ -9,6 +9,7 @@ import StudioView from './views/StudioView';
 import DocsView from './views/DocsView';
 import ChatView from './views/ChatView';
 import SettingsView from './views/SettingsView';
+import ErrorBoundary from './components/ErrorBoundary';
 import AppBridge from './services/bridge';
 
 export const App: React.FC = () => {
@@ -70,17 +71,19 @@ export const App: React.FC = () => {
         />
 
         <main className="flex-1 h-full overflow-hidden bg-[#111110] relative">
-          {activeTab === 'home' && <HomeView onNavigate={handleNavigate} />}
-          {activeTab === 'board' && (
-            <BoardView
-              selectedProjectId={selectedProjectId}
-              onProjectChange={setSelectedProjectId}
-            />
-          )}
-          {activeTab === 'dashboard' && <StudioView />}
-          {activeTab === 'documents' && <DocsView initialProjectId={selectedProjectId} />}
-          {activeTab === 'chat' && <ChatView />}
-          {activeTab === 'settings' && <SettingsView />}
+          <ErrorBoundary fallbackTitle="Module Error">
+            {activeTab === 'home' && <HomeView onNavigate={handleNavigate} />}
+            {activeTab === 'board' && (
+              <BoardView
+                selectedProjectId={selectedProjectId}
+                onProjectChange={setSelectedProjectId}
+              />
+            )}
+            {activeTab === 'dashboard' && <StudioView />}
+            {activeTab === 'documents' && <DocsView initialProjectId={selectedProjectId} />}
+            {activeTab === 'chat' && <ChatView />}
+            {activeTab === 'settings' && <SettingsView />}
+          </ErrorBoundary>
         </main>
       </div>
 
