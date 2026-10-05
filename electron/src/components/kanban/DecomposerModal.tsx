@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Loader2, AlertCircle } from 'lucide-react';
 import AppBridge from '../../services/bridge';
 
@@ -10,6 +10,7 @@ interface DecomposerModalProps {
   onSuccess: () => void;
   projectId?: number | null;
   projects?: Project[];
+  initialPrdText?: string;
 }
 
 export const DecomposerModal: React.FC<DecomposerModalProps> = ({
@@ -18,13 +19,20 @@ export const DecomposerModal: React.FC<DecomposerModalProps> = ({
   onSuccess,
   projectId,
   projects = [],
+  initialPrdText = '',
 }) => {
   const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(
     projectId ? projectId : projects.length > 0 ? projects[0].id : undefined
   );
-  const [prdText, setPrdText] = useState('');
+  const [prdText, setPrdText] = useState(initialPrdText);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialPrdText && isOpen) {
+      setPrdText(initialPrdText);
+    }
+  }, [initialPrdText, isOpen]);
 
   if (!isOpen) return null;
 

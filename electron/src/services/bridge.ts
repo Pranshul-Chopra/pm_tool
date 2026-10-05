@@ -263,6 +263,85 @@ class BridgeService {
         method: 'POST',
         body: JSON.stringify({ url }),
       }),
+
+    // Document Generation & Export
+    exportDocx: async (
+      title: string,
+      content: string,
+      metadata?: Record<string, string>
+    ): Promise<Blob> => {
+      const url = `${this.apiBase}/api/export/docx`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title || 'Product Document',
+          content: content,
+          metadata: metadata || {
+            Author: 'PM Tool AI Copilot',
+            Date: new Date().toISOString().slice(0, 10),
+            Status: 'Draft Spec',
+          },
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to generate DOCX document.');
+      return res.blob();
+    },
+
+    exportMarkdown: async (title: string, content: string): Promise<Blob> => {
+      const url = `${this.apiBase}/api/export/markdown`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title || 'Product Document',
+          content: content,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to generate Markdown document.');
+      return res.blob();
+    },
+
+    saveDocumentToKnowledgeBase: async (
+      title: string,
+      content: string,
+      projectId?: number
+    ): Promise<any> => {
+      const cleanTitle = title.replace(/[^a-zA-Z0-9_\-\s]/g, '').trim() || 'Document';
+      const file = new File([content], `${cleanTitle}.md`, { type: 'text/markdown' });
+      const formData = new FormData();
+      formData.append('file', file);
+      if (projectId) {
+        formData.append('project_id', projectId.toString());
+      }
+      return this.request<any>('/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+    },
+
+    summarizeDocument: (payload: {
+      file_path?: string;
+      doc_id?: number;
+      output_path?: string;
+      focus?: string;
+      project_id?: number;
+    }) =>
+      this.request<any>('/api/documents/summarize', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    downloadBlob: (blob: Blob, filename: string) => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    },
   };
 
 
