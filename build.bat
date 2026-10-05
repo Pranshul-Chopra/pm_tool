@@ -26,8 +26,19 @@ if exist "venv311\Scripts\activate.bat" (
     echo Note: No local virtual environment found, using system Python...
 )
 
-rem Step 2: Build Flask backend with PyInstaller
-echo [2/4] Building Flask backend with PyInstaller...
+rem Step 2: Build Vite React SPA frontend
+echo [2/4] Building Vite React SPA frontend...
+pushd "%SCRIPT_DIR%electron"
+call npm run build:ui
+if errorlevel 1 (
+    echo ERROR: Vite React SPA build failed.
+    popd
+    exit /b 1
+)
+popd
+
+rem Step 3: Build Flask backend with PyInstaller
+echo [3/4] Building Flask backend with PyInstaller...
 if exist flask-dist rmdir /s /q flask-dist
 if exist dist\flask rmdir /s /q dist\flask
 python -m PyInstaller flask.spec --noconfirm

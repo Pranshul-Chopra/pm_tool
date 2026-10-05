@@ -1,7 +1,7 @@
 # ── routes.py ─────────────────────────────────────────────────────────────────
 # Flask routes and REST API for PM Tool.
 
-from flask import Blueprint, render_template, request, jsonify, send_file
+from flask import Blueprint, render_template, request, jsonify, send_file, send_from_directory
 import db
 import ai_db
 from llm import gateway as llm_gateway
@@ -38,6 +38,23 @@ def _check_api_origin():
 
 @bp.route("/")
 def index():
+    spa_index = _get_base_dir() / "static" / "spa" / "index.html"
+    if spa_index.is_file():
+        return send_file(str(spa_index))
+    return render_template("shell.html")
+
+
+@bp.route("/assets/<path:filename>")
+def spa_assets(filename):
+    spa_asset_dir = _get_base_dir() / "static" / "spa" / "assets"
+    if spa_asset_dir.is_dir():
+        return send_from_directory(str(spa_asset_dir), filename)
+    return jsonify({"error": "Asset not found"}), 404
+
+
+@bp.route("/legacy")
+def legacy():
+    """Allows accessing the legacy multi-frame shell if needed."""
     return render_template("shell.html")
 
 
