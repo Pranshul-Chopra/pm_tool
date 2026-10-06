@@ -86,17 +86,20 @@ export const StudioView: React.FC = () => {
     setLoadingWidgets(true);
     try {
       const res = await AppBridge.api.getDashboards();
-      const dashboards = res.dashboards || [];
+      const dashboards = Array.isArray(res?.dashboards) ? res.dashboards : [];
       if (dashboards.length > 0) {
         const detail = await AppBridge.api.getDashboardDetail(dashboards[0].id);
-        setWidgets(detail.widgets || []);
+        const wList = Array.isArray(detail?.widgets) ? detail.widgets : [];
+        setWidgets(wList);
       } else {
         // Fallback to general widgets
         const wRes = await AppBridge.api.getWidgets();
-        setWidgets(wRes.widgets || []);
+        const wList = Array.isArray(wRes?.widgets) ? wRes.widgets : [];
+        setWidgets(wList);
       }
     } catch (err) {
       console.error('Failed to load dashboard widgets:', err);
+      setWidgets([]);
     } finally {
       setLoadingWidgets(false);
     }
@@ -179,10 +182,14 @@ export const StudioView: React.FC = () => {
   };
 
   const exportToCSV = () => {
-    if (!queryResult || !queryResult.columns || !queryResult.rows) return;
-    const headers = queryResult.columns.join(',');
+    if (!queryResult || !Array.isArray(queryResult.columns) || !Array.isArray(queryResult.rows)) return;
+    const cols = queryResult.columns;
+    const headers = cols.join(',');
     const rows = queryResult.rows
-      .map((r: any[]) => r.map((val) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(','))
+      .map((r: any) => {
+        const cells = Array.isArray(r) ? r : cols.map((colName: string) => r?.[colName]);
+        return cells.map((val: any) => `"${String(val ?? '').replace(/"/g, '""')}"`).join(',');
+      })
       .join('\n');
     const csvContent = `data:text/csv;charset=utf-8,${headers}\n${rows}`;
     const encodedUri = encodeURI(csvContent);
@@ -201,8 +208,11 @@ export const StudioView: React.FC = () => {
   const rawCols = activeSource?.columns_json || (activeSource as any)?.schema_json;
   if (rawCols) {
     try {
-      parsedColumns = JSON.parse(rawCols);
-    } catch (_) {}
+      const parsed = typeof rawCols === 'string' ? JSON.parse(rawCols) : rawCols;
+      parsedColumns = Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+      parsedColumns = [];
+    }
   }
 
   return (
@@ -307,7 +317,7 @@ export const StudioView: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-              {dataSources.map((ds) => (
+              {Array.isArray(dataSources) && dataSources.map((ds) => (
                 <div
                   key={ds.id}
                   onClick={() => setSelectedSourceId(ds.id)}
@@ -337,7 +347,7 @@ export const StudioView: React.FC = () => {
                 </div>
               ))}
 
-              {dataSources.length === 0 && !loading && (
+              {(!Array.isArray(dataSources) || dataSources.length === 0) && !loading && (
                 <div className="text-center py-8 text-xs text-[#5c5955] p-4">
                   No datasets uploaded. Ingest an SQLite database, Excel, CSV, or JSON file to start analyzing.
                 </div>
@@ -345,7 +355,7 @@ export const StudioView: React.FC = () => {
             </div>
 
             {/* Schema Column Pills */}
-            {parsedColumns.length > 0 && (
+            {Array.isArray(parsedColumns) && parsedColumns.length > 0 && (
               <div className="p-3 border-t border-[#2e2c2a] bg-[#1a1918]/60 flex flex-col max-h-48 overflow-y-auto">
                 <span className="text-[11px] font-mono text-[#9b9690] mb-2 font-semibold">
                   Columns ({parsedColumns.length})
@@ -429,7 +439,7 @@ export const StudioView: React.FC = () => {
               </div>
 
               <div className="flex-1 overflow-auto p-2">
-                {queryResult && queryResult.columns ? (
+                {queryResult && Array.isArray(queryResult.columns) && queryResult.columns.length > 0 ? (
                   <table className="w-full border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-[#2e2c2a] text-[#9b9690] bg-[#1a1918]/80 sticky top-0 z-10 text-left">
@@ -441,18 +451,25 @@ export const StudioView: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {queryResult.rows.map((row: any[], rIdx: number) => (
-                        <tr
-                          key={rIdx}
-                          className="border-b border-[#222120] hover:bg-[#222120]/60 font-mono text-[11px]"
-                        >
-                          {row.map((cell: any, cIdx: number) => (
-                            <td key={cIdx} className="p-2.5 text-[#edeae4]">
-                              {cell !== null && cell !== undefined ? String(cell) : 'NULL'}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
+                      {Array.isArray(queryResult.rows) &&
+                        queryResult.rows.map((row: any, rIdx: number) => {
+                          const cells = Array.isArray(row)
+                            ? row
+                            : (queryResult.columns || []).map((colName: string) => row?.[colName]);
+                          return (
+                            <tr
+                              key={rIdx}
+                              className="border-b border-[#222120] hover:bg-[#222120]/60 font-mono text-[11px]"
+                            >
+                              {Array.isArray(cells) &&
+                                cells.map((cell: any, cIdx: number) => (
+                                  <td key={cIdx} className="p-2.5 text-[#edeae4]">
+                                    {cell !== null && cell !== undefined ? String(cell) : 'NULL'}
+                                  </td>
+                                ))}
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 ) : (
@@ -469,7 +486,7 @@ export const StudioView: React.FC = () => {
         /* ── KPI Dashboard View ────────────────────────────────────────────── */
         <div className="flex-1 overflow-y-auto space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {widgets.map((w) => (
+            {Array.isArray(widgets) && widgets.map((w) => (
               <div
                 key={w.id}
                 className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl p-5 flex flex-col justify-between space-y-3"
@@ -508,7 +525,7 @@ export const StudioView: React.FC = () => {
               </div>
             ))}
 
-            {widgets.length === 0 && !loadingWidgets && (
+            {(!Array.isArray(widgets) || widgets.length === 0) && !loadingWidgets && (
               <div className="col-span-full py-12 text-center text-xs text-[#5c5955] bg-[#1a1918] border border-dashed border-[#2e2c2a] rounded-xl p-6">
                 <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-40 text-[#e8a84c]" />
                 <span className="font-semibold text-[#edeae4]">No KPI metrics created yet</span>
