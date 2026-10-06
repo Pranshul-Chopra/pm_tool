@@ -82,14 +82,14 @@ PM Tool includes a fully automated, rock-solid GitHub Actions pipeline in [`.git
 ```powershell
 # 1. Update version numbers (see Step 4 below)
 git add -A
-git commit -m "chore(release): bump version to 1.5.0"
+git commit -m "chore(release): bump version to 2.0.0"
 
 # 2. Create an annotated git tag
-git tag -a v1.5.0 -m "Release v1.5.0 - AI Workspace PM Document Generator & Multi-Format Export"
+git tag -a v2.0.0 -m "Release v2.0.0 - Desktop SPA Modernization, Command Palette & Automated Updates"
 
 # 3. Push commit and tag to GitHub
 git push origin master
-git push origin v1.5.0
+git push origin v2.0.0
 ```
 
 ---
@@ -103,20 +103,20 @@ Ensure the target version string is synchronized across all core files:
 1. `version.json`:
    ```json
    {
-     "version": "1.5.0",
+     "version": "2.0.0",
      "app_name": "PM Tool",
-     "build_date": "2026-10-05"
+     "build_date": "2026-10-06"
    }
    ```
 2. `electron/package.json`:
    ```json
    {
      "name": "pm-tool",
-     "version": "1.5.0"
+     "version": "2.0.0"
    }
    ```
-3. `CHANGELOG.md`: Document release notes under `## [1.5.0] - YYYY-MM-DD`.
-4. `DEV_HANDBOOK.md`: Update version header to `1.5.0`.
+3. `CHANGELOG.md`: Document release notes under `## [2.0.0] - YYYY-MM-DD`.
+4. `DEV_HANDBOOK.md`: Update version header to `2.0.0`.
 
 ### Step 2: Run the Local Build Script
 From the repository root in PowerShell:
@@ -128,31 +128,31 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 The script runs the 4-stage pipeline:
 1. Validates Python environment
 2. Compiles Flask backend into `dist\flask\`
-3. Installs Electron dependencies in `electron\`
+3. Compiles Vite React SPA and installs Electron dependencies in `electron\`
 4. Runs `electron-builder` and outputs artifacts to `release\`
 
 ### Step 3: Manual GitHub Release Publication
 1. Navigate to: `https://github.com/Pranshul-Chopra/pm_tool/releases/new`
-2. **Tag:** `v1.5.0`
-3. **Release Title:** `PM Tool v1.5.0`
+2. **Tag:** `v2.0.0`
+3. **Release Title:** `PM Tool v2.0.0`
 4. **Notes:** Copy the markdown summary from `CHANGELOG.md`.
 5. **Assets to Attach (Drag & Drop all 4 files from `release\`):**
-   - `PM-Tool-Setup-1.5.0.exe` *(Primary installer)*
-   - `PM-Tool-1.5.0.exe` *(Portable edition)*
+   - `PM-Tool-Setup-2.0.0.exe` *(Primary installer)*
+   - `PM-Tool-2.0.0.exe` *(Portable edition)*
    - `latest.yml` *(CRITICAL for electron-updater background detection)*
-   - `PM-Tool-Setup-1.5.0.exe.blockmap` *(CRITICAL for differential delta updates)*
+   - `PM-Tool-Setup-2.0.0.exe.blockmap` *(CRITICAL for differential delta updates)*
 6. Click **Publish release**.
 
 ---
 
 ## 5. In-App Auto-Update Architecture
 
-The desktop application includes a full self-updating subsystem:
+The desktop application includes a fully automated self-updating subsystem:
 
 ### Lifecycle & Flow:
-1. **Startup Check:** 3 seconds after launch, `electron-updater` queries `https://github.com/Pranshul-Chopra/pm_tool/releases/latest/download/latest.yml`.
-2. **Periodic Checks:** A background timer queries for new releases every 4 hours.
-3. **Manual Check:** Clicking the sidebar version pill (`#sb-version-strip`) triggers an immediate manual check.
+1. **Automated Startup Check:** 3 seconds after launch, `electron-updater` automatically checks `https://github.com/Pranshul-Chopra/pm_tool/releases/latest/download/latest.yml` in the background. No manual click required.
+2. **Periodic Automatic Checks:** A background timer queries for new releases automatically every 60 minutes.
+3. **Non-Intrusive Status Indication:** The sidebar displays a live status pill (`v2.0.0 · auto`) reflecting updater states (idle, downloading with spinner, downloaded).
 4. **Background Delta Download:**
    - If installed via NSIS, `electron-updater` downloads only changed blocks using the `.blockmap` file.
    - The renderer receives progress percentages via IPC (`updater-status` -> `downloading`) and renders a live progress bar inside `#app-updater-toast`.
@@ -170,11 +170,9 @@ The desktop application includes a full self-updating subsystem:
 Before distributing any new release:
 - [ ] Run `PM Tool-Setup-<version>.exe` to verify 1-click installation succeeds.
 - [ ] Verify desktop and Start Menu shortcuts are created with the new **PmT** icon.
-- [ ] Launch PM Tool and verify window boots without devtool console errors.
+- [ ] Launch PM Tool and verify single-DOM SPA window boots cleanly without console errors.
 - [ ] Verify Flask starts automatically and `/api/ping` succeeds.
-- [ ] Verify cascading port collision resilience (`5050` through `5065`).
-- [ ] Open Knowledge Base and verify the documents table displays horizontal & vertical scrollbars with sticky headers.
-- [ ] In AI Copilot, test slash commands (`/search`, `/prd`, `/plan`, `/metrics`, `/summarize`, `/chat`) and confirm they turn into button-like pill containers.
-- [ ] Verify Backspace on an empty textarea removes the command pill.
-- [ ] Click the sidebar version strip (`v<version> · PM Tool`) and confirm the manual update check runs and reports status.
+- [ ] Verify Command Palette (`Ctrl+K` / `Cmd+K`) opens and filters navigation, projects, and actions.
+- [ ] Verify universal shortcuts (`Ctrl+B` toggle sidebar, `Ctrl+1..6` tab switcher).
+- [ ] Verify automatic update check triggers in background without user intervention.
 - [ ] Close the application window and verify in Task Manager that both `pm-tool.exe` and `flask.exe` terminate completely.

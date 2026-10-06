@@ -8,15 +8,15 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  RefreshCw,
 } from 'lucide-react';
 import type { NavTab, UpdateData } from '../types';
-import AppBridge from '../services/bridge';
 
 interface SidebarProps {
   activeTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   updateData: UpdateData;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 interface NavItem {
@@ -35,26 +35,34 @@ const navItems: NavItem[] = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, updateData }) => {
-  const [collapsed, setCollapsed] = useState(false);
-  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+export const Sidebar: React.FC<SidebarProps> = ({
+  activeTab,
+  onSelectTab,
+  updateData,
+  collapsed: controlledCollapsed,
+  onToggleCollapse,
+}) => {
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
+  const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
 
-  const handleUpdateClick = () => {
-    setIsCheckingUpdate(true);
-    AppBridge.os.checkForUpdates();
-    setTimeout(() => setIsCheckingUpdate(false), 2000);
+  const handleToggle = () => {
+    if (onToggleCollapse) {
+      onToggleCollapse();
+    } else {
+      setInternalCollapsed(!internalCollapsed);
+    }
   };
 
   return (
     <aside
       className={`h-full bg-[#161514] border-r border-[#2e2c2a] flex flex-col justify-between transition-all duration-200 select-none z-40 ${
-        collapsed ? 'w-14' : 'w-56'
+        isCollapsed ? 'w-14' : 'w-56'
       }`}
     >
       {/* Top Branding & Collapse Button */}
       <div className="flex flex-col">
         <div className="h-12 px-3 flex items-center justify-between border-b border-[#2e2c2a]/60">
-          {!collapsed && (
+          {!isCollapsed && (
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded bg-[#e8a84c] flex items-center justify-center font-bold text-black text-xs font-mono">
                 P
@@ -63,19 +71,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, update
             </div>
           )}
 
-          {collapsed && (
+          {isCollapsed && (
             <div className="w-8 h-8 mx-auto rounded bg-[#e8a84c] flex items-center justify-center font-bold text-black text-xs font-mono">
               P
             </div>
           )}
 
           <button
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={handleToggle}
             className="p-1 rounded text-[#9b9690] hover:text-[#edeae4] hover:bg-[#222120] transition-colors"
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-label="Toggle sidebar"
           >
-            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
 
@@ -94,11 +102,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, update
                     ? 'bg-[#e8a84c]/10 text-[#e8a84c] font-semibold shadow-[inset_2px_0_0_0_#e8a84c]'
                     : 'text-[#9b9690] hover:text-[#edeae4] hover:bg-[#1a1918]'
                 }`}
-                title={collapsed ? item.label : undefined}
+                title={isCollapsed ? item.label : undefined}
               >
                 <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? 'text-[#e8a84c]' : 'text-[#9b9690]'}`} />
 
-                {!collapsed && (
+                {!isCollapsed && (
                   <div className="flex items-center justify-between w-full">
                     <span>{item.label}</span>
                     {item.badge && (
@@ -114,42 +122,47 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, onSelectTab, update
         </nav>
       </div>
 
-      {/* Bottom Version Strip & Auto-updater trigger */}
+      {/* Bottom Version Strip (Automatic Background Updater) */}
       <div className="p-2 border-t border-[#2e2c2a]/60">
-        <button
-          onClick={handleUpdateClick}
-          className={`w-full flex items-center justify-between p-2 rounded bg-[#1a1918] hover:bg-[#222120] border border-[#2e2c2a] text-[11px] font-mono text-[#9b9690] transition-colors group ${
-            collapsed ? 'justify-center' : ''
+        <div
+          className={`w-full flex items-center justify-between p-2 rounded bg-[#1a1918] border border-[#2e2c2a] text-[11px] font-mono text-[#9b9690] ${
+            isCollapsed ? 'justify-center' : ''
           }`}
-          title="Click to check for application updates"
+          title={
+            updateData.status === 'downloaded'
+              ? 'Update ready to install'
+              : updateData.status === 'downloading'
+              ? `Downloading update (${updateData.percent || 0}%)`
+              : updateData.status === 'available'
+              ? 'Update detected · Downloading in background'
+              : 'Auto-updates active · Connected to local core'
+          }
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <span
               className={`w-2 h-2 rounded-full flex-shrink-0 ${
                 updateData.status === 'downloaded'
-                  ? 'bg-[#5aab7f] animate-pulse'
+                  ? 'bg-[#5aab7f] animate-pulse ring-2 ring-[#5aab7f]/30'
                   : updateData.status === 'available'
                   ? 'bg-[#e8a84c] animate-pulse'
                   : updateData.status === 'downloading'
                   ? 'bg-[#4c97e8] animate-spin'
-                  : 'bg-[#5c5955]'
+                  : 'bg-[#5aab7f]/80'
               }`}
             />
-            {!collapsed && (
-              <span className="truncate group-hover:text-[#edeae4]">
-                v{updateData.version || '1.5.0'}
+            {!isCollapsed && (
+              <span className="truncate text-[#9b9690]">
+                v{updateData.version || '2.0.0'}
               </span>
             )}
           </div>
 
-          {!collapsed && (
-            <RefreshCw
-              className={`w-3 h-3 text-[#5c5955] group-hover:text-[#9b9690] transition-transform ${
-                isCheckingUpdate ? 'animate-spin text-[#e8a84c]' : ''
-              }`}
-            />
+          {!isCollapsed && (
+            <span className="text-[10px] text-[#6b6660] font-mono px-1 rounded bg-[#222120] border border-[#2e2c2a]">
+              {updateData.status === 'downloading' ? `${updateData.percent || 0}%` : 'auto'}
+            </span>
           )}
-        </button>
+        </div>
       </div>
     </aside>
   );

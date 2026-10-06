@@ -3,6 +3,40 @@
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-06
+
+### 🚀 Desktop SPA Modernization & Zero-Iframe Architecture
+- **Single Page Application (SPA) Complete**:
+  - Migrated entire desktop client to a single-DOM React 19 + TypeScript + Tailwind CSS architecture inside Electron.
+  - Decommissioned legacy Jinja2 templates bundling from `flask.spec`, trimming distribution bundle overhead and guaranteeing zero iframe latency.
+  - Native hardware-accelerated animations and view transitions between workstation modules.
+
+### 🔍 Global Spotlight Command Palette (`CommandPalette.tsx`)
+- **Spotlight Overlay (`Ctrl+K` / `Cmd+K`)**:
+  - Raycast/Linear-style command palette for instant keyboard-first navigation across PM Tool.
+  - Full fuzzy filtering across workstation views, live database projects, and productivity actions.
+  - Keyboard-driven selection navigation with Arrow keys (`↑`, `↓`), `↵ Enter` execution, and `ESC` dismissal.
+  - Clickable Command Palette trigger badge integrated into application `Titlebar`.
+
+### ⌨️ Universal Keyboard Shortcuts Engine (`App.tsx`)
+- **Global Application Keybindings**:
+  - `Ctrl+K` / `Cmd+K`: Toggle Spotlight Command Palette.
+  - `Ctrl+B` / `Cmd+B`: Toggle collapsible navigation sidebar.
+  - `Ctrl+1` – `Ctrl+6`: Instant direct switching between Workspace (`1`), Sprint Board (`2`), Data Studio (`3`), Knowledge Base (`4`), AI Copilot (`5`), and Settings (`6`).
+  - `ESC`: Clean modal and palette dismissal.
+
+### 🔄 Fully Automated Background Updates
+- **Automatic Silent Probing**:
+  - Replaced manual "Check updates" button with automated background lifecycle.
+  - Automatic silent probe on application boot and background interval polling every 60 minutes via `electron-updater`.
+  - Non-intrusive live status indicator in `Sidebar.tsx` displaying `v2.0.0` with pulse/spin indicators.
+  - Auto-downloaded updates seamlessly present the `UpdaterToast` notification with 1-click "Restart Now" execution.
+
+### 🧹 Workspace Overview Streamlining (`HomeView.tsx`)
+- **Redundant Launchpad Removal**:
+  - Removed highlighted 3-card launchpad grid from `HomeView.tsx` to eliminate visual clutter.
+  - Workspace view now flows smoothly from active initiatives directly into the recent user stories table.
+
 ## [1.5.0] - 2026-10-05
 
 ### 📝 AI Workspace PM Document Generator (`DocumentGeneratorModal.tsx`)

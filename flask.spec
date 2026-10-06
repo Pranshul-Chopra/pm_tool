@@ -16,7 +16,6 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('templates', 'templates'),
         ('static',    'static'),
         ('version.json', '.'),
     ] + docx_datas + pypdf_datas + openpyxl_datas,

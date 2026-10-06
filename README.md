@@ -3,7 +3,7 @@
 <div align="center">
   <img src="static/icon.png" width="96" height="96" alt="PM Tool Logo" />
   <h3>Enterprise Product Management Copilot &amp; Sprint Execution Workstation</h3>
-  <p><b>Version 1.5.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
+  <p><b>Version 2.0.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
 </div>
 
 ---
@@ -15,6 +15,13 @@
 ---
 
 ## 🌟 Key Features
+
+### 🚀 Desktop Single Page Application (SPA) & Command Palette (`v2.0.0`)
+- **Single-DOM SPA Transition**: Pure React 19 + TypeScript + Tailwind inside Electron; zero-iframe latency and hardware-accelerated transitions.
+- **Global Spotlight Command Palette (`Ctrl+K` / `Cmd+K`)**: Raycast-style instant navigation across projects, tasks, RAG documents, and PM workflows with keyboard-driven filtering.
+- **Universal Keyboard Shortcuts Engine**: Full desktop keybindings (`Ctrl+1..6` tab switcher, `Ctrl+B` sidebar toggle, `Ctrl+K` palette, `ESC` modal dismissal).
+- **Automated Background Update Lifecycle**: Silent update checks on startup and periodic 60-minute polling via `electron-updater`, non-obtrusive live status indicator pill, and automated toast alerts.
+- **Streamlined Workspace Overview**: Cleaned redundant cards so initiatives flow directly into recent user stories.
 
 ### 📝 AI Workspace PM Document Generator & Multi-Format Export (`v1.5.0`)
 - **1-Click Interactive PM Document Generator**: Dedicated modal accessible from the AI Copilot toolbar scaffolding 5 standard PM templates (PRD, Technical Architecture Spec, Agile Sprint Story Breakdown, Product Strategy & KPI Plan, Executive Brief).
@@ -84,7 +91,7 @@ pm_tool/
 ├── CHANGELOG.md                 # Semantic versioning history
 ├── DEV_HANDBOOK.md              # Technical engineering handbook & architecture spec
 ├── requirements.txt             # Python dependencies
-├── version.json                 # Single source of truth for version (1.5.0)
+├── version.json                 # Single source of truth for version (2.0.0)
 ├── main.py                      # Flask factory, server lifecycle, ping checks
 ├── routes.py                    # REST API controllers & Jinja template routes
 ├── db.py                        # SQLite connection pool, schema migrations (pmtool.db)
@@ -137,11 +144,12 @@ pm_tool/
 
 | Release Milestone | Key Capabilities | Status & Priority |
 | :--- | :--- | :--- |
-| **v2.0.0 (NEW)** | **Desktop SPA Modernization**<br>• Vite + React 18/19 + TypeScript inside Electron<br>• Zero-Iframe single DOM architecture<br>• Unified `AppBridge` (Electron IPC + Flask REST)<br>• 60 FPS `@dnd-kit` Kanban board with optimistic UI<br>• Unified Tailwind dark carbon design tokens | 🔥 **IN PROGRESS (PRIORITY 1)** |
-| **v1.5.0 (Latest)** | **AI Document Generator & Multi-Format Export**<br>• 1-click PM document modal (PRDs, specs, breakdowns, strategy)<br>• In-memory Word (.docx) & Markdown (.md) exports<br>• 1-click Knowledge Base ingestion & FTS5 indexing<br>• Direct PRD sprint board decomposition<br>• Hardened zero-crash Markdown parser & ErrorBoundary | ✅ **Shipped** |
+| **v2.0.0 (Latest)** | **Desktop SPA Modernization & Command Palette**<br>• Full React 19 + TypeScript single-DOM client<br>• Spotlight Command Palette (`Ctrl+K` / `Cmd+K`)<br>• Universal Keyboard Shortcuts Engine<br>• Automated silent background update lifecycle<br>• Zero-iframe architecture & decommissioned Jinja bundle | ✅ **Shipped** |
+| **v1.5.0** | **AI Document Generator & Multi-Format Export**<br>• 1-click PM document modal (PRDs, specs, breakdowns, strategy)<br>• In-memory Word (.docx) & Markdown (.md) exports<br>• 1-click Knowledge Base ingestion & FTS5 indexing<br>• Direct PRD sprint board decomposition<br>• Hardened zero-crash Markdown parser & ErrorBoundary | ✅ **Shipped** |
 | **v1.4.0** | **Data Studio & Safe SQL Analytics**<br>• Guarded SQLite sandbox with AST/whitelist checks<br>• Dynamic KPI cards, benchmarks, and SVG charts<br>• Excel (.xlsx), CSV, TSV dataset materialization | ✅ **Shipped** |
 | **v1.3.0** | **Agile Sprint Board & PRD Decomposer**<br>• Story points, acceptance criteria, assignee tracking<br>• Automated PRD-to-Story AI generator (`/breakdown`) | ✅ **Shipped** |
 | **v1.2.0** | **In-App Auto-Updater & Assets**<br>• Differential delta background auto-updater<br>• Dynamic cascading port fallback (`5050`–`5065`) | ✅ **Shipped** |
+| **v2.1.0** | **Team Workspaces & Multi-Vault**<br>• Independent project workspaces & multi-database vaults<br>• Workspace export/import and isolated RAG indices | 🔥 **Next Up** |
 
 ---
 
@@ -190,9 +198,9 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 ```
 
 Output assets will be generated in `release/`:
-- `release/PM-Tool-Setup-1.5.0.exe` (1-Click NSIS Installer)
-- `release/PM-Tool-1.5.0.exe` (Portable Executable)
-- `release/PM-Tool-Setup-1.5.0.exe.blockmap` (Differential update map)
+- `release/PM-Tool-Setup-2.0.0.exe` (1-Click NSIS Installer)
+- `release/PM-Tool-2.0.0.exe` (Portable Executable)
+- `release/PM-Tool-Setup-2.0.0.exe.blockmap` (Differential update map)
 - `release/latest.yml` (Auto-update manifest)
 
 ---

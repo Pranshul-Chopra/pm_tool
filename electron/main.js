@@ -129,14 +129,14 @@ function setupAutoUpdater() {
     });
   });
 
-  // Check 3 seconds after launch, then every 4 hours
+  // Check 3 seconds after launch, then periodically every 60 minutes
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch(() => {});
   }, 3000);
 
   setInterval(() => {
     autoUpdater.checkForUpdates().catch(() => {});
-  }, 4 * 60 * 60 * 1000);
+  }, 60 * 60 * 1000);
 }
 
 // ── Port Handshake Utilities ──────────────────────────────────────────────────

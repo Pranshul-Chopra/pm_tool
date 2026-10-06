@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 1.5.0  
+**Current Version:** 2.0.0  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -89,7 +89,7 @@ pm_tool/
 ├── CHANGELOG.md             # Semantic versioning history
 ├── DEV_HANDBOOK.md          # Technical handbook and architecture specification
 ├── requirements.txt         # Python dependencies (Flask, requests, plyer, pypdf, python-docx, openpyxl)
-├── version.json             # Single source of truth for app version (v1.5.0)
+├── version.json             # Single source of truth for app version (v2.0.0)
 ├── main.py                  # Flask application factory, server lifecycle, ping checks
 ├── routes.py                # REST API controllers and template renderers
 ├── db.py                    # SQLite connection pool, WAL mode, schema migrations (pmtool.db)
@@ -640,12 +640,12 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 ├──────────────┬───────────────────────────────┬─────────────────────────┤
 │ Milestone    │ Theme & Deliverables          │ Status & Priority       │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
-│ v2.0.0 (NEW) │ Desktop SPA Modernization     │ 🔥 IN PROGRESS          │
-│              │ • Vite + React + TypeScript   │ (PRIORITY 1 - ACTIVE)   │
+│ v2.0.0       │ Desktop SPA Modernization     │ ✅ COMPLETED            │
+│              │ • Vite + React + TypeScript   │ (Shipped)               │
 │              │ • Zero-Iframe App Shell       │                         │
-│              │ • Unified AppBridge IPC       │                         │
-│              │ • 60 FPS @dnd-kit Kanban      │                         │
-│              │ • Shared Tailwind Tokens      │                         │
+│              │ • Spotlight Command Palette   │                         │
+│              │ • Universal Keyboard Shortuts │                         │
+│              │ • Automated Background Updates│                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
 │ v1.5.0       │ AI Doc Generator & Export     │ ✅ COMPLETED            │
 │              │ • 1-Click PRD & Spec Modal    │ (Shipped)               │
@@ -667,8 +667,8 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 │              │ • Differential Delta Updates  │ (Shipped)               │
 │              │ • Cascading Port Handshake    │                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
-│ v2.1.0       │ Team Workspaces & Multi-Vault │ 📅 PLANNED              │
-│              │ • Project Workspace Switching │ (Post v2.0 Transition)  │
+│ v2.1.0       │ Team Workspaces & Multi-Vault │ 🔥 NEXT UP              │
+│              │ • Project Workspace Switching │ (PRIORITY 1 - PLANNED)  │
 │              │ • Exportable Workspaces       │                         │
 └──────────────┴───────────────────────────────┴─────────────────────────┘
 ```

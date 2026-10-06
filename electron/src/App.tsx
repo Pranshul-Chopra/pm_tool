@@ -3,6 +3,7 @@ import type { NavTab, UpdateData } from './types';
 import Titlebar from './components/Titlebar';
 import Sidebar from './components/Sidebar';
 import UpdaterToast from './components/UpdaterToast';
+import CommandPalette from './components/CommandPalette';
 import HomeView from './views/HomeView';
 import BoardView from './views/BoardView';
 import StudioView from './views/StudioView';
@@ -16,6 +17,8 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [updateData, setUpdateData] = useState<UpdateData>({ status: 'idle' });
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     // 1. Listen for background auto-updater events via Electron contextBridge
@@ -23,13 +26,15 @@ export const App: React.FC = () => {
       setUpdateData(data);
     });
 
-    // 2. Fetch updater info on boot
+    // 2. Fetch updater info on boot and trigger automated background update check
     AppBridge.os.getUpdaterInfo().then((info) => {
       setUpdateData((prev) => ({
         ...prev,
         version: info.version,
         isPortable: info.isPortable,
       }));
+      // Automatically check for updates silently on startup
+      AppBridge.os.checkForUpdates();
     });
 
     return () => {
@@ -57,10 +62,58 @@ export const App: React.FC = () => {
     navigateWithTransition(tab);
   };
 
+  // Universal Global Keyboard Shortcuts Engine
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      // Allow Esc to close palette if open
+      if (e.key === 'Escape' && isPaletteOpen) {
+        setIsPaletteOpen(false);
+        return;
+      }
+
+      // Check for modifier keys (Ctrl or Cmd)
+      if (e.ctrlKey || e.metaKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'k') {
+          e.preventDefault();
+          setIsPaletteOpen((prev) => !prev);
+        } else if (key === 'b') {
+          e.preventDefault();
+          setIsSidebarCollapsed((prev) => !prev);
+        } else if (key === '1') {
+          e.preventDefault();
+          navigateWithTransition('home');
+        } else if (key === '2') {
+          e.preventDefault();
+          navigateWithTransition('board');
+        } else if (key === '3') {
+          e.preventDefault();
+          navigateWithTransition('dashboard');
+        } else if (key === '4') {
+          e.preventDefault();
+          navigateWithTransition('documents');
+        } else if (key === '5') {
+          e.preventDefault();
+          navigateWithTransition('chat');
+        } else if (key === '6') {
+          e.preventDefault();
+          navigateWithTransition('settings');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [isPaletteOpen, activeTab]);
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#111110] text-[#edeae4] overflow-hidden select-none">
       {/* Native Drag Titlebar */}
-      <Titlebar activeTab={activeTab} />
+      <Titlebar
+        activeTab={activeTab}
+        version={updateData.version || '2.0.0'}
+        onOpenPalette={() => setIsPaletteOpen(true)}
+      />
 
       {/* Main Workstation Container */}
       <div className="flex-1 flex overflow-hidden min-h-0">
@@ -68,6 +121,8 @@ export const App: React.FC = () => {
           activeTab={activeTab}
           onSelectTab={navigateWithTransition}
           updateData={updateData}
+          collapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         />
 
         <main className="flex-1 h-full overflow-hidden bg-[#111110] relative">
@@ -87,7 +142,15 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* In-App Auto-Updater Toast */}
+      {/* Global Command Palette (Ctrl+K / Cmd+K) */}
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onNavigate={handleNavigate}
+        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+      />
+
+      {/* In-App Background Auto-Updater Toast */}
       <UpdaterToast data={updateData} />
     </div>
   );

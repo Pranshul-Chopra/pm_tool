@@ -2,8 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   Kanban,
   FileText,
-  Database,
-  Bot,
   Plus,
   ArrowRight,
   TrendingUp,
@@ -316,66 +314,6 @@ export const HomeView: React.FC<HomeViewProps> = ({ onNavigate }) => {
             ))}
           </div>
         )}
-      </div>
-
-      {/* Quick Launchpad & Workstation Hub */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div
-          onClick={() => onNavigate('board')}
-          className="bg-[#1a1918] hover:bg-[#222120] border border-[#2e2c2a] hover:border-[#e8a84c]/40 rounded-xl p-5 cursor-pointer transition-all duration-150 group"
-        >
-          <div className="w-10 h-10 rounded-lg bg-[#e8a84c]/10 border border-[#e8a84c]/20 flex items-center justify-center text-[#e8a84c] mb-3 group-hover:scale-105 transition-transform">
-            <Kanban className="w-5 h-5" />
-          </div>
-          <h3 className="text-sm font-semibold text-[#edeae4] group-hover:text-[#e8a84c] transition-colors">
-            Agile Sprint Board
-          </h3>
-          <p className="text-xs text-[#9b9690] mt-1">
-            Groom user stories, estimate Fibonacci story points, and manage sprint deliveries.
-          </p>
-          <div className="flex items-center gap-1 text-xs text-[#e8a84c] mt-4 font-medium">
-            <span>Open Board</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </div>
-
-        <div
-          onClick={() => onNavigate('dashboard')}
-          className="bg-[#1a1918] hover:bg-[#222120] border border-[#2e2c2a] hover:border-[#4c97e8]/40 rounded-xl p-5 cursor-pointer transition-all duration-150 group"
-        >
-          <div className="w-10 h-10 rounded-lg bg-[#4c97e8]/10 border border-[#4c97e8]/20 flex items-center justify-center text-[#4c97e8] mb-3 group-hover:scale-105 transition-transform">
-            <Database className="w-5 h-5" />
-          </div>
-          <h3 className="text-sm font-semibold text-[#edeae4] group-hover:text-[#4c97e8] transition-colors">
-            Data Studio & KPIs
-          </h3>
-          <p className="text-xs text-[#9b9690] mt-1">
-            Query datasets with read-only guarded SQL and visualize real-time benchmarks.
-          </p>
-          <div className="flex items-center gap-1 text-xs text-[#4c97e8] mt-4 font-medium">
-            <span>Explore Data</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </div>
-
-        <div
-          onClick={() => onNavigate('chat')}
-          className="bg-[#1a1918] hover:bg-[#222120] border border-[#2e2c2a] hover:border-[#5aab7f]/40 rounded-xl p-5 cursor-pointer transition-all duration-150 group"
-        >
-          <div className="w-10 h-10 rounded-lg bg-[#5aab7f]/10 border border-[#5aab7f]/20 flex items-center justify-center text-[#5aab7f] mb-3 group-hover:scale-105 transition-transform">
-            <Bot className="w-5 h-5" />
-          </div>
-          <h3 className="text-sm font-semibold text-[#edeae4] group-hover:text-[#5aab7f] transition-colors">
-            AI Copilot & PRD Generator
-          </h3>
-          <p className="text-xs text-[#9b9690] mt-1">
-            Draft PRDs, decompose initiatives, and interrogate past organizational decisions.
-          </p>
-          <div className="flex items-center gap-1 text-xs text-[#5aab7f] mt-4 font-medium">
-            <span>Launch Copilot</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </div>
       </div>
 
       {/* Active Tasks Table Preview */}

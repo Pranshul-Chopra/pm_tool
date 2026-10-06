@@ -41,7 +41,10 @@ def index():
     spa_index = _get_base_dir() / "static" / "spa" / "index.html"
     if spa_index.is_file():
         return send_file(str(spa_index))
-    return render_template("shell.html")
+    legacy_shell = _get_base_dir() / "templates" / "shell.html"
+    if legacy_shell.is_file():
+        return render_template("shell.html")
+    return "<h3>PM Tool Desktop SPA build not found. Please compile the React frontend.</h3>", 500
 
 
 @bp.route("/assets/<path:filename>")
@@ -101,10 +104,10 @@ def _get_app_version() -> str:
         import json
         vf = _get_base_dir() / "version.json"
         if vf.exists():
-            return json.loads(vf.read_text(encoding="utf-8")).get("version", "1.5.0")
+            return json.loads(vf.read_text(encoding="utf-8")).get("version", "2.0.0")
     except Exception:
         pass
-    return "1.5.0"
+    return "2.0.0"
 
 
 @bp.route("/api/status")
