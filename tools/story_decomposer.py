@@ -110,7 +110,11 @@ def decompose_prd_to_stories(
             status="error",
             conversation_id=conversation_id,
         )
-        return {"success": False, "error": err_msg}
+        return {
+            "success": False,
+            "error": err_msg,
+            "setup_required": llm_res.get("setup_required", False),
+        }
 
     raw_output = llm_res.get("response", "").strip()
 

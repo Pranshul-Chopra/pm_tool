@@ -265,6 +265,7 @@ def _dispatch_gemini(
     history: List[Dict],
     message: str,
     max_tokens: int = 8192,
+    temperature: float = 0.7,
 ) -> Dict[str, Any]:
     """Direct Google Gemini REST API caller with model fallback chain."""
     raw_model = (model_name or "").strip().lstrip("models/")
@@ -304,7 +305,7 @@ def _dispatch_gemini(
     payload = {
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
-        "generationConfig": {"temperature": 0.7, "maxOutputTokens": max_tokens},
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
     }
     headers = {"Content-Type": "application/json"}
 
@@ -384,6 +385,8 @@ def call_llm(
     message: str,
     history: Optional[List[Dict]] = None,
     max_tokens: int = 8192,
+    temperature: float = 0.7,
+    **kwargs,
 ) -> Dict[str, Any]:
     """
     Unified LLM call. Auto-routes to the active provider:
@@ -397,6 +400,7 @@ def call_llm(
         message:       The current user message (latest turn).
         history:       List of {"role": "user"|"assistant", "content": str} prior turns.
         max_tokens:    Maximum generation output token budget (defaults to 8192).
+        temperature:   Sampling temperature for response diversity (defaults to 0.7).
 
     Returns:
         Dict with keys: response, provider, model  — or error, offline, setup_required.
@@ -434,7 +438,7 @@ def call_llm(
                 "messages": messages,
                 "stream": False,
                 "keep_alive": "30m",
-                "options": {"temperature": 0.7, "num_ctx": max(16384, max_tokens * 2), "num_predict": max_tokens},
+                "options": {"temperature": temperature, "num_ctx": max(16384, max_tokens * 2), "num_predict": max_tokens},
             }
             res = requests.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload,
                                 timeout=120.0, proxies={"http": None, "https": None})
@@ -476,6 +480,7 @@ def call_llm(
                 history=clean_history,
                 message=message.strip()[:4000],
                 max_tokens=max_tokens,
+                temperature=temperature,
             )
 
         # OpenAI-compatible endpoint (OpenAI, Groq, DeepSeek, Mistral, OpenRouter, LM Studio)
@@ -495,7 +500,7 @@ def call_llm(
         payload = {
             "model": model_name or "gpt-4o-mini",
             "messages": messages,
-            "temperature": 0.7,
+            "temperature": temperature,
             "max_tokens": max_tokens,
         }
         try:

@@ -285,15 +285,18 @@ def tool_breakdown():
     prd_text = data.get("prd_text")
     conversation_id = data.get("conversation_id")
 
-    from tools.story_decomposer import decompose_prd_to_stories
-    res = decompose_prd_to_stories(
-        project_id=project_id,
-        prd_text=prd_text,
-        conversation_id=conversation_id,
-    )
-    if not res.get("success"):
-        return jsonify(res), 400
-    return jsonify(res), 200
+    try:
+        from tools.story_decomposer import decompose_prd_to_stories
+        res = decompose_prd_to_stories(
+            project_id=project_id,
+            prd_text=prd_text,
+            conversation_id=conversation_id,
+        )
+        if not res.get("success"):
+            return jsonify(res), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Story decomposition failed: {str(e)}"}), 500
 
 
 @bp.route("/api/tasks/<int:task_id>", methods=["PATCH", "DELETE"])
