@@ -9,11 +9,18 @@ import {
   Bot,
   Layers,
   ArrowRight,
+  Loader2,
 } from 'lucide-react';
+
+import ActionCard from './ActionCard';
+import AppBridge from '../../services/bridge';
 
 interface MarkdownContentProps {
   content: string;
   onPromptClick?: (prompt: string) => void;
+  conversationId?: string;
+  appliedActionKeys?: Set<string>;
+  onActionApplied?: (task: any, actionKey: string) => void;
 }
 
 // ── Math & LaTeX Formatter ───────────────────────────────────────────────────
@@ -179,8 +186,16 @@ export function renderInline(
   if (!text) return [];
 
   try {
+    // 1. Sanitize common LLM formatting artifacts
+    // Normalize double backticks with space: ` `id` ` -> `id`
+    let sanitizedText = text.replace(/`\s*`([^`]+)`\s*`/g, '`$1`');
+    // Normalize backslash-escaped backticks: \`id\` -> `id`
+    sanitizedText = sanitizedText.replace(/\\`([^`]+)\\`/g, '`$1`');
+    // Normalize backslash-escaped bold: \*\*bold\*\* -> **bold**
+    sanitizedText = sanitizedText.replace(/\\\*\\\*([^*]+)\\\*\\\*/g, '**$1**');
+
     // Split line by <br> or <br/> first to support multiline table cells and paragraphs
-    const brSegments = text.split(/(<br\s*\/?>)/gi);
+    const brSegments = sanitizedText.split(/(<br\s*\/?>)/gi);
 
     return brSegments.flatMap((segment, segIdx) => {
       if (/^<br\s*\/?>$/i.test(segment)) {
@@ -188,15 +203,15 @@ export function renderInline(
       }
 
       // Tokenize segment safely with NON-CAPTURING inner groups
-      const promptLinkPat = '\\' + '\\[[^\\]]+\\]\\((?:prompt|suggest):[^)]+\\)';
-      const promptBracketPat = '\\' + '\\[(?:prompt|suggest):\\s*[^\\]]+\\]';
-      const sourcePat = '\\' + '\\[Source:\\s*[^\\]]+\\]';
+      const promptLinkPat = '\\[[^\\]]+\\]\\((?:prompt|suggest):[^)]+\\)';
+      const promptBracketPat = '\\[(?:prompt|suggest):\\s*[^\\]]+\\]';
+      const sourcePat = '\\[Source:\\s*[^\\]]+\\]';
       const mathPat = '\\$[^$\\n]+\\$';
-      const codePat = '`[^`]+`';
-      const boldPat = '\\*\\*[^*]+\\*\\*';
-      const strikePat = '~~[^~]+~~';
-      const italicPat = '\\*[^*]+\\*';
-      const linkPat = '\\' + '\\[[^\\]]+\\]\\([^)]+\\)';
+      const codePat = '(?:``[^`\\n]+``|`[^`\\n]+`)';
+      const boldPat = '(?:\\*\\*[^*\\n]+\\*\\*|__[^_\\n]+__)';
+      const strikePat = '~~[^~\\n]+~~';
+      const italicPat = '(?:\\*[^*\\n]+\\*|_[^_\\n]+_)';
+      const linkPat = '\\[[^\\]]+\\]\\([^)]+\\)';
 
       const tokenRegex = new RegExp(
         `(${promptLinkPat}|${promptBracketPat}|${sourcePat}|${mathPat}|${codePat}|${boldPat}|${strikePat}|${italicPat}|${linkPat})`,
@@ -212,145 +227,152 @@ export function renderInline(
           const key = `${segIdx}-${pIdx}`;
 
           // 1. Interactive Prompt Suggestion [label](prompt:text)
-          const promptLinkMatch = part.match(new RegExp('^\\' + '\\[([^\\]]+)\\]\\((?:prompt|suggest):([^)]+)\\)$'));
+          const promptLinkMatch = part.match(/^\[([^\]]+)\]\((?:prompt|suggest):([^)]+)\)$/);
           if (promptLinkMatch) {
             const label = promptLinkMatch[1].replace(/[*_`]/g, '').trim();
             const promptTarget = promptLinkMatch[2].trim();
 
-        return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onPromptClick && onPromptClick(promptTarget)}
-            className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-[#222120] hover:bg-[#282725] border border-[#e8a84c]/30 hover:border-[#e8a84c] text-xs text-[#edeae4] transition-all cursor-pointer shadow-sm group font-medium"
-            title={`Click to run: ${promptTarget}`}
-          >
-            <span className="text-[#e8a84c] group-hover:scale-110 transition-transform">⚡</span>
-            <span>{label}</span>
-            <span className="font-mono text-[10px] text-[#e8a84c] px-1 py-0.2 rounded bg-[#e8a84c]/10 border border-[#e8a84c]/20 ml-1">
-              ↵ send
-            </span>
-          </button>
-        );
-      }
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onPromptClick && onPromptClick(promptTarget)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-[#222120] hover:bg-[#282725] border border-[#e8a84c]/30 hover:border-[#e8a84c] text-xs text-[#edeae4] transition-all cursor-pointer shadow-sm group font-medium"
+                title={`Click to run: ${promptTarget}`}
+              >
+                <span className="text-[#e8a84c] group-hover:scale-110 transition-transform">⚡</span>
+                <span>{label}</span>
+                <span className="font-mono text-[10px] text-[#e8a84c] px-1 py-0.2 rounded bg-[#e8a84c]/10 border border-[#e8a84c]/20 ml-1">
+                  ↵ send
+                </span>
+              </button>
+            );
+          }
 
-      // 2. Bracketed prompt suggestion [prompt: /breakdown ...]
-      const promptBracketMatch = part.match(new RegExp('^\\' + '[(?:prompt|suggest):\\s*([^\\]]+)\\]$', 'i'));
-      if (promptBracketMatch) {
-        const promptTarget = promptBracketMatch[1].trim();
-        return (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onPromptClick && onPromptClick(promptTarget)}
-            className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-[#222120] hover:bg-[#282725] border border-[#4c97e8]/30 hover:border-[#4c97e8] text-xs text-[#edeae4] transition-all cursor-pointer shadow-sm group font-medium"
-            title={`Click to run: ${promptTarget}`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#4c97e8] group-hover:scale-110 transition-transform" />
-            <span>{promptTarget}</span>
-            <span className="font-mono text-[10px] text-[#4c97e8] px-1 py-0.2 rounded bg-[#4c97e8]/10 border border-[#4c97e8]/20 ml-1">
-              ↵ send
-            </span>
-          </button>
-        );
-      }
+          // 2. Bracketed prompt suggestion [prompt: /breakdown ...]
+          const promptBracketMatch = part.match(/^\[(?:prompt|suggest):\s*([^\]]+)\]$/i);
+          if (promptBracketMatch) {
+            const promptTarget = promptBracketMatch[1].trim();
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onPromptClick && onPromptClick(promptTarget)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 my-1 rounded-lg bg-[#222120] hover:bg-[#282725] border border-[#4c97e8]/30 hover:border-[#4c97e8] text-xs text-[#edeae4] transition-all cursor-pointer shadow-sm group font-medium"
+                title={`Click to run: ${promptTarget}`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-[#4c97e8] group-hover:scale-110 transition-transform" />
+                <span>{promptTarget}</span>
+                <span className="font-mono text-[10px] text-[#4c97e8] px-1 py-0.2 rounded bg-[#4c97e8]/10 border border-[#4c97e8]/20 ml-1">
+                  ↵ send
+                </span>
+              </button>
+            );
+          }
 
-      // 3. Document Source Badge [Source: MAS2001_Assignment3_1.pdf]
-      const sourceMatch = part.match(new RegExp('^\\' + '[Source:\\s*([^\\]]+)\\]$', 'i'));
-      if (sourceMatch) {
-        const srcName = sourceMatch[1].trim();
-        return (
-          <span
-            key={key}
-            className="inline-flex items-center gap-1 px-2 py-0.5 my-0.5 rounded-md bg-[#e8a84c]/10 text-[#e8a84c] border border-[#e8a84c]/25 text-[11px] font-mono select-text"
-            title={`Grounded from indexed document: ${srcName}`}
-          >
-            <FileText className="w-3 h-3 text-[#e8a84c] flex-shrink-0" />
-            <span className="truncate max-w-[200px]">{srcName}</span>
-          </span>
-        );
-      }
+          // 3. Document Source Badge [Source: MAS2001_Assignment3_1.pdf]
+          const sourceMatch = part.match(/^\[Source:\s*([^\]]+)\]$/i);
+          if (sourceMatch) {
+            const srcName = sourceMatch[1].trim();
+            return (
+              <span
+                key={key}
+                className="inline-flex items-center gap-1 px-2 py-0.5 my-0.5 rounded-md bg-[#e8a84c]/10 text-[#e8a84c] border border-[#e8a84c]/25 text-[11px] font-mono select-text"
+                title={`Grounded from indexed document: ${srcName}`}
+              >
+                <FileText className="w-3 h-3 text-[#e8a84c] flex-shrink-0" />
+                <span className="truncate max-w-[200px]">{srcName}</span>
+              </span>
+            );
+          }
 
-      // 4. Inline Math ($ ... $)
-      if (part.startsWith('$') && part.endsWith('$') && part.length > 2) {
-        const mathContent = part.slice(1, -1);
-        const formatted = formatLatex(mathContent);
-        return (
-          <span
-            key={key}
-            className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded bg-[#1f1e1c] border border-[#2e2c2a] text-[#e8a84c] font-mono text-xs select-text tracking-wide shadow-inner"
-          >
-            {formatted}
-          </span>
-        );
-      }
+          // 4. Inline Math ($ ... $)
+          if (part.startsWith('$') && part.endsWith('$') && part.length > 2) {
+            const mathContent = part.slice(1, -1);
+            const formatted = formatLatex(mathContent);
+            return (
+              <span
+                key={key}
+                className="inline-flex items-center px-1.5 py-0.5 mx-0.5 rounded bg-[#1f1e1c] border border-[#2e2c2a] text-[#e8a84c] font-mono text-xs select-text tracking-wide shadow-inner"
+              >
+                {formatted}
+              </span>
+            );
+          }
 
-      // 5. Inline Code (` ... `)
-      if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
-        return (
-          <code
-            key={key}
-            className="px-1.5 py-0.5 rounded bg-[#111110] border border-[#2e2c2a] text-[#e8a84c] font-mono text-[11px]"
-          >
-            {part.slice(1, -1)}
-          </code>
-        );
-      }
+          // 5. Inline Code (` ... ` or `` ... ``)
+          if (part.startsWith('`') && part.endsWith('`') && part.length >= 2) {
+            const rawCode = part.replace(/^`+|`+$/g, '').trim();
+            return (
+              <code
+                key={key}
+                className="px-1.5 py-0.5 rounded bg-[#111110] border border-[#2e2c2a] text-[#e8a84c] font-mono text-[11px]"
+              >
+                {rawCode}
+              </code>
+            );
+          }
 
-      // 6. Bold (** ... **)
-      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
-        return (
-          <strong key={key} className="font-semibold text-[#edeae4]">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
+          // 6. Bold (** ... ** or __ ... __)
+          if (
+            (part.startsWith('**') && part.endsWith('**') && part.length >= 4) ||
+            (part.startsWith('__') && part.endsWith('__') && part.length >= 4)
+          ) {
+            return (
+              <strong key={key} className="font-bold text-[#edeae4]">
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
 
-      // 7. Strikethrough (~~ ... ~~)
-      if (part.startsWith('~~') && part.endsWith('~~') && part.length >= 4) {
-        return (
-          <del key={key} className="line-through text-[#78746f]">
-            {part.slice(2, -2)}
-          </del>
-        );
-      }
+          // 7. Strikethrough (~~ ... ~~)
+          if (part.startsWith('~~') && part.endsWith('~~') && part.length >= 4) {
+            return (
+              <del key={key} className="line-through text-[#78746f]">
+                {part.slice(2, -2)}
+              </del>
+            );
+          }
 
-      // 8. Italics (* ... *)
-      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
-        return (
-          <em key={key} className="italic text-[#d6d3cd]">
-            {part.slice(1, -1)}
-          </em>
-        );
-      }
+          // 8. Italics (* ... * or _ ... _)
+          if (
+            (part.startsWith('*') && part.endsWith('*') && part.length >= 2) ||
+            (part.startsWith('_') && part.endsWith('_') && part.length >= 2)
+          ) {
+            return (
+              <em key={key} className="italic text-[#d6d3cd]">
+                {part.slice(1, -1)}
+              </em>
+            );
+          }
 
-      // 9. Safe Hyperlink [label](url)
-      const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-      if (linkMatch) {
-        const linkText = linkMatch[1];
-        const linkUrl = linkMatch[2].trim();
-        const isSafe = /^(?:https?:\/\/|mailto:)/i.test(linkUrl);
+          // 9. Safe Hyperlink [label](url)
+          const linkMatch = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+          if (linkMatch) {
+            const linkText = linkMatch[1];
+            const linkUrl = linkMatch[2].trim();
+            const isSafe = /^(?:https?:\/\/|mailto:)/i.test(linkUrl);
 
-        if (isSafe) {
-          return (
-            <a
-              key={key}
-              href={linkUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#e8a84c] hover:underline inline-flex items-center gap-0.5 font-medium"
-            >
-              <span>{linkText}</span>
-              <ExternalLink className="w-2.5 h-2.5 opacity-70" />
-            </a>
-          );
-        }
-        return `${linkText} (${linkUrl})`;
-      }
+            if (isSafe) {
+              return (
+                <a
+                  key={key}
+                  href={linkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#e8a84c] hover:underline inline-flex items-center gap-0.5 font-medium"
+                >
+                  <span>{linkText}</span>
+                  <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                </a>
+              );
+            }
+            return `${linkText} (${linkUrl})`;
+          }
 
-      return part;
-    }).filter(Boolean);
-  });
+          return part;
+        }).filter(Boolean);
+    });
   } catch (err) {
     console.error('Error in renderInline:', err);
     return [text];
@@ -479,34 +501,227 @@ const MarkdownTable: React.FC<{
 export const MarkdownContent: React.FC<MarkdownContentProps> = ({
   content,
   onPromptClick,
+  conversationId,
+  appliedActionKeys,
+  onActionApplied,
 }) => {
   if (!content) return null;
 
+  const [localAppliedKeys, setLocalAppliedKeys] = useState<Set<string>>(new Set());
+  const [isApplyingAll, setIsApplyingAll] = useState(false);
+  const [applyAllProgress, setApplyAllProgress] = useState({ current: 0, total: 0 });
+
+  const isKeyApplied = (key: string) => {
+    return (appliedActionKeys && appliedActionKeys.has(key)) || localAppliedKeys.has(key);
+  };
+
   try {
-    // Process text into major structural blocks:
-    // 1. Code blocks (```lang ... ```)
-    // 2. Display math ($$ ... $$)
-    // 3. Tables (| ... |)
-    // 4. Lines (headers, lists, blockquotes, horizontal rules, prompt actions, paragraphs)
+    const lines = content.split(/\r?\n/);
+
+    // Pre-scan all action proposal blocks in this message
+    const actionItems: { action: string; data: any; actionKey: string; lineIndex: number }[] = [];
+    {
+      let sIdx = 0;
+      while (sIdx < lines.length) {
+        const l = lines[sIdx];
+        if (l.trim().startsWith('```')) {
+          const langMatch = l.trim().match(/^```([a-zA-Z0-9_\-:]*)/);
+          const language = (langMatch ? langMatch[1] : '').toLowerCase();
+          const codeLines: string[] = [];
+          const startLine = sIdx;
+          sIdx++;
+          while (sIdx < lines.length && !lines[sIdx].trim().startsWith('```')) {
+            codeLines.push(lines[sIdx]);
+            sIdx++;
+          }
+          sIdx++; // Skip closing ```
+          const isActionTag =
+            language.startsWith('action') ||
+            language.startsWith('pm-action') ||
+            language.startsWith('chibi-action');
+          if (isActionTag || language === 'json') {
+            try {
+              const parsed = JSON.parse(codeLines.join('\n').trim());
+              if (
+                parsed &&
+                typeof parsed === 'object' &&
+                (isActionTag || parsed.action === 'create_ticket' || parsed.action === 'create_task')
+              ) {
+                const actionName = language.includes(':')
+                  ? language.split(':')[1]
+                  : parsed.action || 'create_ticket';
+                const title = (parsed.title || parsed.subject || 'Untitled Story').trim();
+                const actionKey =
+                  parsed.action_key ||
+                  `${conversationId || 'global'}:${actionName}:${title.toLowerCase()}`;
+                actionItems.push({
+                  action: actionName,
+                  data: parsed,
+                  actionKey,
+                  lineIndex: startLine,
+                });
+              }
+            } catch (_) {}
+          }
+        } else {
+          sIdx++;
+        }
+      }
+    }
+
+    const pendingActions = actionItems.filter((item) => !isKeyApplied(item.actionKey));
+    const hasMultipleActions = actionItems.length >= 2;
+
+    const handleApplyAll = async () => {
+      if (isApplyingAll || pendingActions.length === 0) return;
+      setIsApplyingAll(true);
+      setApplyAllProgress({ current: 0, total: pendingActions.length });
+
+      for (let idx = 0; idx < pendingActions.length; idx++) {
+        const item = pendingActions[idx];
+        setApplyAllProgress({ current: idx + 1, total: pendingActions.length });
+        try {
+          const res = await AppBridge.api.executeAction(
+            item.action,
+            item.data,
+            conversationId,
+            item.actionKey
+          );
+          if (res.success && res.task) {
+            setLocalAppliedKeys((prev) => new Set([...prev, item.actionKey]));
+            if (onActionApplied) {
+              onActionApplied(res.task, item.actionKey);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to apply action in batch:', err);
+        }
+      }
+      setIsApplyingAll(false);
+    };
 
     const elements: React.ReactNode[] = [];
-    const lines = content.split(/\r?\n/);
+    let renderedApplyAllBar = false;
     let i = 0;
 
-  while (i < lines.length) {
-    const line = lines[i];
+    while (i < lines.length) {
+      const line = lines[i];
 
-    // 1. Code Block (```)
-    if (line.trim().startsWith('```')) {
-      const langMatch = line.trim().match(/^```([a-zA-Z0-9_-]*)/);
-      const language = langMatch ? langMatch[1] : '';
-      const codeLines: string[] = [];
-      i++;
-      while (i < lines.length && !lines[i].trim().startsWith('```')) {
-        codeLines.push(lines[i]);
+      // 1. Code Block (```) or Action Block (```action:...)
+      if (line.trim().startsWith('```')) {
+        const langMatch = line.trim().match(/^```([a-zA-Z0-9_\-:]*)/);
+        const language = (langMatch ? langMatch[1] : '').toLowerCase();
+        const codeLines: string[] = [];
         i++;
-      }
-      i++; // Skip closing ```
+        while (i < lines.length && !lines[i].trim().startsWith('```')) {
+          codeLines.push(lines[i]);
+          i++;
+        }
+        i++; // Skip closing ```
+
+        const codeRaw = codeLines.join('\n').trim();
+
+        // Check if this is an action proposal block (e.g. action:create_ticket, action:create_task, chibi-action:...)
+        const isActionTag =
+          language.startsWith('action') ||
+          language.startsWith('pm-action') ||
+          language.startsWith('chibi-action');
+
+        if (isActionTag || language === 'json') {
+          try {
+            const parsed = JSON.parse(codeRaw);
+            if (
+              parsed &&
+              typeof parsed === 'object' &&
+              (isActionTag || parsed.action === 'create_ticket' || parsed.action === 'create_task')
+            ) {
+              const actionName = language.includes(':')
+                ? language.split(':')[1]
+                : parsed.action || 'create_ticket';
+              const title = (parsed.title || parsed.subject || 'Untitled Story').trim();
+              const actionKey =
+                parsed.action_key ||
+                `${conversationId || 'global'}:${actionName}:${title.toLowerCase()}`;
+
+              // Render Apply All bar if multiple action proposals exist in this message
+              if (hasMultipleActions && !renderedApplyAllBar) {
+                elements.push(
+                  <div
+                    key="apply-all-bar"
+                    className="my-3 p-3 rounded-xl bg-gradient-to-r from-[#e8a84c]/10 via-[#1a1918] to-[#161514] border border-[#e8a84c]/30 flex items-center justify-between shadow-sm animate-fadeIn"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-[#e8a84c]/20 text-[#e8a84c]">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-[#edeae4]">
+                          ⚡ Batch Action Proposal: {actionItems.length} Sprint Tickets
+                        </div>
+                        <div className="text-[11px] text-[#9b9690]">
+                          {pendingActions.length === 0
+                            ? 'All proposals have been successfully applied to the Sprint Board.'
+                            : `${pendingActions.length} of ${actionItems.length} tickets pending approval.`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      {pendingActions.length === 0 ? (
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#5aab7f]/15 border border-[#5aab7f]/30 text-xs font-semibold text-[#5aab7f]">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>All Applied ({actionItems.length})</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleApplyAll}
+                          disabled={isApplyingAll}
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#e8a84c] hover:bg-[#d4973b] disabled:opacity-50 text-black font-semibold text-xs shadow-sm transition-all cursor-pointer"
+                        >
+                          {isApplyingAll ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>
+                                Applying ({applyAllProgress.current}/{applyAllProgress.total})...
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="font-bold">⚡</span>
+                              <span>Apply All ({pendingActions.length} Tickets)</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+                renderedApplyAllBar = true;
+              }
+
+              elements.push(
+                <ActionCard
+                  key={`action-${i}`}
+                  action={actionName}
+                  data={parsed}
+                  conversationId={conversationId}
+                  actionKey={actionKey}
+                  isAlreadyApplied={isKeyApplied(actionKey)}
+                  onApplied={(task, key) => {
+                    setLocalAppliedKeys((prev) => new Set([...prev, key]));
+                    if (onActionApplied) {
+                      onActionApplied(task, key);
+                    }
+                  }}
+                />
+              );
+              continue;
+            }
+          } catch (_) {
+            // Not valid JSON, fallback to standard code block
+          }
+        }
+
       elements.push(
         <CodeBlock
           key={`code-${i}`}
@@ -593,11 +808,35 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({
       continue;
     }
     if (line.startsWith('### ')) {
-      elements.push(
-        <h3 key={`h3-${i}`} className="text-sm font-bold text-[#edeae4] mt-3 mb-1">
-          {renderInline(line.slice(4), onPromptClick)}
-        </h3>
-      );
+      const headerText = line.slice(4).trim();
+      const isPhaseHeader =
+        /Phase\s+\d+/i.test(headerText) ||
+        headerText.includes('📌') ||
+        headerText.includes('🚀') ||
+        headerText.includes('⚡') ||
+        /Milestone\s+\d+/i.test(headerText);
+
+      if (isPhaseHeader) {
+        elements.push(
+          <div
+            key={`phase-${i}`}
+            className="my-3.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#e8a84c]/15 via-[#1a1918] to-[#161514] border-l-4 border-[#e8a84c] border-y border-r border-[#2e2c2a] flex items-center justify-between shadow-sm"
+          >
+            <h3 className="text-sm font-bold text-[#edeae4] tracking-wide flex items-center gap-2">
+              {renderInline(headerText, onPromptClick)}
+            </h3>
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#e8a84c] px-2 py-0.5 rounded bg-[#e8a84c]/10 border border-[#e8a84c]/20 flex-shrink-0">
+              Roadmap Phase
+            </span>
+          </div>
+        );
+      } else {
+        elements.push(
+          <h3 key={`h3-${i}`} className="text-sm font-bold text-[#edeae4] mt-3 mb-1">
+            {renderInline(headerText, onPromptClick)}
+          </h3>
+        );
+      }
       i++;
       continue;
     }

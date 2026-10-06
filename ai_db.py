@@ -142,10 +142,22 @@ def init_ai_db():
                     created_at TEXT NOT NULL
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS applied_actions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    action_key TEXT UNIQUE NOT NULL,
+                    conversation_id TEXT NOT NULL,
+                    action_name TEXT NOT NULL,
+                    entity_id INTEGER,
+                    title TEXT NOT NULL DEFAULT '',
+                    applied_at TEXT NOT NULL
+                )
+            """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, created_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_conversations_proj ON conversations(project_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunks_doc ON document_chunks(doc_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_chunks_proj ON document_chunks(project_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_applied_actions_conv ON applied_actions(conversation_id)")
 
             conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS document_chunks_fts USING fts5(
@@ -435,3 +447,63 @@ def search_chunks_bm25(query: str, project_id: Optional[int] = None, limit: int 
             )
 
         return [dict(r) for r in cur.fetchall()]
+
+
+# ── Applied Actions (State Persistence across Tab Switches) ───────────────────
+
+def record_applied_action(
+    action_key: str,
+    conversation_id: str,
+    action_name: str,
+    title: str = "",
+    entity_id: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Record an interactive action execution in ai_context.db.
+    Guarantees that applied status is persisted across tab switches and app restarts.
+    """
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    with get_ai_db() as conn:
+        with conn:
+            conn.execute("""
+                INSERT INTO applied_actions (action_key, conversation_id, action_name, title, entity_id, applied_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(action_key) DO UPDATE SET
+                    entity_id=excluded.entity_id,
+                    applied_at=excluded.applied_at
+            """, (action_key, conversation_id, action_name, title, entity_id, now))
+    return {
+        "action_key": action_key,
+        "conversation_id": conversation_id,
+        "action_name": action_name,
+        "title": title,
+        "entity_id": entity_id,
+        "applied_at": now,
+    }
+
+
+def get_applied_actions(conversation_id: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Retrieve all recorded applied actions, optionally filtered by conversation_id."""
+    with get_ai_db() as conn:
+        if conversation_id:
+            rows = conn.execute(
+                "SELECT * FROM applied_actions WHERE conversation_id = ? ORDER BY id ASC",
+                (conversation_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM applied_actions ORDER BY id ASC").fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_applied_action_keys(conversation_id: Optional[str] = None) -> List[str]:
+    """Retrieve distinct action keys that have been applied."""
+    with get_ai_db() as conn:
+        if conversation_id:
+            rows = conn.execute(
+                "SELECT action_key FROM applied_actions WHERE conversation_id = ?",
+                (conversation_id,),
+            ).fetchall()
+        else:
+            rows = conn.execute("SELECT action_key FROM applied_actions").fetchall()
+        return [r["action_key"] for r in rows]
+

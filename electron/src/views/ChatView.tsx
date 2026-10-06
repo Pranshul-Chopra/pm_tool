@@ -47,6 +47,8 @@ interface ConversationItem {
 }
 
 const COMMAND_CHIPS = [
+  { cmd: '/query', label: 'Database Query', desc: 'Synthesize guarded SQL queries for connected datasets' },
+  { cmd: '/plan', label: 'Sprint & Roadmap', desc: 'Structure multi-phase roadmap and ticket proposals' },
   { cmd: '/prd', label: 'Draft PRD', desc: 'Synthesize comprehensive requirements' },
   { cmd: '/breakdown', label: 'Decompose Stories', desc: 'Break initiatives into Agile stories' },
   { cmd: '/data', label: 'KPI Insights', desc: 'Inspect dataset metrics and health' },
@@ -57,12 +59,23 @@ const COMMAND_CHIPS = [
 
 const DEFAULT_SUGGESTIONS = [
   'Draft a PRD for OAuth2 authentication with JWT refresh tokens',
+  'Structure a 3-phase roadmap and create sprint backlog tickets',
   'Break down our sprint backlog and identify blocking technical risks',
   'Define 3 North Star KPIs and guardrail metrics for our new feature',
   'Summarize the key architectural decisions from our indexed docs',
 ];
 
-export const ChatView: React.FC = () => {
+export interface ChatViewProps {
+  inheritedTab?: string | null;
+  initialProjectId?: number | null;
+  onClearInheritedTab?: () => void;
+}
+
+export const ChatView: React.FC<ChatViewProps> = ({
+  inheritedTab,
+  initialProjectId,
+  onClearInheritedTab,
+}) => {
   // Conversations State
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
@@ -72,7 +85,9 @@ export const ChatView: React.FC = () => {
 
   // Projects & LLM Gateway State
   const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(
+    initialProjectId || null
+  );
   const [llmStatus, setLlmStatus] = useState<{ provider?: string; model?: string } | null>(null);
 
   // Modal States
@@ -85,12 +100,32 @@ export const ChatView: React.FC = () => {
   const [savingDocId, setSavingDocId] = useState<string | null>(null);
   const [savedDocId, setSavedDocId] = useState<string | null>(null);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
+  // Applied Actions State (Persisted across tab switches)
+  const [appliedActionKeys, setAppliedActionKeys] = useState<Set<string>>(new Set());
 
   // Chat Stream State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // Tab Inherit & Slash Suggestions State
+  const [dismissedInheritedTab, setDismissedInheritedTab] = useState(false);
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
+
+  const matchingCommands =
+    input.startsWith('/') && !activeCommand
+      ? COMMAND_CHIPS.filter(
+          (c) =>
+            c.cmd.toLowerCase().startsWith(input.trim().toLowerCase()) ||
+            c.label.toLowerCase().includes(input.slice(1).trim().toLowerCase())
+        )
+      : [];
+  const showSlashMenu = matchingCommands.length > 0;
+
+  useEffect(() => {
+    setSlashSelectedIndex(0);
+  }, [input]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -153,6 +188,13 @@ export const ChatView: React.FC = () => {
           : '',
       }));
       setMessages(mapped);
+
+      // Restore persisted applied action keys
+      if (res.applied_action_keys && Array.isArray(res.applied_action_keys)) {
+        setAppliedActionKeys(new Set(res.applied_action_keys));
+      } else {
+        setAppliedActionKeys(new Set());
+      }
     } catch (err) {
       console.error('Failed to load conversation messages:', err);
     }
@@ -160,6 +202,7 @@ export const ChatView: React.FC = () => {
 
   const startNewChat = () => {
     setActiveConvId(null);
+    setAppliedActionKeys(new Set());
     setMessages([
       {
         id: 'init',
@@ -388,6 +431,32 @@ export const ChatView: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showSlashMenu) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashSelectedIndex((prev) => (prev + 1) % matchingCommands.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashSelectedIndex((prev) => (prev - 1 + matchingCommands.length) % matchingCommands.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        const selected = matchingCommands[slashSelectedIndex];
+        if (selected) {
+          setActiveCommand(selected.cmd);
+          setInput('');
+          return;
+        }
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (e.key === 'Backspace' && !input && activeCommand) {
       setActiveCommand(null);
     } else if (e.key === 'Enter') {
@@ -533,6 +602,135 @@ export const ChatView: React.FC = () => {
           </div>
         </div>
 
+        {/* ── Contextual Tab Inheritance Banner ─────────────────────────────── */}
+        {inheritedTab && !dismissedInheritedTab && (
+          <div className="px-4 py-2.5 bg-gradient-to-r from-[#1f1e1c] via-[#1a1918] to-[#161514] border-b border-[#2e2c2a] flex items-center justify-between text-xs animate-fadeIn">
+            <div className="flex items-center gap-2.5 flex-1 mr-2">
+              <div className="p-1 rounded bg-[#e8a84c]/10 text-[#e8a84c] flex-shrink-0">
+                {inheritedTab === 'board' ? '📌' : inheritedTab === 'dashboard' ? '📊' : '📚'}
+              </div>
+              <div className="text-[#edeae4]">
+                <span className="font-semibold text-[#e8a84c]">
+                  {inheritedTab === 'board'
+                    ? 'Sprint Board Scope Active:'
+                    : inheritedTab === 'dashboard'
+                    ? 'Data Studio Scope Active:'
+                    : 'Knowledge Base Scope Active:'}
+                </span>{' '}
+                <span className="text-[#9b9690]">
+                  {inheritedTab === 'board'
+                    ? 'Live visibility into sprint backlog, user tickets, and velocity.'
+                    : inheritedTab === 'dashboard'
+                    ? 'Live visibility into ingested datasets, column telemetry, and KPI cards.'
+                    : 'Live visibility into indexed documents, PRDs, and architecture specs.'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {inheritedTab === 'board' && (
+                <>
+                  <button
+                    onClick={() => {
+                      setActiveCommand('/plan');
+                      setInput('Create a 3-phase roadmap and break down sprint stories');
+                    }}
+                    className="px-2 py-0.5 rounded bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-[11px] text-[#e8a84c] font-mono cursor-pointer"
+                  >
+                    ⚡ /plan
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveCommand('/breakdown');
+                      setInput('Decompose upcoming initiatives into tickets');
+                    }}
+                    className="px-2 py-0.5 rounded bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-[11px] text-[#edeae4] font-mono cursor-pointer"
+                  >
+                    📝 /breakdown
+                  </button>
+                </>
+              )}
+              {inheritedTab === 'dashboard' && (
+                <>
+                  <button
+                    onClick={() => {
+                      setActiveCommand('/data');
+                      setInput('Analyze connected datasets and highlight outliers');
+                    }}
+                    className="px-2 py-0.5 rounded bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-[11px] text-[#e8a84c] font-mono cursor-pointer"
+                  >
+                    📊 /data
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveCommand('/metrics');
+                      setInput('Define North Star KPIs and guardrails');
+                    }}
+                    className="px-2 py-0.5 rounded bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-[11px] text-[#edeae4] font-mono cursor-pointer"
+                  >
+                    🎯 /metrics
+                  </button>
+                </>
+              )}
+              {inheritedTab === 'documents' && (
+                <>
+                  <button
+                    onClick={() => {
+                      setActiveCommand('/search');
+                      setInput('Query indexed knowledge base documents');
+                    }}
+                    className="px-2 py-0.5 rounded bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-[11px] text-[#e8a84c] font-mono cursor-pointer"
+                  >
+                    🔍 /search
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveCommand('/summarize');
+                      setInput('Summarize key architectural decisions');
+                    }}
+                    className="px-2 py-0.5 rounded bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-[11px] text-[#edeae4] font-mono cursor-pointer"
+                  >
+                    📑 /summarize
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => {
+                  setDismissedInheritedTab(true);
+                  if (onClearInheritedTab) onClearInheritedTab();
+                }}
+                className="p-1 rounded text-[#9b9690] hover:text-[#edeae4] hover:bg-[#222120] cursor-pointer"
+                title="Dismiss banner"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── /plan Studio Active Header Banner ─────────────────────────────── */}
+        {activeCommand === '/plan' && (
+          <div className="px-4 py-2 bg-gradient-to-r from-[#e8a84c]/15 via-[#1a1918] to-[#161514] border-b border-[#e8a84c]/30 flex items-center justify-between text-xs animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <div className="p-1 rounded bg-[#e8a84c]/20 text-[#e8a84c]">
+                <Kanban className="w-3.5 h-3.5" />
+              </div>
+              <div>
+                <span className="font-bold text-[#edeae4]">Sprint & Roadmap Studio Mode Active</span>
+                <span className="text-[11px] text-[#9b9690] ml-2">Phase Header Blocks + 1-Click Action Proposals enabled</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setInput('Structure a 3-phase release roadmap and break down sprint backlog tickets')}
+                className="px-2.5 py-1 rounded bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] text-[11px] text-[#e8a84c] font-mono cursor-pointer transition-colors"
+              >
+                ⚡ Insert Plan Prompt
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Stream Messages Container */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           {messages.map((m) => (
@@ -552,7 +750,15 @@ export const ChatView: React.FC = () => {
                   {m.sender === 'assistant' ? (
                     <MarkdownContent
                       content={m.content}
+                      conversationId={activeConvId || undefined}
+                      appliedActionKeys={appliedActionKeys}
                       onPromptClick={(prompt) => handleSendMessage(prompt)}
+                      onActionApplied={(task, actionKey) => {
+                        console.log('Action applied to Kanban Board:', task, actionKey);
+                        if (actionKey) {
+                          setAppliedActionKeys((prev) => new Set([...prev, actionKey]));
+                        }
+                      }}
                     />
                   ) : (
                     <div className="whitespace-pre-wrap">{m.content}</div>
@@ -714,7 +920,46 @@ export const ChatView: React.FC = () => {
         </div>
 
         {/* ── Input Box & Command Bar ───────────────────────────────────────── */}
-        <div className="p-4 border-t border-[#2e2c2a] bg-[#161514] flex flex-col gap-2 flex-shrink-0">
+        <div className="p-4 border-t border-[#2e2c2a] bg-[#161514] flex flex-col gap-2 flex-shrink-0 relative">
+          {/* Floating Slash Command Suggestions */}
+          {showSlashMenu && (
+            <div className="absolute bottom-full left-4 mb-2 w-84 max-w-[calc(100%-2rem)] bg-[#1a1918] border border-[#e8a84c]/40 rounded-xl shadow-2xl p-1.5 z-50 overflow-hidden backdrop-blur-md animate-fadeIn">
+              <div className="px-2.5 py-1 text-[10px] font-mono uppercase text-[#e8a84c] border-b border-[#2e2c2a] mb-1 flex items-center justify-between">
+                <span>⚡ Slash Commands</span>
+                <span className="text-[#9b9690]">↑↓ Navigate · ↵ Select · Esc</span>
+              </div>
+              <div className="space-y-0.5 max-h-56 overflow-y-auto">
+                {matchingCommands.map((c, idx) => (
+                  <button
+                    key={c.cmd}
+                    type="button"
+                    onClick={() => {
+                      setActiveCommand(c.cmd);
+                      setInput('');
+                    }}
+                    className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-left transition-colors cursor-pointer ${
+                      idx === slashSelectedIndex
+                        ? 'bg-[#e8a84c] text-black font-semibold'
+                        : 'hover:bg-[#222120] text-[#edeae4]'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className={`font-mono text-xs font-bold ${idx === slashSelectedIndex ? 'text-black' : 'text-[#e8a84c]'}`}>
+                        {c.cmd}
+                      </span>
+                      <span className={`text-xs ${idx === slashSelectedIndex ? 'text-black' : 'text-[#edeae4]'}`}>
+                        {c.label}
+                      </span>
+                    </div>
+                    <span className={`text-[10px] hidden sm:inline ${idx === slashSelectedIndex ? 'text-black/80' : 'text-[#9b9690]'}`}>
+                      {c.desc}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Slash Command Bar */}
           <div className="flex items-center gap-2 overflow-x-auto pb-1">
             {COMMAND_CHIPS.map((chip) => (

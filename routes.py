@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, jsonify, send_file, send_
 import db
 import ai_db
 from llm import gateway as llm_gateway
+import workspace_context
 
 import os
 import sys
@@ -299,6 +300,122 @@ def tool_breakdown():
         return jsonify({"success": False, "error": f"Story decomposition failed: {str(e)}"}), 500
 
 
+@bp.route("/api/tools/execute_action", methods=["POST"])
+def api_execute_action():
+    """
+    Execute an AI-proposed interactive action (e.g. create_ticket / create_task).
+    Applies authorization policy and creates the ticket directly on the Sprint Board.
+    """
+    data = request.get_json(silent=True) or {}
+    action_name = str(data.get("action") or data.get("action_name") or "").strip().lower()
+    params = data.get("params") or {}
+    conv_id = data.get("conversation_id")
+
+    policy = db.get_ai_ticket_policy()
+    if not policy.get("creation_allowed", True):
+        return jsonify({
+            "error": "Ticket creation is currently disabled by organization policy in Settings.",
+            "policy": policy,
+        }), 403
+
+    if action_name in ("create_ticket", "createticket", "create_task", "createtask"):
+        title = str(params.get("title") or params.get("subject") or "").strip()
+        if not title:
+            return jsonify({"error": "Ticket title is required."}), 400
+
+        project_id = params.get("project_id")
+        projs = db.get_projects()
+        if not projs:
+            p = db.create_project(name="Default Workspace", description="Default project workspace")
+            project_id = p["id"]
+        elif not project_id:
+            project_id = projs[0]["id"]
+        else:
+            try:
+                pid = int(project_id)
+                if not any(p["id"] == pid for p in projs):
+                    project_id = projs[0]["id"]
+                else:
+                    project_id = pid
+            except (ValueError, TypeError):
+                project_id = projs[0]["id"]
+
+        description = str(params.get("description") or "").strip()
+        priority = str(params.get("priority") or "med").lower().strip()
+        if priority not in ("urgent", "high", "med", "low"):
+            priority = "med"
+        status = str(params.get("status") or "todo").lower().strip()
+        if status not in ("todo", "in_progress", "blocked", "done"):
+            status = "todo"
+
+        story_points = int(params.get("story_points") or 0)
+        acceptance_criteria = str(params.get("acceptance_criteria") or "").strip()
+        assignee = str(params.get("assignee") or "").strip()
+        ticket_type = str(params.get("ticket_type") or "internal").lower().strip()
+        if ticket_type not in ("internal", "external"):
+            ticket_type = "internal"
+
+        action_key = str(data.get("action_key") or params.get("action_key") or "").strip()
+        if not action_key:
+            action_key = f"{conv_id or 'global'}:{action_name}:{title.strip().lower()}"
+
+        task = db.create_task(
+            project_id=int(project_id),
+            title=title,
+            description=description,
+            status=status,
+            priority=priority,
+            story_points=story_points,
+            acceptance_criteria=acceptance_criteria,
+            assignee=assignee,
+            ticket_type=ticket_type,
+        )
+
+        # Record action execution in ai_context.db for persistent state across tab switches
+        try:
+            ai_db.record_applied_action(
+                action_key=action_key,
+                conversation_id=conv_id or "global",
+                action_name=action_name,
+                title=title,
+                entity_id=task.get("id"),
+            )
+        except Exception as e:
+            print("[Applied action persistence warning]", e)
+
+        if conv_id:
+            try:
+                ai_db.add_message(
+                    conversation_id=conv_id,
+                    role="assistant",
+                    content=f"⚡ Ticket **{title}** [#{task['id']} · {ticket_type.upper()}] successfully added to the Kanban Sprint Board!",
+                    model_info="Action Executor",
+                )
+            except Exception:
+                pass
+
+        return jsonify({
+            "success": True,
+            "action": action_name,
+            "action_key": action_key,
+            "task": task,
+            "message": f"Ticket #{task['id']} '{title}' successfully added to Sprint Board!",
+        })
+
+    return jsonify({"error": f"Unsupported action '{action_name}'."}), 400
+
+
+@bp.route("/api/tools/applied_actions", methods=["GET"])
+def api_applied_actions():
+    """Retrieve all applied interactive actions for persistent state across views."""
+    conv_id = request.args.get("conversation_id")
+    actions = ai_db.get_applied_actions(conv_id)
+    return jsonify({
+        "applied_actions": actions,
+        "applied_action_keys": [a["action_key"] for a in actions],
+    })
+
+
 @bp.route("/api/tasks/<int:task_id>", methods=["PATCH", "DELETE"])
 def task_detail(task_id: int):
     if request.method == "PATCH":
@@ -457,13 +574,34 @@ def api_llm_custom_probe():
         })
 
 
+@bp.route("/api/settings/ai-policies", methods=["GET", "POST"])
+def api_ai_policies():
+    """Manage AI Ticket Access and Action Execution Policies."""
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        access_scope = data.get("access_scope", "all")
+        creation_allowed = data.get("creation_allowed", True)
+        updated = db.set_ai_ticket_policy(access_scope=access_scope, creation_allowed=creation_allowed)
+        return jsonify(updated)
+    return jsonify(db.get_ai_ticket_policy())
+
+
+@bp.route("/api/workspace/context", methods=["GET"])
+def api_workspace_context():
+    """Retrieve structured live workspace context with AI ticket policies applied."""
+    project_id = request.args.get("project_id", type=int)
+    user_query = request.args.get("q")
+    ctx = workspace_context.get_workspace_context(project_id=project_id, user_query=user_query)
+    return jsonify(ctx)
+
+
 # ── PM AI Chat & Conversations ────────────────────────────────────────────────
 
-def _build_pm_system_prompt(project_id: int | None = None) -> str:
+def _build_pm_system_prompt(project_id: int | None = None, user_query: str | None = None) -> str:
     """
     Build the enterprise-grade professional PM Copilot behavioural prompt.
     Equips the model with principal PM frameworks, zero-fluff communication,
-    and deep contextual grounding in the active project.
+    and deep contextual grounding in the active project and live workspace context.
     """
     prompt = [
         "You are PM Copilot, a Staff / Principal Product Manager and Technical Architect assisting an enterprise product team.",
@@ -482,38 +620,35 @@ def _build_pm_system_prompt(project_id: int | None = None) -> str:
         "4. **Roadmap & Sprint Execution**: Break releases into MoSCoW (Must, Should, Could, Won't have) buckets with clear dependency sequencing.",
         "5. **Format**: Use clean GitHub-flavored markdown with bold headers, concise bullet points, and markdown tables for data comparisons.",
         "6. **Plain-Text Math & Symbols (No LaTeX)**: This chat UI renders formatted Markdown tables and text, NOT LaTeX math. NEVER use LaTeX dollar-sign notation (e.g. $X^+$, $\\le 8\\%$, $> 15\\%$, $\\approx$). Instead use clean plain-text and unicode equivalents: write `≤ 8%`, `> 15%`, `≥ 90%`, `≈ 5%`, `± 2`. Use standard markdown tables with clean pipes `| Col 1 | Col 2 |`.",
-        "7. **Actionable Suggestions & Next-Step Chips (Prompt Suggestions)**: When a brainstorming conversation, PRD discussion, or story decomposition reaches an actionable consensus, milestone, or natural follow-up (e.g. decomposing a story, generating metrics, creating a project, or writing a PRD), offer 1-2 interactive prompt suggestion chips at the bottom of your response in markdown format: `[📝 /breakdown <label>](prompt:/breakdown <suggested prompt>)` or `[📋 /prd <label>](prompt:/prd <suggested prompt>)` or `[🎯 /metrics <label>](prompt:/metrics <suggested prompt>)` or `[⚡ /plan <label>](prompt:/plan <suggested prompt>)` or `[📑 /summarize <label>](prompt:/summarize <suggested prompt>)`. When clicked, it automatically populates the user's input bar with the command and prompt so they can review, edit, or press Enter to execute.",
+        "7. **Tool Suite Awareness & Command Prefixes**: You are operating inside the PM Tool Workspace with full awareness of available tools. Recommend the appropriate command prefix when relevant:",
+        "   - `/query <intent>`: Connected SQLite Database Query Assistant. Synthesizes guarded, read-only SELECT queries based on connected schemas.",
+        "   - `/plan <initiative>`: Sprint Planning & Roadmap Studio with phase milestones and 1-click action proposals.",
+        "   - `/breakdown <feature>`: Decomposes PRDs and features into granular sprint user stories.",
+        "   - `/data <topic>`: Inspects connected dataset distributions, column metrics, and outliers in Data Studio.",
+        "   - `/prd <title>`: Generates formal Product Requirement Documents.",
+        "   - `/metrics <feature>`: Defines North Star KPIs, counter-metrics, and telemetry event specifications.",
+        "   - `/search <query>`: Semantic knowledge base search across indexed company documents.",
+        "   - `/summarize <doc>`: Extracts executive summaries, architecture specs, and decision logs.",
+        "8. **Action Proposals in Chat**: Whenever discussing concrete deliverables, tasks, sprint stories, or when the user says 'make a ticket', 'add a task', or 'create a story', ALWAYS propose each ticket using an interactive ```action:create_ticket fenced JSON block:",
+        "   ```action:create_ticket",
+        "   {",
+        "     \"title\": \"Feature or bug title\",",
+        "     \"description\": \"Concise engineering description\",",
+        "     \"priority\": \"high\",",
+        "     \"story_points\": 3,",
+        "     \"ticket_type\": \"internal\",",
+        "     \"acceptance_criteria\": \"Given [context] / When [action] / Then [outcome]\"",
+        "   }",
+        "   ```",
+        "   Do not simulate silent creation; always propose the action card so the user can review and 1-click apply it to the Kanban Sprint Board.",
+        "9. **Actionable Suggestions & Next-Step Chips (Prompt Suggestions)**: At the end of your response, always offer 1-2 interactive prompt suggestion chips using markdown format: `[⚡ /query <intent>](prompt:/query <intent>)`, `[📝 /breakdown <label>](prompt:/breakdown <suggested prompt>)`, `[⚡ /plan <label>](prompt:/plan <suggested prompt>)`, or `[📊 /data <label>](prompt:/data <suggested prompt>)`.",
     ]
 
-    if project_id:
-        try:
-            proj = db.get_project(project_id)
-            if proj:
-                prompt.append("\n=======================================================")
-                prompt.append(f"### ACTIVE PROJECT CONTEXT: {proj['name'].upper()}")
-                prompt.append(f"- **Domain / Category**: {proj.get('domain') or 'General'}")
-                prompt.append(f"- **Health Status**: {proj.get('health', 'planning').upper()} | **Priority**: {proj.get('priority', 'medium').upper()}")
-                if proj.get('owner'):
-                    prompt.append(f"- **Lead PM / Owner**: {proj['owner']}")
-                if proj.get('target_date'):
-                    prompt.append(f"- **Target Launch Timeline**: {proj['target_date']}")
-                if proj.get('description'):
-                    prompt.append(f"- **Core Overview**: {proj['description']}")
-                if proj.get('goals'):
-                    prompt.append(f"- **Strategic Goals / OKRs**:\n  {proj['goals']}")
-                if proj.get('tech_stack'):
-                    prompt.append(f"- **Architecture / Tech Stack**: {proj['tech_stack']}")
-
-                tasks = db.get_project_tasks(project_id)
-                if tasks:
-                    prompt.append(f"- **Current Backlog & Tasks ({len(tasks)} items, {proj.get('progress_pct', 0)}% completed)**:")
-                    for t in tasks[:20]:
-                        due = f" (Due: {t['due_date']})" if t.get('due_date') else ""
-                        prompt.append(f"  • [{t['status'].upper()}] {t['title']} [Priority: {t['priority'].capitalize()}]{due}")
-                prompt.append("=======================================================")
-                prompt.append("Align all suggestions, user stories, edge cases, and architectures directly with the goals, constraints, and tasks of this active project.")
-        except Exception:
-            pass
+    try:
+        ws_ctx = workspace_context.get_workspace_context(project_id=project_id, user_query=user_query)
+        prompt.append("\n" + workspace_context.format_workspace_context_for_prompt(ws_ctx, active_project_id=project_id))
+    except Exception as e:
+        print("[Workspace context extraction warning]", e)
 
     try:
         import data_engine
@@ -547,7 +682,12 @@ def api_conversation_detail(conv_id):
         if not conv:
             return jsonify({"error": "Conversation not found"}), 404
         messages = ai_db.get_conversation_messages(conv_id)
-        return jsonify({"conversation": conv, "messages": messages})
+        applied_keys = ai_db.get_applied_action_keys(conv_id)
+        return jsonify({
+            "conversation": conv,
+            "messages": messages,
+            "applied_action_keys": applied_keys,
+        })
 
     elif request.method == "PATCH":
         data = request.get_json(silent=True) or {}
@@ -603,7 +743,7 @@ def api_chat():
 
     # 4. Construct system prompt with active project context
     target_proj_id = conv.get("project_id") or project_id
-    system_prompt = _build_pm_system_prompt(project_id=target_proj_id)
+    system_prompt = _build_pm_system_prompt(project_id=target_proj_id, user_query=message)
 
     # 4b. Command-specific directive injection
     lower_msg = message.lower().strip()
@@ -624,9 +764,14 @@ def api_chat():
         )
     elif lower_msg.startswith("/plan"):
         system_prompt += (
-            "\n\n### SPECIAL DIRECTIVE: /plan (Sprint & Roadmap Mode)\n"
-            "Structure the response into release phases (Phase 1 MVP, Phase 2 Enhancement, Phase 3 Scale). "
-            "Break down sprint backlog tickets with MoSCoW prioritization, dependencies, and estimation."
+            "\n\n### SPECIAL DIRECTIVE: /plan (Sprint Planning & Roadmap Studio Mode)\n"
+            "Structure your roadmap with clear, distinct Phase Header Blocks:\n"
+            "- `### 📌 Phase 1: MVP Core Architecture`\n"
+            "- `### 🚀 Phase 2: Feature Expansion & Enhancement`\n"
+            "- `### ⚡ Phase 3: Enterprise Scale & Hardening`\n"
+            "For key sprint deliverables and user stories across these phases, generate interactive ```action:create_ticket blocks "
+            "with title, description, priority ('urgent'|'high'|'med'|'low'), story_points, ticket_type ('internal'|'external'), "
+            "and Gherkin acceptance criteria so the product manager can review and 1-click apply them directly to the Kanban Sprint Board."
         )
     elif lower_msg.startswith("/metrics"):
         system_prompt += (
@@ -648,6 +793,29 @@ def api_chat():
             "Analyze the connected business datasets, schema metrics, and dashboard KPIs provided in the context. "
             "Synthesize an executive data insights brief: 1. Core Trends & Findings, 2. Key Metrics & Outliers, "
             "3. Root-Cause Hypotheses, 4. Actionable Next Steps. Cite specific dataset tables, column dimensions, and values."
+        )
+    elif lower_msg.startswith("/query"):
+        clean_query = re.sub(r"^/query\s*", "", message, flags=re.IGNORECASE).strip() or message
+        system_prompt += (
+            "\n\n### SPECIAL DIRECTIVE: /query (Dataset SQL Query Assistant Mode)\n"
+            "The user wishes to query or extract specific metrics from their connected business dataset(s).\n"
+            "1. Inspect the connected datasets and table/column schemas provided in the context.\n"
+            "2. Propose a precise, safe, read-only SQLite SELECT query formatted in a ```sql fenced code block that fulfills the user's intent.\n"
+            "3. Clearly explain the logic of the query: which tables are referenced, joins (if applicable), WHERE filters, GROUP BY aggregations, and ORDER BY limits.\n"
+            "4. Describe expected output columns and potential edge cases (e.g. NULL handling, date format matching).\n"
+            "5. Provide actionable follow-up prompt chips: `[⚡ /query <refinement>](prompt:/query <refinement>)` or `[📊 /data <dataset>](prompt:/data <dataset>)`."
+        )
+
+    # 4c. Ticket Request Detection (e.g. "make a ticket", "create a story", "add a task")
+    ticket_triggers = ("make a ticket", "create a ticket", "add a ticket", "new ticket", "create ticket",
+                       "make ticket", "make task", "create task", "add task", "new task", "add to board",
+                       "add to backlog", "create user story", "create story")
+    if any(trigger in lower_msg for trigger in ticket_triggers):
+        system_prompt += (
+            "\n\n### USER TICKET REQUEST DETECTED:\n"
+            "The user explicitly asked to create or propose tickets/tasks. "
+            "Formulate the tickets with full engineering rigor and output each proposed ticket inside an "
+            "```action:create_ticket fenced JSON block so the user can review and 1-click apply it to the Sprint Board."
         )
 
     # 4c. Retrieve verified evidence from local company documents (RAG)

@@ -17,7 +17,7 @@ import {
   Zap,
 } from 'lucide-react';
 import AppBridge from '../services/bridge';
-import type { LLMStatus, LLMProviderPref } from '../types';
+import type { LLMStatus, LLMProviderPref, TicketAccessScope } from '../types';
 
 export const SettingsView: React.FC = () => {
   // App Version
@@ -34,6 +34,11 @@ export const SettingsView: React.FC = () => {
   const [modelIdentifier, setModelIdentifier] = useState('');
   const [customBaseUrl, setCustomBaseUrl] = useState('');
   const [ollamaSelectedModel, setOllamaSelectedModel] = useState('');
+
+  // AI Ticket Policy & Execution Privileges State
+  const [ticketScope, setTicketScope] = useState<TicketAccessScope>('all');
+  const [ticketCreationAllowed, setTicketCreationAllowed] = useState(true);
+  const [savingPolicies, setSavingPolicies] = useState(false);
 
   // Discovered Gemini Models
   const [geminiModels, setGeminiModels] = useState<string[]>([]);
@@ -90,9 +95,39 @@ export const SettingsView: React.FC = () => {
         console.error('Failed to get version info:', err);
       }
     }
+
+    async function loadPolicies() {
+      try {
+        const p = await AppBridge.api.getAIPolicies();
+        if (p.access_scope) setTicketScope(p.access_scope);
+        if (typeof p.creation_allowed === 'boolean') setTicketCreationAllowed(p.creation_allowed);
+      } catch (err) {
+        console.error('Failed to load AI ticket policies:', err);
+      }
+    }
+
     loadVersion();
     loadStatus();
+    loadPolicies();
   }, []);
+
+  // Save AI Ticket Policies
+  const handleSavePolicies = async () => {
+    setSavingPolicies(true);
+    try {
+      const res = await AppBridge.api.updateAIPolicies({
+        access_scope: ticketScope,
+        creation_allowed: ticketCreationAllowed,
+      });
+      setTicketScope(res.access_scope);
+      setTicketCreationAllowed(res.creation_allowed);
+      showNotification('success', 'AI Ticket Access & Execution Policies updated successfully.');
+    } catch (err: any) {
+      showNotification('error', `Failed to save AI policies: ${err.message}`);
+    } finally {
+      setSavingPolicies(false);
+    }
+  };
 
   // Probe Ollama server
   const handleProbeOllama = async () => {
@@ -548,6 +583,128 @@ export const SettingsView: React.FC = () => {
             </>
           )}
         </button>
+      </div>
+
+      {/* ── 3. AI Agent Permissions & Ticket Access Policy ───────────────── */}
+      <div className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl p-5 space-y-5">
+        <div className="flex items-center justify-between border-b border-[#2e2c2a] pb-3">
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-[#edeae4]">
+            <div className="p-1.5 rounded-lg bg-[#e8a84c]/10 text-[#e8a84c]">
+              <Shield className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block">AI Agent Ticket Access & Execution Policy</span>
+              <span className="text-[11px] font-normal text-[#9b9690]">
+                Configure data access boundaries (Internal vs External tickets) and proposal privileges
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#222120] text-[#e8a84c] border border-[#2e2c2a]">
+            Access Scope: {ticketScope.toUpperCase()}
+          </span>
+        </div>
+
+        {/* Access Scope Options */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-[#edeae4] block">
+            Ticket Visibility Scope
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[
+              {
+                id: 'all',
+                label: 'All Tickets (Internal & External)',
+                desc: 'Full visibility into customer issues, bug reports, and internal technical debt.',
+                icon: '🌐',
+              },
+              {
+                id: 'internal_only',
+                label: 'Internal Only (Engineering)',
+                desc: 'Restricts AI visibility to internal architecture and refactor tickets. External user tickets are hidden.',
+                icon: '🔒',
+              },
+              {
+                id: 'external_only',
+                label: 'External Only (Customer & Product)',
+                desc: 'Restricts AI visibility to customer issues. Internal engineering debt tickets are hidden.',
+                icon: '👥',
+              },
+              {
+                id: 'none',
+                label: 'No Ticket Access (Strictly Restricted)',
+                desc: 'AI cannot inspect or cite any sprint backlog tickets or tasks.',
+                icon: '🚫',
+              },
+            ].map((opt) => (
+              <div
+                key={opt.id}
+                onClick={() => setTicketScope(opt.id as TicketAccessScope)}
+                className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                  ticketScope === opt.id
+                    ? 'bg-[#e8a84c]/10 border-[#e8a84c] text-[#edeae4]'
+                    : 'bg-[#161514] border-[#2e2c2a] hover:border-[#3a3835] text-[#9b9690]'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">{opt.icon}</span>
+                  <span className={`text-xs font-semibold ${ticketScope === opt.id ? 'text-[#e8a84c]' : 'text-[#edeae4]'}`}>
+                    {opt.label}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#9b9690] mt-1.5 leading-relaxed">
+                  {opt.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Ticket Creation Privileges Toggle */}
+        <div className="pt-3 border-t border-[#2e2c2a] flex items-center justify-between">
+          <div className="space-y-0.5 pr-4">
+            <span className="text-xs font-medium text-[#edeae4] block">
+              Ticket Proposal & 1-Click Sprint Board Creation
+            </span>
+            <p className="text-[11px] text-[#9b9690]">
+              Allow AI to propose tickets using 1-Click Action Cards when you ask or run <code className="text-[#e8a84c]">/plan</code>.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setTicketCreationAllowed(!ticketCreationAllowed)}
+            className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer flex-shrink-0 ${
+              ticketCreationAllowed ? 'bg-[#e8a84c]' : 'bg-[#2e2c2a]'
+            }`}
+          >
+            <div
+              className={`bg-[#111110] w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                ticketCreationAllowed ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Save Policy Button */}
+        <div className="flex items-center justify-end pt-2">
+          <button
+            onClick={handleSavePolicies}
+            disabled={savingPolicies}
+            className="px-4 py-2 bg-[#222120] hover:bg-[#282725] border border-[#e8a84c]/40 hover:border-[#e8a84c] text-[#e8a84c] font-semibold text-xs rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+          >
+            {savingPolicies ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving Policies...</span>
+              </>
+            ) : (
+              <>
+                <Shield className="w-3.5 h-3.5" />
+                <span>Save Ticket Policies</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* 4. Native OS Integrations */}

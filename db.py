@@ -254,14 +254,47 @@ def init_db():
                     INSERT OR IGNORE INTO schema_version (version) VALUES (6);
                 """)
 
+            if current_ver < 7:
+                try:
+                    con.execute("ALTER TABLE tasks ADD COLUMN ticket_type TEXT DEFAULT 'internal'")
+                except sqlite3.OperationalError:
+                    pass
+                con.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_ticket_access', 'all')")
+                con.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_ticket_creation', 'enabled')")
+                con.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (7)")
 
-# ── AI Config CRUD ─────────────────────────────────────────────────────────────
+
+# ── AI Config & Policy CRUD ────────────────────────────────────────────────────
 
 def get_ai_config(key: str) -> str | None:
     """Retrieve a stored AI config value (e.g. provider, api_key, model_name)."""
     with get_db() as con:
         row = con.execute("SELECT value FROM ai_config WHERE key = ?", (key,)).fetchone()
     return row["value"] if row else None
+
+
+def get_ai_ticket_policy() -> dict:
+    """Return AI ticket access scope ('all', 'internal_only', 'external_only', 'none') and creation permission."""
+    with get_db() as con:
+        access_row = con.execute("SELECT value FROM app_settings WHERE key = 'ai_ticket_access'").fetchone()
+        create_row = con.execute("SELECT value FROM app_settings WHERE key = 'ai_ticket_creation'").fetchone()
+    return {
+        "access_scope": access_row["value"] if access_row else "all",
+        "creation_allowed": (create_row["value"] if create_row else "enabled") == "enabled",
+    }
+
+
+def set_ai_ticket_policy(access_scope: str, creation_allowed: bool | str = True) -> dict:
+    """Set AI ticket access scope and creation permission."""
+    scope = (access_scope or "all").lower().strip()
+    if scope not in ("all", "internal_only", "external_only", "none"):
+        scope = "all"
+    creation_str = "enabled" if (creation_allowed is True or str(creation_allowed).lower() in ("enabled", "true", "1")) else "disabled"
+    with get_db() as con:
+        with con:
+            con.execute("INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('ai_ticket_access', ?, CURRENT_TIMESTAMP)", (scope,))
+            con.execute("INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('ai_ticket_creation', ?, CURRENT_TIMESTAMP)", (creation_str,))
+    return {"access_scope": scope, "creation_allowed": creation_str == "enabled"}
 
 
 def set_ai_config(key: str, value: str) -> None:
@@ -563,13 +596,15 @@ def create_task(
     story_points: int = 0,
     acceptance_criteria: str = "",
     assignee: str = "",
+    ticket_type: str = "internal",
 ) -> dict:
     """Create a task."""
+    t_type = "external" if str(ticket_type or "").lower().strip() == "external" else "internal"
     with get_db() as con:
         with con:
             cur = con.execute(
-                """INSERT INTO tasks (project_id, title, description, status, priority, due_date, story_points, acceptance_criteria, assignee)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO tasks (project_id, title, description, status, priority, due_date, story_points, acceptance_criteria, assignee, ticket_type)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    RETURNING *""",
                 (
                     project_id,
@@ -581,6 +616,7 @@ def create_task(
                     int(story_points or 0),
                     acceptance_criteria.strip(),
                     assignee.strip(),
+                    t_type,
                 ),
             )
             # Touch project updated_at
@@ -590,10 +626,10 @@ def create_task(
 
 
 def update_task(task_id: int, **fields) -> dict | None:
-    """Update task fields (e.g. status, priority, title, description, due_date, story_points, acceptance_criteria, assignee)."""
+    """Update task fields (e.g. status, priority, title, description, due_date, story_points, acceptance_criteria, assignee, ticket_type)."""
     allowed = {
         "title", "description", "status", "priority", "due_date", "project_id",
-        "story_points", "acceptance_criteria", "assignee"
+        "story_points", "acceptance_criteria", "assignee", "ticket_type"
     }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:

@@ -67,9 +67,11 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
+  ticket_type?: 'internal' | 'external';
   story_points?: number;
   acceptance_criteria?: string;
   assignee?: string;
+  due_date?: string;
   position?: number;
   created_at?: string;
   updated_at?: string;
@@ -149,4 +151,61 @@ export interface LLMConfigPayload {
   api_base?: string;
   model_name?: string;
 }
+
+export type TicketAccessScope = 'all' | 'internal_only' | 'external_only' | 'none';
+
+export interface AITicketPolicy {
+  access_scope: TicketAccessScope;
+  creation_allowed: boolean;
+}
+
+export interface WorkspaceContext {
+  policy: {
+    access_scope: TicketAccessScope;
+    creation_allowed: boolean;
+    status: string;
+  };
+  target_project?: Project;
+  projects: Project[];
+  open_tickets: Task[];
+  completed_tickets_count: number;
+  docs: Array<{
+    id: number;
+    project_id?: number | null;
+    filename: string;
+    file_type: string;
+    word_count: number;
+    chunk_count: number;
+    created_at: string;
+  }>;
+  matched_docs: Array<{
+    id: number;
+    filename: string;
+    file_type: string;
+  }>;
+  datasets: Array<{
+    id: number;
+    name: string;
+    file_type: string;
+    row_count: number;
+    column_count: number;
+    table_name: string;
+  }>;
+  kpis: KPIWidget[];
+}
+
+export interface ActionProposal {
+  action: string;
+  title?: string;
+  description?: string;
+  priority?: string;
+  status?: string;
+  story_points?: number;
+  ticket_type?: 'internal' | 'external';
+  project_id?: number;
+  assignee?: string;
+  acceptance_criteria?: string;
+  [key: string]: any;
+}
+
 

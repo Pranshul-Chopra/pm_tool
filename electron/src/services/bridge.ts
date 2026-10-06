@@ -9,6 +9,8 @@ import type {
   UpdateData,
   LLMStatus,
   LLMConfigPayload,
+  AITicketPolicy,
+  WorkspaceContext,
 } from '../types';
 
 class BridgeService {
@@ -352,6 +354,54 @@ class BridgeService {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
+
+    // ── Workspace Context & AI Policy Plane ─────────────────────────────
+    getWorkspaceContext: (params?: { projectId?: number; query?: string }) => {
+      const q = new URLSearchParams();
+      if (params?.projectId) q.set('project_id', params.projectId.toString());
+      if (params?.query) q.set('q', params.query);
+      const queryString = q.toString() ? `?${q.toString()}` : '';
+      return this.request<WorkspaceContext>(`/api/workspace/context${queryString}`);
+    },
+
+    getAIPolicies: () => this.request<AITicketPolicy>('/api/settings/ai-policies'),
+
+    updateAIPolicies: (policy: Partial<AITicketPolicy>) =>
+      this.request<AITicketPolicy>('/api/settings/ai-policies', {
+        method: 'POST',
+        body: JSON.stringify(policy),
+      }),
+
+    // ── Action Execution Plane (1-Click Apply) ───────────────────────────
+    executeAction: (
+      action: string,
+      params: Record<string, any>,
+      conversationId?: string,
+      actionKey?: string
+    ) =>
+      this.request<{
+        success: boolean;
+        action: string;
+        action_key?: string;
+        task?: Task;
+        message: string;
+      }>('/api/tools/execute_action', {
+        method: 'POST',
+        body: JSON.stringify({
+          action,
+          params,
+          conversation_id: conversationId,
+          action_key: actionKey,
+        }),
+      }),
+
+    getAppliedActions: (conversationId?: string) => {
+      const q = conversationId ? `?conversation_id=${encodeURIComponent(conversationId)}` : '';
+      return this.request<{
+        applied_actions: any[];
+        applied_action_keys: string[];
+      }>(`/api/tools/applied_actions${q}`);
+    },
 
     downloadBlob: (blob: Blob, filename: string) => {
       const url = window.URL.createObjectURL(blob);

@@ -15,6 +15,7 @@ import AppBridge from './services/bridge';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
+  const [previousTab, setPreviousTab] = useState<NavTab | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
   const [updateData, setUpdateData] = useState<UpdateData>({ status: 'idle' });
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
@@ -45,6 +46,7 @@ export const App: React.FC = () => {
   // View Transitions Navigation
   const navigateWithTransition = (tab: NavTab) => {
     if (tab === activeTab) return;
+    setPreviousTab(activeTab);
 
     if ('startViewTransition' in document && typeof (document as any).startViewTransition === 'function') {
       (document as any).startViewTransition(() => {
@@ -137,7 +139,13 @@ export const App: React.FC = () => {
             )}
             {activeTab === 'dashboard' && <StudioView />}
             {activeTab === 'documents' && <DocsView initialProjectId={selectedProjectId} />}
-            {activeTab === 'chat' && <ChatView />}
+            {activeTab === 'chat' && (
+              <ChatView
+                inheritedTab={previousTab}
+                initialProjectId={selectedProjectId}
+                onClearInheritedTab={() => setPreviousTab(null)}
+              />
+            )}
             {activeTab === 'settings' && <SettingsView />}
           </ErrorBoundary>
         </main>
