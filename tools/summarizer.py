@@ -14,6 +14,16 @@ from llm import gateway as llm_gateway
 from rag.parsers import parse_file
 
 
+ALLOWED_DOCUMENT_EXTENSIONS = {".txt", ".text", ".md", ".markdown", ".pdf", ".docx", ".csv", ".json"}
+
+def _is_restricted_path(p: Path) -> bool:
+    s = str(p.resolve()).lower()
+    for blocked in (r"c:\windows", r"c:\program files", r"c:\program files (x86)", "/etc", "/usr", "/bin", "/sbin"):
+        if s.startswith(blocked):
+            return True
+    return False
+
+
 def summarize_document(
     file_path: str,
     output_path: str,
@@ -42,7 +52,33 @@ def summarize_document(
     start_time = time.time()
     src = Path(file_path).resolve()
 
-    # 1. Validate source file
+    # 1. Validate source file path and extension
+    if src.suffix.lower() not in ALLOWED_DOCUMENT_EXTENSIONS:
+        err_msg = f"Disallowed or unsupported source file type '{src.suffix}'. Only standard documentation formats (.md, .txt, .pdf, .docx, .csv, .json) are permitted."
+        duration_ms = int((time.time() - start_time) * 1000)
+        ai_db.record_tool_run(
+            tool_name="document_summarizer",
+            input_data={"file_path": file_path, "output_path": output_path, "focus": focus},
+            output_data={"error": err_msg},
+            duration_ms=duration_ms,
+            status="error",
+            conversation_id=conversation_id,
+        )
+        return {"success": False, "error": err_msg}
+
+    if _is_restricted_path(src):
+        err_msg = "Access to operating system system directories is restricted."
+        duration_ms = int((time.time() - start_time) * 1000)
+        ai_db.record_tool_run(
+            tool_name="document_summarizer",
+            input_data={"file_path": file_path, "output_path": output_path, "focus": focus},
+            output_data={"error": err_msg},
+            duration_ms=duration_ms,
+            status="error",
+            conversation_id=conversation_id,
+        )
+        return {"success": False, "error": err_msg}
+
     if not src.exists() or not src.is_file():
         err_msg = f"Source document not found or inaccessible: {file_path}"
         duration_ms = int((time.time() - start_time) * 1000)
@@ -109,6 +145,19 @@ def summarize_document(
         clean_out += ".md"
 
     out_file = Path(clean_out).resolve()
+    if _is_restricted_path(out_file):
+        err_msg = "Writing to restricted operating system directories is prohibited."
+        duration_ms = int((time.time() - start_time) * 1000)
+        ai_db.record_tool_run(
+            tool_name="document_summarizer",
+            input_data={"file_path": str(src), "output_path": str(out_file)},
+            output_data={"error": err_msg},
+            duration_ms=duration_ms,
+            status="error",
+            conversation_id=conversation_id,
+        )
+        return {"success": False, "error": err_msg}
+
     try:
         out_file.parent.mkdir(parents=True, exist_ok=True)
     except Exception as e:

@@ -18,8 +18,10 @@ import db
 ALLOWED_DATASET_EXTENSIONS = {".csv", ".tsv", ".xlsx", ".xls", ".json", ".db", ".sqlite", ".sqlite3"}
 DISALLOWED_SQL_KEYWORDS = {
     "insert", "update", "delete", "drop", "alter", "create", "replace",
-    "attach", "detach", "truncate", "pragma", "vacuum", "exec", "execute"
+    "attach", "detach", "truncate", "pragma", "vacuum", "exec", "execute",
+    "union", "into", "load_extension"
 }
+ALLOWED_METRIC_OPS = {"COUNT", "SUM", "AVG", "MIN", "MAX"}
 
 
 def _get_datasets_dir() -> Path:
@@ -477,13 +479,37 @@ def compute_widget_data(widget_id: int) -> Dict[str, Any]:
     table = source["table_name"]
     w_type = widget.get("widget_type", "kpi_card")
     op = (widget.get("metric_op") or "count").upper()
+    if op not in ALLOWED_METRIC_OPS:
+        op = "COUNT"
+
     val_col = widget.get("value_column", "").strip()
     grp_col = widget.get("group_by_column", "").strip()
     filter_sql = (widget.get("filter_sql") or "").strip()
 
-    where_clause = f"WHERE ({filter_sql})" if filter_sql else ""
+    where_clause = ""
+    if filter_sql:
+        if ";" in filter_sql or "--" in filter_sql or "/*" in filter_sql:
+            filter_sql = ""
+        else:
+            tokens = set(re.findall(r"\b[a-zA-Z]+\b", filter_sql.lower()))
+            if tokens.intersection(DISALLOWED_SQL_KEYWORDS):
+                filter_sql = ""
+        if filter_sql:
+            where_clause = f"WHERE ({filter_sql})"
 
     with get_analytics_db(read_only=True) as con:
+        # Validate column names against actual table schema
+        try:
+            cur_cols = con.execute(f'PRAGMA table_info("{table}")').fetchall()
+            valid_cols = {c["name"] for c in cur_cols if c["name"] != "_row_id"}
+        except Exception:
+            valid_cols = set()
+
+        if val_col and val_col not in valid_cols:
+            val_col = ""
+        if grp_col and grp_col not in valid_cols:
+            grp_col = ""
+
         # 1. KPI Card Metric
         if w_type == "kpi_card":
             if op == "COUNT" and not val_col:
