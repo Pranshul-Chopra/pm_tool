@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 2.0.0  
+**Current Version:** 2.0.1  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -632,7 +632,7 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 
 ---
 
-## 16. Engineering Roadmap & Architecture Evolution (2026)
+### 16. Engineering Roadmap & Architecture Evolution (2026)
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -640,12 +640,20 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 ├──────────────┬───────────────────────────────┬─────────────────────────┤
 │ Milestone    │ Theme & Deliverables          │ Status & Priority       │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v2.0.1       │ Interactive KPI Studio        │ ✅ COMPLETED            │
+│              │ • Live KPI Cards & Targets    │ (Shipped)               │
+│              │ • Bar & Donut Distribution    │                         │
+│              │ • SQLite (.db) Ingestion      │                         │
+│              │ • Themed DeleteDatasetModal   │                         │
+│              │ • Polymorphic SQL Grid Rows   │                         │
+│              │ • Story Decomposer Resilience │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
 │ v2.0.0       │ Desktop SPA Modernization     │ ✅ COMPLETED            │
-│              │ • Vite + React + TypeScript   │ (Shipped)               │
+│              │ • Vite + React 19 SPA Client  │ (Shipped)               │
 │              │ • Zero-Iframe App Shell       │                         │
 │              │ • Spotlight Command Palette   │                         │
-│              │ • Universal Keyboard Shortuts │                         │
-│              │ • Automated Background Updates│                         │
+│              │ • Universal Keyboard Shortcuts│                         │
+│              │ • Automated Silent Updates    │                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
 │ v1.5.0       │ AI Doc Generator & Export     │ ✅ COMPLETED            │
 │              │ • 1-Click PRD & Spec Modal    │ (Shipped)               │
@@ -667,28 +675,30 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 │              │ • Differential Delta Updates  │ (Shipped)               │
 │              │ • Cascading Port Handshake    │                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
-│ v2.1.0       │ Team Workspaces & Multi-Vault │ 🔥 NEXT UP              │
-│              │ • Project Workspace Switching │ (PRIORITY 1 - PLANNED)  │
-│              │ • Exportable Workspaces       │                         │
+│ v2.1.0       │ Advanced Analytics & Quality  │ 🔥 NEXT UP              │
+│              │ • Story Decompose & Quality   │ (ACTIVE SPRINT)         │
+│              │ • Industry Analytical Tools   │                         │
+│              │ • Team Workspaces & Vaults    │                         │
 └──────────────┴───────────────────────────────┴─────────────────────────┘
 ```
 
-### Active Priority 1: v2.0.0 Desktop SPA Transition
-The current primary development effort is focused on transitioning PM Tool's presentation layer from legacy multi-frame Vanilla JS (`shell.html` + `<iframe>`) into a high-performance, single-DOM Single Page Application (SPA):
+### Active Sprint Priorities (v2.1.0)
 
-1. **Phase 1: Foundation & Shell**
-   - Initialize Vite + React 18/19 + TypeScript + Tailwind inside `electron/`.
-   - Build unified dark carbon application frame (Titlebar, Collapsible Sidebar, Breadcrumbs).
-   - Implement `AppBridge` (`bridge.ts`) to cleanly coordinate Electron IPC and local Flask REST calls.
-2. **Phase 2: Kanban & Home Experience**
-   - Re-architect Agile Sprint Board using `@dnd-kit/core` and `@dnd-kit/sortable` for 60 FPS hardware-accelerated drag-and-drop.
-   - Introduce optimistic state mutations and non-blocking background synchronization.
-3. **Phase 3: Knowledge Base & AI Copilot**
-   - Streamline Document Manager with virtualized lists and sticky headers.
-   - Streamline Copilot chat with streaming markdown token parsing, copy buttons, and interactive slash command pills.
-4. **Phase 4: Data Studio & SQL Sandbox**
-   - Port SQLite dataset explorer and SQL sandbox editor using `@tanstack/react-table`.
-   - Connect dynamic SVG and Recharts KPI widgets with reactive state bindings.
-5. **Phase 5: Packaging & CI/CD Pipeline Update**
-   - Update `build.bat` and `.github/workflows/release.yml` to compile the Vite bundle into `electron/dist/renderer`.
-   - Verify differential updates (`latest.yml`, `.blockmap`) and cross-process tree-kill functionality.
+The active sprint focuses on elevating reasoning precision for agile project execution and integrating enterprise-grade analytical tooling into Data Studio:
+
+1. **Sprint Priority 1: Improve User Stories Decompose & Response Qualities**
+   - **Calibrated Prompt Architecture**: Re-engineer the system prompt and instructions in `tools/story_decomposer.py` to enforce high-precision decomposition of PRDs into atomic, non-overlapping user stories.
+   - **Rigorous Acceptance Criteria**: Standardize on testable, industry-standard Given/When/Then (Gherkin) acceptance criteria format with positive and negative testing edge cases.
+   - **Fibonacci Point Calibration**: Calibrate story estimation (`1, 2, 3, 5, 8, 13`) against task complexity, dependency count, and architectural risk rather than token length.
+   - **Response Depth & Completeness**: Upgrade LLM context assembly and schema formatting to prevent truncated, generic, or boilerplate story generation, ensuring actionable engineering tasks.
+
+2. **Sprint Priority 2: Add Complex Industry-Used Analytical Tools for Datasets**
+   - **Cohort Retention Matrices**: Implement cohort-based retention analysis computing month-over-month and week-over-week user or transaction retention rates.
+   - **Funnel Drop-Off Analytics**: Add multi-stage conversion funnel tracking with step-by-step drop-off percentages and conversion velocity metrics.
+   - **Statistical Distributions & Outlier Detection**: Provide automatic computation of percentiles (P25, P50/Median, P75, P90, P99), standard deviations, interquartile ranges, and Z-score outlier detection on numeric fields.
+   - **Correlation Matrices & Multi-Dimensional Cross-Filtering**: Allow comparing numerical feature pairs to identify correlations and dependencies across dataset columns.
+   - **Executive Forecasting Models**: Linear trendlines and moving averages to extrapolate trajectory milestones and sprint burn-up forecasts.
+
+3. **Sprint Priority 3: Team Workspaces & Multi-Vault Architecture**
+   - **Independent Project Workspaces**: Support creating isolated project vaults with segregated SQLite databases, separate RAG document collections, and dedicated settings.
+   - **Workspace Export & Portability**: 1-click archiving and importing of encrypted workspaces for cross-machine synchronization.

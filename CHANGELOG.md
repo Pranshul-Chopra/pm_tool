@@ -3,6 +3,41 @@
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-10-06
+
+### 📊 Interactive Data Studio & KPI Dashboard Studio
+- **Full Metric & Chart CRUD Lifecycle**:
+  - Implemented `AddWidgetModal.tsx` enabling creation of live analytical cards and visual distribution charts directly linked to any materialized dataset.
+  - Interactive deletion controls on cards with instant UI state updates and backend synchronization.
+- **Three Supported Widget Types**:
+  - **KPI Cards (`kpi_card`)**: Real-time aggregation values, formatted metrics (`Number`, `Currency`, `Percentage`), target benchmark milestones, and ahead/behind percentage variance badges (`▲ +12.5% vs target`).
+  - **Bar Distribution Charts (`bar_chart`)**: Dynamic categorical breakdowns with percentage distributions, colored progress bars, and total counts.
+  - **Donut Share Breakdown (`donut_chart`)**: Visual multi-color dimensional share representation with segment percentages and totals.
+- **Live Evaluator & Backend Integration**:
+  - `compute_widget_data` evaluated live against `analytics_store.db` with safe PRAGMA column validations and AST SQL inspection.
+  - Auto-provisions default KPI Dashboard on first navigation with prominent `+ Add KPI Metric` header action and interactive empty state call-to-action.
+
+### 🛡️ SQLite Database Ingestion & Analytical Hardening
+- **Native SQLite File Materialization**:
+  - Extended dataset ingestion to seamlessly materialize native SQLite databases (`.db`, `.sqlite`, `.sqlite3`), alongside Excel (`.xlsx`, `.xls`), CSV, TSV, and JSON formats.
+  - Implemented streaming file-copy fallbacks for multi-process environments, PRAGMA-driven non-locking table selection, and clean database detach handlers.
+- **Polymorphic Row Rendering**:
+  - Fixed table grid crashes (`e.map is not a function`) by implementing polymorphic row rendering in `StudioView.tsx` supporting both array-shaped and object-shaped SQL result sets.
+
+### 🗑️ App-Themed Dataset Deletion Modal (`DeleteDatasetModal.tsx`)
+- **Elimination of Native Browser Dialogs**:
+  - Replaced browser-native `window.confirm` with `DeleteDatasetModal.tsx`, unifying dataset deletion with the application's dark-mode carbon aesthetic (`DeleteProjectModal`).
+  - Provides table name and row count inspection, safety warnings for dropped tables, and smooth cancel/delete transitions.
+
+### 🤖 Story Decomposer Gateway Resilience
+- **LLM Gateway Signature Alignment**:
+  - Resolved `TypeError: call_llm() got an unexpected keyword argument 'temperature'` in `tools/story_decomposer.py`, restoring 1-click PRD decomposition into sprint Kanban user stories.
+
+### 🔄 Automated Silent Updates & Security Verification
+- **Automated Lifecycle**:
+  - Background silent update checks on launch and 60-minute recurring polling via `electron-updater`.
+  - Comprehensive automated security, AST sandbox query validation, and pressure tests executed with zero vulnerabilities.
+
 ## [2.0.0] - 2026-10-06
 
 ### 🚀 Desktop SPA Modernization & Zero-Iframe Architecture

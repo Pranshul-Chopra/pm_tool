@@ -152,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             />
             {!isCollapsed && (
               <span className="truncate text-[#9b9690]">
-                v{updateData.version || '2.0.0'}
+                v{updateData.version || '2.0.1'}
               </span>
             )}
           </div>

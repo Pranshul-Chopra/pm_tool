@@ -400,7 +400,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           </div>
           <div className="flex items-center gap-1.5 text-[#9b9690]">
             <span className="text-[#e8a84c]">PM Tool</span>
-            <span>v2.0.0</span>
+            <span>v2.0.1</span>
           </div>
         </div>
       </div>

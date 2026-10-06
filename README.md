@@ -3,7 +3,7 @@
 <div align="center">
   <img src="static/icon.png" width="96" height="96" alt="PM Tool Logo" />
   <h3>Enterprise Product Management Copilot &amp; Sprint Execution Workstation</h3>
-  <p><b>Version 2.0.0</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
+  <p><b>Version 2.0.1</b> — Local-First, Privacy-Preserving Desktop Application for Windows</p>
 </div>
 
 ---
@@ -15,6 +15,13 @@
 ---
 
 ## 🌟 Key Features
+
+### 📊 Interactive KPI Dashboard Studio & Ingestion Hardening (`v2.0.1`)
+- **Interactive KPI & Chart Lifecycle**: Create live computed KPI cards (`kpi_card`), bar distribution charts (`bar_chart`), and donut series breakdowns (`donut_chart`) linked to any materialized dataset via `AddWidgetModal`.
+- **Custom Benchmarks & Aggregate Variance**: Real-time evaluation of aggregations (`COUNT`, `SUM`, `AVG`, `MIN`, `MAX`), currency and percentage formatters, custom target milestones, and dynamic variance badges (`▲ +12.5% vs target`).
+- **Native SQLite Database File Ingestion**: Ingests `.db`, `.sqlite`, and `.sqlite3` files directly into `analytics_store.db` with streaming file-copy fallbacks and non-locking table selection.
+- **Themed Dark-Mode Deletion Modal**: Replaced native browser `window.confirm` dialogs with `DeleteDatasetModal`, matching the application's dark carbon design system.
+- **Decomposer Gateway Hardening**: Corrected LLM gateway calling signatures in `story_decomposer.py` for dependable 1-click PRD story generation.
 
 ### 🚀 Desktop Single Page Application (SPA) & Command Palette (`v2.0.0`)
 - **Single-DOM SPA Transition**: Pure React 19 + TypeScript + Tailwind inside Electron; zero-iframe latency and hardware-accelerated transitions.
@@ -91,11 +98,12 @@ pm_tool/
 ├── CHANGELOG.md                 # Semantic versioning history
 ├── DEV_HANDBOOK.md              # Technical engineering handbook & architecture spec
 ├── requirements.txt             # Python dependencies
-├── version.json                 # Single source of truth for version (2.0.0)
+├── version.json                 # Single source of truth for version (2.0.1)
 ├── main.py                      # Flask factory, server lifecycle, ping checks
 ├── routes.py                    # REST API controllers & Jinja template routes
 ├── db.py                        # SQLite connection pool, schema migrations (pmtool.db)
 ├── ai_db.py                     # SQLite context store, conversation history, FTS5 index
+├── data_engine.py               # Analytical ingestion, guarded SQL engine, KPI widget evaluation
 ├── notifier.py                  # Cross-platform desktop notification service
 ├── flask.spec                   # PyInstaller build specification
 ├── build.bat                    # 4-stage automated Windows build script
@@ -116,27 +124,28 @@ pm_tool/
 │   ├── summarizer.py            # Document summarizer with 8K token budget & SHA256 integrity
 │   └── story_decomposer.py      # Automated PRD-to-Agile story decomposer
 │
-├── electron/                    # Desktop shell
+├── electron/                    # Desktop shell & React 19 SPA
 │   ├── package.json             # Electron configuration & auto-updater targets
 │   ├── main.js                  # Cascading port discovery, process supervisor, auto-updater
 │   ├── preload.js               # Isolated IPC bridge (electronUpdater, electronNotifier, electronEnv)
+│   ├── src/                     # React 19 + TypeScript + Tailwind single-DOM client
+│   │   ├── App.tsx              # Root shell layout, keyboard shortcuts engine
+│   │   ├── components/          # Titlebar, Sidebar, CommandPalette, Modals
+│   │   │   └── studio/          # AddWidgetModal.tsx, DeleteDatasetModal.tsx
+│   │   ├── views/               # HomeView, BoardView, StudioView, DocumentsView, ChatView, SettingsView
+│   │   └── services/bridge.ts   # Unified API bridge for local Flask REST endpoints
 │   ├── icon.ico                 # Multi-resolution Windows app icon (PmT)
 │   └── icon.png                 # Taskbar & notification icon
 │
-├── static/                      # Static assets served by Flask
+├── static/                      # Static assets & compiled SPA bundle
+│   ├── spa/                     # Production compiled Vite SPA client (index.html, assets)
 │   ├── favicon.ico              # Web favicon
 │   ├── icon.png                 # Brand icon
 │   └── fonts/                   # Offline IBM Plex Sans & Mono woff2 fonts
 │       └── ibmflex.css
 │
-└── templates/                   # Jinja2 HTML templates
-    ├── shell.html               # Main desktop shell layout & multi-frame manager
-    ├── home.html                # Product workspace, roadmaps, and capabilities hub
-    ├── board.html               # Interactive drag-and-drop Sprint Kanban Board
-    ├── chat.html                # AI Copilot studio with buttonish slash command pills
-    ├── documents.html           # Knowledge Base manager, dual scrollbars, FTS5 test bench
-    └── settings.html            # AI provider configuration & secret manager
-```
+└── templates/                   # Legacy templates
+    └── board.html               # Reference sprint board template
 
 ---
 
@@ -144,12 +153,13 @@ pm_tool/
 
 | Release Milestone | Key Capabilities | Status & Priority |
 | :--- | :--- | :--- |
-| **v2.0.0 (Latest)** | **Desktop SPA Modernization & Command Palette**<br>• Full React 19 + TypeScript single-DOM client<br>• Spotlight Command Palette (`Ctrl+K` / `Cmd+K`)<br>• Universal Keyboard Shortcuts Engine<br>• Automated silent background update lifecycle<br>• Zero-iframe architecture & decommissioned Jinja bundle | ✅ **Shipped** |
+| **v2.0.1 (Latest)** | **Interactive KPI Dashboard & Ingestion Hardening**<br>• Full KPI metric cards & chart breakdown lifecycle (`kpi_card`, `bar_chart`, `donut_chart`)<br>• Native SQLite database ingestion (`.db`, `.sqlite`, `.sqlite3`) & streaming copy fallback<br>• Dark-mode `DeleteDatasetModal` (zero browser alerts)<br>• Polymorphic SQL grid row rendering (`array` & `object`)<br>• Story Decomposer gateway resilience | ✅ **Shipped** |
+| **v2.0.0** | **Desktop SPA Modernization & Command Palette**<br>• Full React 19 + TypeScript single-DOM client<br>• Spotlight Command Palette (`Ctrl+K` / `Cmd+K`)<br>• Universal Keyboard Shortcuts Engine<br>• Automated silent background update lifecycle<br>• Zero-iframe architecture & decommissioned Jinja bundle | ✅ **Shipped** |
 | **v1.5.0** | **AI Document Generator & Multi-Format Export**<br>• 1-click PM document modal (PRDs, specs, breakdowns, strategy)<br>• In-memory Word (.docx) & Markdown (.md) exports<br>• 1-click Knowledge Base ingestion & FTS5 indexing<br>• Direct PRD sprint board decomposition<br>• Hardened zero-crash Markdown parser & ErrorBoundary | ✅ **Shipped** |
 | **v1.4.0** | **Data Studio & Safe SQL Analytics**<br>• Guarded SQLite sandbox with AST/whitelist checks<br>• Dynamic KPI cards, benchmarks, and SVG charts<br>• Excel (.xlsx), CSV, TSV dataset materialization | ✅ **Shipped** |
 | **v1.3.0** | **Agile Sprint Board & PRD Decomposer**<br>• Story points, acceptance criteria, assignee tracking<br>• Automated PRD-to-Story AI generator (`/breakdown`) | ✅ **Shipped** |
 | **v1.2.0** | **In-App Auto-Updater & Assets**<br>• Differential delta background auto-updater<br>• Dynamic cascading port fallback (`5050`–`5065`) | ✅ **Shipped** |
-| **v2.1.0** | **Team Workspaces & Multi-Vault**<br>• Independent project workspaces & multi-database vaults<br>• Workspace export/import and isolated RAG indices | 🔥 **Next Up** |
+| **v2.1.0** | **Advanced Analytics, Story Decomposer & Team Vaults**<br>• 🎯 **Sprint Priority 1**: Need to improve user stories decompose and improve response qualities (calibrated prompt hierarchies, rigorous Given/When/Then acceptance criteria, Fibonacci estimation accuracy, and deeper PM strategic reasoning)<br>• 📈 **Sprint Priority 2**: Add more complex industry-used analytical tools for datasets (cohort retention matrices, funnel drop-off analysis, correlation matrices, statistical anomaly detection, and executive KPI forecasting)<br>• 🏢 **Sprint Priority 3**: Team Workspaces & Multi-Vault architecture (isolated multi-database projects, workspace export/import) | 🔥 **Next Up (Active Sprint)** |
 
 ---
 
@@ -198,9 +208,9 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 ```
 
 Output assets will be generated in `release/`:
-- `release/PM-Tool-Setup-2.0.0.exe` (1-Click NSIS Installer)
-- `release/PM-Tool-2.0.0.exe` (Portable Executable)
-- `release/PM-Tool-Setup-2.0.0.exe.blockmap` (Differential update map)
+- `release/PM-Tool-Setup-2.0.1.exe` (1-Click NSIS Installer)
+- `release/PM-Tool-2.0.1.exe` (Portable Executable)
+- `release/PM-Tool-Setup-2.0.1.exe.blockmap` (Differential update map)
 - `release/latest.yml` (Auto-update manifest)
 
 ---

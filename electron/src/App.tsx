@@ -112,7 +112,7 @@ export const App: React.FC = () => {
       {/* Native Drag Titlebar */}
       <Titlebar
         activeTab={activeTab}
-        version={updateData.version || '2.0.0'}
+        version={updateData.version || '2.0.1'}
         onOpenPalette={() => setIsPaletteOpen(true)}
       />
 

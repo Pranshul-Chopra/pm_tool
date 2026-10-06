@@ -82,14 +82,14 @@ PM Tool includes a fully automated, rock-solid GitHub Actions pipeline in [`.git
 ```powershell
 # 1. Update version numbers (see Step 4 below)
 git add -A
-git commit -m "chore(release): bump version to 2.0.0"
+git commit -m "chore(release): bump version to 2.0.1"
 
 # 2. Create an annotated git tag
-git tag -a v2.0.0 -m "Release v2.0.0 - Desktop SPA Modernization, Command Palette & Automated Updates"
+git tag -a v2.0.1 -m "Release v2.0.1 - Interactive KPI Studio, Dataset Ingestion & UI Modals"
 
 # 3. Push commit and tag to GitHub
 git push origin master
-git push origin v2.0.0
+git push origin v2.0.1
 ```
 
 ---
@@ -103,7 +103,7 @@ Ensure the target version string is synchronized across all core files:
 1. `version.json`:
    ```json
    {
-     "version": "2.0.0",
+     "version": "2.0.1",
      "app_name": "PM Tool",
      "build_date": "2026-10-06"
    }
@@ -112,11 +112,11 @@ Ensure the target version string is synchronized across all core files:
    ```json
    {
      "name": "pm-tool",
-     "version": "2.0.0"
+     "version": "2.0.1"
    }
    ```
-3. `CHANGELOG.md`: Document release notes under `## [2.0.0] - YYYY-MM-DD`.
-4. `DEV_HANDBOOK.md`: Update version header to `2.0.0`.
+3. `CHANGELOG.md`: Document release notes under `## [2.0.1] - YYYY-MM-DD`.
+4. `DEV_HANDBOOK.md`: Update version header to `2.0.1`.
 
 ### Step 2: Run the Local Build Script
 From the repository root in PowerShell:
@@ -133,14 +133,14 @@ The script runs the 4-stage pipeline:
 
 ### Step 3: Manual GitHub Release Publication
 1. Navigate to: `https://github.com/Pranshul-Chopra/pm_tool/releases/new`
-2. **Tag:** `v2.0.0`
-3. **Release Title:** `PM Tool v2.0.0`
+2. **Tag:** `v2.0.1`
+3. **Release Title:** `PM Tool v2.0.1`
 4. **Notes:** Copy the markdown summary from `CHANGELOG.md`.
 5. **Assets to Attach (Drag & Drop all 4 files from `release\`):**
-   - `PM-Tool-Setup-2.0.0.exe` *(Primary installer)*
-   - `PM-Tool-2.0.0.exe` *(Portable edition)*
+   - `PM-Tool-Setup-2.0.1.exe` *(Primary installer)*
+   - `PM-Tool-2.0.1.exe` *(Portable edition)*
    - `latest.yml` *(CRITICAL for electron-updater background detection)*
-   - `PM-Tool-Setup-2.0.0.exe.blockmap` *(CRITICAL for differential delta updates)*
+   - `PM-Tool-Setup-2.0.1.exe.blockmap` *(CRITICAL for differential delta updates)*
 6. Click **Publish release**.
 
 ---
