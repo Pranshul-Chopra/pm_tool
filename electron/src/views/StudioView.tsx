@@ -45,7 +45,7 @@ export const StudioView: React.FC = () => {
     setLoading(true);
     try {
       const dsRes = await AppBridge.api.getDataSources();
-      const sources = dsRes.data_sources || [];
+      const sources = dsRes.data_sources || (dsRes as any).sources || [];
       setDataSources(sources);
 
       if (sources.length > 0 && !selectedSourceId) {
@@ -141,14 +141,19 @@ export const StudioView: React.FC = () => {
 
     try {
       const res = await AppBridge.api.uploadDataSource(formData);
-      if (res.success) {
+      const dsRecord = res.data_source || (res as any);
+      if (res.success || dsRecord.id || dsRecord.table_name) {
+        const rowCount = res.data_source?.row_count ?? (dsRecord as any).row_count ?? 0;
         setUploadStatus({
           type: 'success',
-          message: `Dataset "${file.name}" materialized with ${res.data_source?.row_count || 0} rows.`,
+          message: `Dataset "${file.name}" materialized with ${rowCount} rows.`,
         });
-        fetchStudioData();
+        await fetchStudioData();
+        if (dsRecord.id) {
+          setSelectedSourceId(dsRecord.id);
+        }
       } else {
-        setUploadStatus({ type: 'error', message: 'Ingestion failed.' });
+        setUploadStatus({ type: 'error', message: (res as any).error || 'Ingestion failed.' });
       }
     } catch (err: any) {
       setUploadStatus({ type: 'error', message: err.message || 'Failed to ingest file.' });
@@ -193,9 +198,10 @@ export const StudioView: React.FC = () => {
 
   // Parse columns json
   let parsedColumns: { name: string; type: string }[] = [];
-  if (activeSource?.columns_json) {
+  const rawCols = activeSource?.columns_json || (activeSource as any)?.schema_json;
+  if (rawCols) {
     try {
-      parsedColumns = JSON.parse(activeSource.columns_json);
+      parsedColumns = JSON.parse(rawCols);
     } catch (_) {}
   }
 
@@ -213,7 +219,7 @@ export const StudioView: React.FC = () => {
             </span>
           </div>
           <p className="text-xs text-[#9b9690] mt-0.5">
-            Materialize CSV/Excel sheets into analytical SQLite tables and query securely with read-only sandbox checks.
+            Materialize SQLite databases (.db, .sqlite), CSV, Excel, and JSON datasets into analytical tables.
           </p>
         </div>
 
@@ -248,7 +254,7 @@ export const StudioView: React.FC = () => {
             type="file"
             ref={fileInputRef}
             onChange={(e) => handleFileUpload(e.target.files)}
-            accept=".csv,.xlsx,.xls,.tsv,.json"
+            accept=".db,.sqlite,.sqlite3,.csv,.tsv,.xlsx,.xls,.json"
             className="hidden"
           />
 
@@ -314,7 +320,7 @@ export const StudioView: React.FC = () => {
                   <div className="truncate">
                     <div className="font-semibold text-[#edeae4] truncate">{ds.name}</div>
                     <div className="text-[10px] text-[#5c5955] font-mono mt-0.5">
-                      {ds.row_count} rows · {ds.column_count} cols · {ds.file_type}
+                      {ds.row_count} rows · {ds.column_count} cols · {ds.file_type || (ds as any).source_type || 'tabular'}
                     </div>
                   </div>
 
@@ -333,7 +339,7 @@ export const StudioView: React.FC = () => {
 
               {dataSources.length === 0 && !loading && (
                 <div className="text-center py-8 text-xs text-[#5c5955] p-4">
-                  No datasets uploaded. Ingest an Excel or CSV file to start analyzing.
+                  No datasets uploaded. Ingest an SQLite database, Excel, CSV, or JSON file to start analyzing.
                 </div>
               )}
             </div>

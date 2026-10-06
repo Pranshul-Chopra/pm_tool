@@ -939,17 +939,27 @@ def api_export_markdown():
 @bp.route("/api/data/sources", methods=["GET"])
 def api_data_sources_list():
     project_id = request.args.get("project_id", type=int)
-    sources = db.list_data_sources(project_id=project_id)
-    return jsonify({"sources": sources, "count": len(sources)})
+    raw_sources = db.list_data_sources(project_id=project_id)
+    sources = []
+    for s in raw_sources:
+        d = dict(s)
+        d["file_type"] = d.get("source_type") or "tabular"
+        d["columns_json"] = d.get("schema_json") or "[]"
+        sources.append(d)
+    return jsonify({
+        "sources": sources,
+        "data_sources": sources,
+        "count": len(sources),
+    })
 
 
 @bp.route("/api/data/sources/upload", methods=["POST"])
 def api_data_sources_upload():
     if "file" not in request.files:
-        return jsonify({"error": "No file attached."}), 400
+        return jsonify({"error": "No file attached.", "success": False}), 400
     f = request.files["file"]
     if not f or not f.filename:
-        return jsonify({"error": "No file selected."}), 400
+        return jsonify({"error": "No file selected.", "success": False}), 400
 
     from pathlib import Path
     import werkzeug.utils
@@ -962,13 +972,13 @@ def api_data_sources_upload():
     suffix = Path(safe_filename).suffix.lower()
     if suffix not in data_engine.ALLOWED_DATASET_EXTENSIONS:
         allowed_list = ", ".join(sorted(data_engine.ALLOWED_DATASET_EXTENSIONS))
-        return jsonify({"error": f"File type '{suffix}' not supported. Allowed: {allowed_list}"}), 400
+        return jsonify({"error": f"File type '{suffix}' not supported. Allowed: {allowed_list}", "success": False}), 400
 
     upload_dir = data_engine._get_datasets_dir()
     target_path = (upload_dir / safe_filename).resolve()
 
     if not str(target_path).startswith(str(upload_dir.resolve())):
-        return jsonify({"error": "Path traversal detected."}), 400
+        return jsonify({"error": "Path traversal detected.", "success": False}), 400
 
     counter = 1
     stem = target_path.stem
@@ -987,14 +997,21 @@ def api_data_sources_upload():
             name=name,
             project_id=project_id,
         )
-        return jsonify(source_record), 201
+        rec = dict(source_record)
+        rec["file_type"] = rec.get("source_type") or "tabular"
+        rec["columns_json"] = rec.get("schema_json") or "[]"
+        return jsonify({
+            "success": True,
+            "data_source": rec,
+            **rec,
+        }), 201
     except Exception as e:
         if target_path.exists():
             try:
                 target_path.unlink()
             except Exception:
                 pass
-        return jsonify({"error": f"Ingestion failed: {str(e)}"}), 400
+        return jsonify({"error": f"Ingestion failed: {str(e)}", "success": False}), 400
 
 
 @bp.route("/api/data/sources/<int:source_id>", methods=["GET", "DELETE"])

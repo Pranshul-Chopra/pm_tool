@@ -312,13 +312,52 @@ def ingest_data_source(
     return source_record
 
 
+def _copy_sqlite_table_stream(
+    src_file: Path,
+    target_table: str,
+    dest_table: str,
+    cols_info: List[Any],
+) -> None:
+    """Fallback copier: directly streams rows from source DB into analytics store."""
+    try:
+        src_con = sqlite3.connect(f"file:{src_file.as_posix()}?mode=ro", uri=True)
+    except Exception:
+        src_con = sqlite3.connect(str(src_file))
+
+    try:
+        src_cur = src_con.execute(f'SELECT * FROM "{target_table}"')
+        col_names = [d[0] for d in src_cur.description]
+        col_defs = [f'"{c["name"]}" {c["type"] or "TEXT"}' for c in cols_info]
+        create_sql = f'CREATE TABLE "{dest_table}" (\n  _row_id INTEGER PRIMARY KEY AUTOINCREMENT,\n  ' + ",\n  ".join(col_defs) + "\n);"
+
+        insert_cols = ", ".join(f'"{c}"' for c in col_names)
+        placeholders = ", ".join("?" for _ in col_names)
+        insert_sql = f'INSERT INTO "{dest_table}" ({insert_cols}) VALUES ({placeholders})'
+
+        with get_analytics_db() as dest_con:
+            dest_con.execute(f'DROP TABLE IF EXISTS "{dest_table}"')
+            dest_con.execute(create_sql)
+            while True:
+                batch = src_cur.fetchmany(1000)
+                if not batch:
+                    break
+                dest_con.executemany(insert_sql, batch)
+            dest_con.commit()
+    finally:
+        src_con.close()
+
+
 def _ingest_sqlite_source(
     src_file: Path,
     clean_name: str,
     project_id: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Inspect and import an external SQLite database into analytics store."""
-    ext_con = sqlite3.connect(str(src_file))
+    try:
+        ext_con = sqlite3.connect(f"file:{src_file.as_posix()}?mode=ro", uri=True)
+    except Exception:
+        ext_con = sqlite3.connect(str(src_file))
+
     try:
         ext_con.row_factory = sqlite3.Row
         cur = ext_con.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
@@ -326,17 +365,40 @@ def _ingest_sqlite_source(
         if not tables:
             raise ValueError("No user tables found in the provided SQLite database.")
 
-        target_table = tables[0]
+        # Filter out internal/virtual tables, prioritizing normal user tables
+        candidate_tables = [
+            t for t in tables
+            if not any(t.lower().startswith(p) for p in ("sqlite_", "android_metadata", "_"))
+            and not any(t.lower().endswith(sfx) for sfx in ("_idx", "_data", "_config", "_docsize", "_content", "_segments", "_segdir"))
+        ] or tables
+
+        # Find best table with data
+        target_table = candidate_tables[0]
+        max_rows = -1
+        for tbl in candidate_tables:
+            try:
+                cnt_cur = ext_con.execute(f'SELECT COUNT(*) as cnt FROM "{tbl}"')
+                cnt_val = cnt_cur.fetchone()["cnt"]
+                if cnt_val > max_rows:
+                    max_rows = cnt_val
+                    target_table = tbl
+            except Exception:
+                continue
+
         # Inspect columns
-        info_cur = ext_con.execute(f"PRAGMA table_info('{target_table}')")
+        info_cur = ext_con.execute(f'PRAGMA table_info("{target_table}")')
         cols_info = info_cur.fetchall()
         headers = [c["name"] for c in cols_info]
+        if not headers:
+            raise ValueError(f"Table '{target_table}' has no readable columns.")
 
-        row_cur = ext_con.execute(f"SELECT COUNT(*) as cnt FROM '{target_table}'")
+        row_cur = ext_con.execute(f'SELECT COUNT(*) as cnt FROM "{target_table}"')
         total_rows = row_cur.fetchone()["cnt"]
 
-        sample_cur = ext_con.execute(f"SELECT * FROM '{target_table}' LIMIT 10")
+        sample_cur = ext_con.execute(f'SELECT * FROM "{target_table}" LIMIT 10')
         sample_rows = sample_cur.fetchall()
+    except sqlite3.DatabaseError as db_err:
+        raise ValueError(f"Invalid or corrupted SQLite database: {str(db_err)}")
     finally:
         ext_con.close()
 
@@ -354,11 +416,31 @@ def _ingest_sqlite_source(
     timestamp = int(time.time())
     dest_table = f"ds_{timestamp}_{_sanitize_ident(clean_name)}"[:48]
 
+    copied = False
     with get_analytics_db() as dest_con:
-        dest_con.execute(f"ATTACH DATABASE '{src_file.as_posix()}' AS ext_db")
-        dest_con.execute(f"CREATE TABLE '{dest_table}' AS SELECT * FROM ext_db.'{target_table}'")
-        dest_con.execute("DETACH DATABASE ext_db")
-        dest_con.commit()
+        try:
+            dest_con.execute("DETACH DATABASE ext_db")
+        except Exception:
+            pass
+
+        try:
+            escaped_path = src_file.as_posix().replace("'", "''")
+            dest_con.execute(f"ATTACH DATABASE '{escaped_path}' AS ext_db")
+            try:
+                dest_con.execute(f'DROP TABLE IF EXISTS "{dest_table}"')
+                dest_con.execute(f'CREATE TABLE "{dest_table}" AS SELECT * FROM ext_db."{target_table}"')
+                dest_con.commit()
+                copied = True
+            finally:
+                try:
+                    dest_con.execute("DETACH DATABASE ext_db")
+                except Exception:
+                    pass
+        except Exception:
+            copied = False
+
+    if not copied:
+        _copy_sqlite_table_stream(src_file, target_table, dest_table, cols_info)
 
     source_record = db.create_data_source(
         name=clean_name,
