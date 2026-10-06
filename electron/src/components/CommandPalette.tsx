@@ -48,19 +48,31 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Fetch projects when palette opens
+  // Fetch projects safely when palette opens
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
       AppBridge.api.getProjects()
-        .then((data) => setProjects(data || []))
-        .catch(() => setProjects([]));
+        .then((res: any) => {
+          if (Array.isArray(res)) {
+            setProjects(res);
+          } else if (res && Array.isArray(res.projects)) {
+            setProjects(res.projects);
+          } else {
+            setProjects([]);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load projects for command palette:', err);
+          setProjects([]);
+        });
 
       // Auto-focus input
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -200,20 +212,23 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
     ];
 
-    // Projects category
-    projects.forEach((proj) => {
-      list.push({
-        id: `proj-${proj.id}`,
-        category: 'Projects',
-        title: proj.name,
-        subtitle: proj.domain ? `${proj.domain} · ${proj.status || 'active'}` : proj.description || 'Project Workspace',
-        icon: Folder,
-        run: () => {
-          onNavigate('board', proj.id);
-          onClose();
-        },
+    // Projects category - guarded against non-array state
+    if (Array.isArray(projects)) {
+      projects.forEach((proj) => {
+        if (!proj || !proj.id) return;
+        list.push({
+          id: `proj-${proj.id}`,
+          category: 'Projects',
+          title: proj.name || `Project #${proj.id}`,
+          subtitle: proj.domain ? `${proj.domain} · ${proj.status || 'active'}` : proj.description || 'Project Workspace',
+          icon: Folder,
+          run: () => {
+            onNavigate('board', proj.id);
+            onClose();
+          },
+        });
       });
-    });
+    }
 
     return list;
   }, [projects, onNavigate, onClose, onToggleSidebar]);
@@ -248,11 +263,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         setSelectedIndex((prev) => (prev < filteredActions.length - 1 ? prev + 1 : 0));
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : filteredActions.length - 1));
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : Math.max(0, filteredActions.length - 1)));
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (filteredActions[selectedIndex]) {
-          filteredActions[selectedIndex].run();
+        const actionToRun = filteredActions[selectedIndex];
+        if (actionToRun && typeof actionToRun.run === 'function') {
+          actionToRun.run();
         }
       }
     };
@@ -264,24 +280,26 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   // Ensure selected item is scrolled into view
   useEffect(() => {
     if (!listRef.current) return;
-    const selectedEl = listRef.current.querySelector(`[data-index="${selectedIndex}"]`);
-    if (selectedEl) {
-      selectedEl.scrollIntoView({ block: 'nearest' });
-    }
+    try {
+      const selectedEl = listRef.current.querySelector(`[data-index="${selectedIndex}"]`);
+      if (selectedEl && typeof selectedEl.scrollIntoView === 'function') {
+        selectedEl.scrollIntoView({ block: 'nearest' });
+      }
+    } catch (_) {}
   }, [selectedIndex]);
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
       {/* Dimmed backdrop */}
       <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity animate-in fade-in duration-150"
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-150"
         onClick={onClose}
       />
 
       {/* Palette Modal */}
-      <div className="relative w-full max-w-xl bg-[#161514] border border-[#2e2c2a] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[70vh] z-10 animate-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-xl bg-[#161514] border border-[#2e2c2a] rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[75vh] z-10">
         {/* Search Header */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#2e2c2a] bg-[#1a1918]">
           <Search className="w-4 h-4 text-[#e8a84c] flex-shrink-0" />

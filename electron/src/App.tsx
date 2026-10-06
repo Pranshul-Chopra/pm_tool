@@ -76,6 +76,7 @@ export const App: React.FC = () => {
         const key = e.key.toLowerCase();
         if (key === 'k') {
           e.preventDefault();
+          e.stopPropagation();
           setIsPaletteOpen((prev) => !prev);
         } else if (key === 'b') {
           e.preventDefault();
@@ -143,12 +144,14 @@ export const App: React.FC = () => {
       </div>
 
       {/* Global Command Palette (Ctrl+K / Cmd+K) */}
-      <CommandPalette
-        isOpen={isPaletteOpen}
-        onClose={() => setIsPaletteOpen(false)}
-        onNavigate={handleNavigate}
-        onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
-      />
+      <ErrorBoundary fallbackTitle="Command Palette Error">
+        <CommandPalette
+          isOpen={isPaletteOpen}
+          onClose={() => setIsPaletteOpen(false)}
+          onNavigate={handleNavigate}
+          onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+        />
+      </ErrorBoundary>
 
       {/* In-App Background Auto-Updater Toast */}
       <UpdaterToast data={updateData} />
