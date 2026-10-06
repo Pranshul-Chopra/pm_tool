@@ -285,6 +285,9 @@ def tool_breakdown():
     project_id = data.get("project_id")
     prd_text = data.get("prd_text")
     conversation_id = data.get("conversation_id")
+    target_persona = data.get("target_persona")
+    story_count = data.get("story_count")
+    preview_only = bool(data.get("preview_only", False))
 
     try:
         from tools.story_decomposer import decompose_prd_to_stories
@@ -292,12 +295,36 @@ def tool_breakdown():
             project_id=project_id,
             prd_text=prd_text,
             conversation_id=conversation_id,
+            target_persona=target_persona,
+            story_count=story_count,
+            preview_only=preview_only,
         )
         if not res.get("success"):
             return jsonify(res), 400
         return jsonify(res), 200
     except Exception as e:
         return jsonify({"success": False, "error": f"Story decomposition failed: {str(e)}"}), 500
+
+
+@bp.route("/api/tools/breakdown/commit", methods=["POST"])
+def tool_breakdown_commit():
+    data = request.get_json(force=True) or {}
+    project_id = data.get("project_id")
+    stories = data.get("stories") or []
+    if not isinstance(stories, list) or not stories:
+        return jsonify({"success": False, "error": "No stories provided for commit."}), 400
+
+    try:
+        from tools.story_decomposer import commit_decomposed_stories
+        created_tasks = commit_decomposed_stories(project_id, stories)
+        return jsonify({
+            "success": True,
+            "count": len(created_tasks),
+            "created_tasks": created_tasks,
+            "project_id": project_id,
+        }), 200
+    except Exception as e:
+        return jsonify({"success": False, "error": f"Failed to commit stories: {str(e)}"}), 500
 
 
 @bp.route("/api/tools/execute_action", methods=["POST"])
@@ -1352,5 +1379,134 @@ def api_widget_detail(widget_id: int):
         if not ok:
             return jsonify({"error": "Widget not found"}), 404
         return jsonify({"status": "deleted", "id": widget_id})
+
+
+# ── Advanced Industry Analytical Endpoints (v2.1.0 Atlas) ─────────────────────
+
+@bp.route("/api/analytics/funnel", methods=["POST"])
+def api_analytics_funnel():
+    data = request.get_json(force=True) or {}
+    source_id = data.get("source_id")
+    stage_column = data.get("stage_column")
+    stages = data.get("stages") or []
+    entity_column = data.get("entity_column")
+
+    if not source_id or not stage_column or not stages:
+        return jsonify({"error": "source_id, stage_column, and stages are required.", "success": False}), 400
+
+    from tools import analytics_engine
+    try:
+        res = analytics_engine.compute_funnel_analysis(
+            source_id=int(source_id),
+            stage_column=str(stage_column),
+            stages=list(stages),
+            entity_column=str(entity_column) if entity_column else None,
+        )
+        if "error" in res:
+            return jsonify(res), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+
+@bp.route("/api/analytics/retention", methods=["POST"])
+def api_analytics_retention():
+    data = request.get_json(force=True) or {}
+    source_id = data.get("source_id")
+    user_column = data.get("user_column")
+    date_column = data.get("date_column")
+    period_type = data.get("period_type", "month")
+    max_periods = int(data.get("max_periods", 6))
+
+    if not source_id or not user_column or not date_column:
+        return jsonify({"error": "source_id, user_column, and date_column are required.", "success": False}), 400
+
+    from tools import analytics_engine
+    try:
+        res = analytics_engine.compute_cohort_retention(
+            source_id=int(source_id),
+            user_column=str(user_column),
+            date_column=str(date_column),
+            period_type=str(period_type),
+            max_periods=max_periods,
+        )
+        if "error" in res:
+            return jsonify(res), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+
+@bp.route("/api/analytics/statistics", methods=["POST"])
+def api_analytics_statistics():
+    data = request.get_json(force=True) or {}
+    source_id = data.get("source_id")
+    column_name = data.get("column_name")
+
+    if not source_id or not column_name:
+        return jsonify({"error": "source_id and column_name are required.", "success": False}), 400
+
+    from tools import analytics_engine
+    try:
+        res = analytics_engine.compute_column_statistics(
+            source_id=int(source_id),
+            column_name=str(column_name),
+        )
+        if "error" in res:
+            return jsonify(res), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+
+@bp.route("/api/analytics/correlation", methods=["POST"])
+def api_analytics_correlation():
+    data = request.get_json(force=True) or {}
+    source_id = data.get("source_id")
+    columns = data.get("columns")
+
+    if not source_id:
+        return jsonify({"error": "source_id is required.", "success": False}), 400
+
+    from tools import analytics_engine
+    try:
+        res = analytics_engine.compute_correlation_matrix(
+            source_id=int(source_id),
+            columns=columns if isinstance(columns, list) else None,
+        )
+        if "error" in res:
+            return jsonify(res), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+
+@bp.route("/api/analytics/forecast", methods=["POST"])
+def api_analytics_forecast():
+    data = request.get_json(force=True) or {}
+    source_id = data.get("source_id")
+    date_column = data.get("date_column")
+    metric_column = data.get("metric_column")
+    periods_ahead = int(data.get("periods_ahead", 5))
+    aggregation = data.get("aggregation", "sum")
+
+    if not source_id or not date_column or not metric_column:
+        return jsonify({"error": "source_id, date_column, and metric_column are required.", "success": False}), 400
+
+    from tools import analytics_engine
+    try:
+        res = analytics_engine.compute_trend_forecast(
+            source_id=int(source_id),
+            date_column=str(date_column),
+            metric_column=str(metric_column),
+            periods_ahead=periods_ahead,
+            aggregation=aggregation,
+        )
+        if "error" in res:
+            return jsonify(res), 400
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
 
 

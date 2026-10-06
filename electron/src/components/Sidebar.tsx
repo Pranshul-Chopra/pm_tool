@@ -8,6 +8,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react';
 import type { NavTab, UpdateData } from '../types';
 
@@ -17,6 +18,7 @@ interface SidebarProps {
   updateData: UpdateData;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onOpenWhatsNew?: () => void;
 }
 
 interface NavItem {
@@ -41,6 +43,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   updateData,
   collapsed: controlledCollapsed,
   onToggleCollapse,
+  onOpenWhatsNew,
 }) => {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const isCollapsed = controlledCollapsed !== undefined ? controlledCollapsed : internalCollapsed;
@@ -122,21 +125,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Bottom Version Strip (Automatic Background Updater) */}
+      {/* Bottom Version Strip (Automatic Background Updater & What's New) */}
       <div className="p-2 border-t border-[#2e2c2a]/60">
-        <div
-          className={`w-full flex items-center justify-between p-2 rounded bg-[#1a1918] border border-[#2e2c2a] text-[11px] font-mono text-[#9b9690] ${
+        <button
+          type="button"
+          onClick={onOpenWhatsNew}
+          className={`w-full flex items-center justify-between p-2 rounded bg-[#1a1918] hover:bg-[#222120] border border-[#2e2c2a] hover:border-[#e8a84c]/50 text-[11px] font-mono text-[#9b9690] hover:text-[#edeae4] transition-all cursor-pointer group text-left ${
             isCollapsed ? 'justify-center' : ''
           }`}
-          title={
-            updateData.status === 'downloaded'
-              ? 'Update ready to install'
-              : updateData.status === 'downloading'
-              ? `Downloading update (${updateData.percent || 0}%)`
-              : updateData.status === 'available'
-              ? 'Update detected · Downloading in background'
-              : 'Auto-updates active · Connected to local core'
-          }
+          title="Click to view What's New in PM Tool"
         >
           <div className="flex items-center gap-2 overflow-hidden">
             <span
@@ -151,18 +148,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }`}
             />
             {!isCollapsed && (
-              <span className="truncate text-[#9b9690]">
+              <span className="truncate text-[#9b9690] group-hover:text-[#edeae4] transition-colors">
                 v{updateData.version || '2.0.1'}
               </span>
             )}
           </div>
 
           {!isCollapsed && (
-            <span className="text-[10px] text-[#6b6660] font-mono px-1 rounded bg-[#222120] border border-[#2e2c2a]">
-              {updateData.status === 'downloading' ? `${updateData.percent || 0}%` : 'auto'}
+            <span className="text-[10px] text-[#e8a84c] group-hover:text-[#f3c27e] font-sans font-medium px-1.5 py-0.5 rounded bg-[#e8a84c]/10 border border-[#e8a84c]/25 flex items-center gap-1 transition-colors">
+              <Sparkles className="w-2.5 h-2.5 text-[#e8a84c]" />
+              What's New
             </span>
           )}
-        </div>
+        </button>
       </div>
     </aside>
   );

@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 2.0.1  
+**Current Version:** 2.1.0  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -476,6 +476,13 @@ If running in portable mode (`process.env.PORTABLE_EXECUTABLE_DIR` is detected):
 - Automatic download is disabled (`autoUpdater.autoDownload = false`).
 - When an update is detected, the UI displays a notification linking directly to the GitHub Release tag for manual archive extraction.
 
+### 6. In-App "What's New" Modal & Release Curation Pipeline
+PM Tool incorporates a dedicated centered modal dialog ([`WhatsNewModal.tsx`](file:///electron/src/components/WhatsNewModal.tsx)) coupled with a typed release history store ([`whatsNewData.ts`](file:///electron/src/data/whatsNewData.ts)):
+- **Automatic Post-Update Launch:** When the desktop app boots, it compares the current binary version against `localStorage.getItem('pm_tool_last_seen_version')`. If unread or bumped by an update, the modal automatically mounts centered in the window.
+- **One-Time Display Enforcement:** Dismissing via the bottom-right **"Got it"** button or top-right **"X"** icon commits `pm_tool_last_seen_version = currentVersion` to `localStorage`. It will never auto-popup again for that specific release.
+- **On-Demand Manual Invocation:** Users can click the version button at the bottom-left of the sidebar (or the titlebar version badge) at any time to inspect release notes and feature highlights.
+- **Mandatory Release Step:** Every major/minor release checklist requires adding a new `WhatsNewRelease` item to `WHATS_NEW_RELEASES` in `whatsNewData.ts` specifying highlights, tags, and categorized breakdown (`feature`, `improvement`, `fix`).
+
 ---
 
 ## 11. Deterministic Document Summarizer & 8K Token Budget
@@ -675,10 +682,14 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 │              │ • Differential Delta Updates  │ (Shipped)               │
 │              │ • Cascading Port Handshake    │                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
-│ v2.1.0       │ Advanced Analytics & Quality  │ 🔥 NEXT UP              │
-│              │ • Story Decompose & Quality   │ (ACTIVE SPRINT)         │
+│ v2.1.0       │ Advanced Analytics & Quality  │ ✅ COMPLETED            │
+│              │ • Story Decompose & Quality   │ (Shipped)               │
 │              │ • Industry Analytical Tools   │                         │
-│              │ • Team Workspaces & Vaults    │                         │
+│              │ • Funnel, Cohort, Outliers    │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v2.2.0       │ Team Workspaces & Vaults      │ 🔥 NEXT UP              │
+│              │ • Isolated Project Vaults     │ (Active Planning)       │
+│              │ • Encrypted Workspace Port    │                         │
 └──────────────┴───────────────────────────────┴─────────────────────────┘
 ```
 

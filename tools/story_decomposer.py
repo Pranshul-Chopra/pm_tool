@@ -1,7 +1,8 @@
 # ── tools/story_decomposer.py ──────────────────────────────────────────────────
-# PM Tool — Deterministic PRD to Agile Story Decomposer Tool
-# Transforms PRDs and product initiatives into structured user stories with
-# acceptance criteria, priority, and story points, saving directly to pmtool.db.
+# PM Tool — Deterministic PRD to Agile Story Decomposer Tool (v2.1.0 Atlas)
+# Transforms PRDs and initiatives into high-precision Agile user stories adhering
+# to INVEST principles, explicit positive/negative Gherkin scenarios, and calibrated
+# Fibonacci story point estimation. Supports live pre-commit preview.
 
 import json
 import re
@@ -16,22 +17,23 @@ def decompose_prd_to_stories(
     project_id: Optional[int] = None,
     prd_text: Optional[str] = None,
     conversation_id: Optional[str] = None,
+    target_persona: Optional[str] = None,
+    story_count: Optional[int] = 5,
+    preview_only: bool = False,
 ) -> Dict[str, Any]:
     """
-    Decompose product requirements, PRD text, or project goals into granular user stories:
-      1. Gathers context from project metadata and/or raw PRD input text.
-      2. Invokes LLM Gateway to generate structured agile user stories with
-         Given/When/Then acceptance criteria, priority, and Fibonacci story points.
-      3. Deterministically persists generated stories into pmtool.db as tasks.
-      4. Audits execution into ai_context.db (tool_runs).
+    Decompose product requirements or PRD specifications into granular, INVEST-grade user stories.
 
     Args:
         project_id: Target project ID to associate stories with.
-        prd_text: Raw PRD text, functional spec, or bulleted requirements.
+        prd_text: Raw PRD text, feature specification, or bulleted requirements.
         conversation_id: Active conversation ID for audit logging.
+        target_persona: Optional persona filter (e.g., 'End-User', 'Admin', 'API Consumer', 'All').
+        story_count: Target number of discrete user stories (3-10, default 5).
+        preview_only: If True, returns synthesized stories without persisting to pmtool.db.
 
     Returns:
-        Dict containing success status, list of created tasks, and count.
+        Dict containing success status, list of stories/tasks, and metadata.
     """
     start_time = time.time()
     proj = None
@@ -55,7 +57,7 @@ def decompose_prd_to_stories(
         duration_ms = int((time.time() - start_time) * 1000)
         ai_db.record_tool_run(
             tool_name="story_decomposer",
-            input_data={"project_id": project_id, "prd_length": len(prd_text or "")},
+            input_data={"project_id": project_id, "prd_length": 0},
             output_data={"error": err_msg},
             duration_ms=duration_ms,
             status="error",
@@ -63,31 +65,59 @@ def decompose_prd_to_stories(
         )
         return {"success": False, "error": err_msg}
 
+    # Sanitize count
+    count = max(3, min(int(story_count or 5), 10))
+    persona_directive = (
+        f"Focus decomposition specifically through the perspective of the '{target_persona}' persona where applicable."
+        if target_persona and target_persona.lower() not in ("all", "any", "general")
+        else "Span relevant stakeholder personas (e.g. End-User, Administrator, Platform/API Engineer)."
+    )
+
     system_prompt = (
-        "You are an expert Principal Product Manager and Technical Scrum Master.\n"
-        "Your task is to analyze the provided PRD or project requirements and decompose them "
-        "into 4 to 8 high-leverage, well-scoped Agile user stories ready for sprint execution.\n\n"
-        "RULES:\n"
-        "1. Every story title MUST follow: 'As a [persona], I want [action] so that [outcome]'.\n"
-        "2. Include concrete 'acceptance_criteria' with Given/When/Then or verifiable checklist bullet points.\n"
-        "3. Assign realistic 'priority': 'critical', 'high', 'medium', or 'low'.\n"
-        "4. Assign Fibonacci 'story_points': 1, 2, 3, 5, or 8.\n"
-        "5. Output ONLY a valid JSON array of story objects with no introductory or concluding text.\n\n"
+        "You are an elite Principal Technical Product Manager and Agile Enterprise Coach.\n"
+        "Your task is to analyze the provided PRD / specification and decompose it into high-precision, "
+        f"strictly calibrated Agile user stories (aim for approximately {count} stories).\n\n"
+        "AGILE QUALITY STANDARDS (INVEST):\n"
+        "1. Independent: Avoid cross-story execution deadlocks; slice stories vertically.\n"
+        "2. Negotiable & Valuable: Clearly capture the user benefit and measurable value proposition.\n"
+        "3. Estimable & Small: Scope each story so it can be completed within a single sprint iteration.\n"
+        "4. Testable: Acceptance criteria must contain verifiable, automated-test-ready scenarios.\n\n"
+        f"PERSONA GUIDANCE:\n{persona_directive}\n\n"
+        "ACCEPTANCE CRITERIA MANDATE (Gherkin Format):\n"
+        "Each story's 'acceptance_criteria' MUST contain at least THREE distinct scenarios:\n"
+        "- Scenario 1 (Happy Path / Primary Flow): Given [precondition], When [action], Then [verifiable outcome]\n"
+        "- Scenario 2 (Validation / Negative Flow): Given [invalid input or state], When [action], Then [clear error response without side effects]\n"
+        "- Scenario 3 (Edge Case / Non-Functional): Given [boundary condition or system limit], When [action], Then [graceful fallback or retry]\n\n"
+        "FIBONACCI STORY POINT CALIBRATION:\n"
+        "- 1 pt: Trivial change, text update, minimal CSS/config tweak.\n"
+        "- 2 pts: Standard UI form or simple CRUD API using existing patterns.\n"
+        "- 3 pts: Moderate feature with validation logic, state management, or multi-field forms.\n"
+        "- 5 pts: Complex component requiring schema change, external service, or async workflow.\n"
+        "- 8 pts: Architectural module, heavy concurrency, encryption, or multi-system integration.\n\n"
+        "OUTPUT REQUIREMENT:\n"
+        "Respond ONLY with a valid JSON array of story objects matching the schema below. No markdown backticks outside JSON, no prose.\n\n"
         "JSON SCHEMA:\n"
         "[\n"
         "  {\n"
-        "    \"title\": \"As a [persona], I want [capability] so that [value]\",\n"
-        "    \"description\": \"2-3 sentences explaining technical scope, edge cases, and architectural dependencies.\",\n"
-        "    \"acceptance_criteria\": \"- Given [precondition], When [action], Then [verifiable outcome]\\n- Given [error scenario], When [action], Then [fallback]\",\n"
+        "    \"title\": \"As a [persona], I want [capability] so that [business value]\",\n"
+        "    \"persona\": \"End-User\",\n"
+        "    \"description\": \"2-3 clear sentences describing technical scope, architecture, and expected behavior.\",\n"
+        "    \"acceptance_criteria\": \"#### Scenario 1: Happy Path\\n- Given [precondition], When [action], Then [outcome]\\n\\n#### Scenario 2: Validation & Error Handling\\n- Given [invalid state], When [attempt], Then [error message]\\n\\n#### Scenario 3: Boundary & Resilience\\n- Given [edge case], When [triggered], Then [graceful handling]\",\n"
         "    \"priority\": \"high\",\n"
-        "    \"story_points\": 3\n"
+        "    \"story_points\": 3,\n"
+        "    \"risk_level\": \"medium\",\n"
+        "    \"tags\": [\"frontend\", \"api\"]\n"
         "  }\n"
         "]"
     )
 
     user_prompt = (
+        f"PROJECT METADATA:\n"
+        f"- Target Project: {proj.get('name', 'General') if proj else 'General'}\n"
+        f"- Tech Stack: {proj.get('tech_stack', 'Modern Full-Stack') if proj else 'Modern Full-Stack'}\n"
+        f"- Target Count: {count} stories\n\n"
         f"REQUIREMENTS SPECIFICATION TO DECOMPOSE:\n\n{doc_context}\n\n"
-        "Produce the JSON array of agile user stories now."
+        f"Generate the {count} INVEST-grade user stories now."
     )
 
     llm_res = llm_gateway.call_llm(
@@ -121,14 +151,12 @@ def decompose_prd_to_stories(
     # Extract JSON array
     stories_data: List[Dict[str, Any]] = []
     try:
-        # Match JSON block or array
         match = re.search(r"\[\s*\{.*\}\s*\]", raw_output, re.DOTALL)
         if match:
             stories_data = json.loads(match.group(0))
         else:
             stories_data = json.loads(raw_output)
     except Exception as e:
-        # Fallback: attempt json code fence cleanup
         cleaned = re.sub(r"^```(?:json)?\s*", "", raw_output, flags=re.MULTILINE)
         cleaned = re.sub(r"```\s*$", "", cleaned, flags=re.MULTILINE).strip()
         try:
@@ -159,8 +187,8 @@ def decompose_prd_to_stories(
         )
         return {"success": False, "error": err_msg}
 
-    # Deterministically write each story to database
-    created_tasks = []
+    # Normalize story items
+    normalized_stories = []
     for item in stories_data:
         title = (item.get("title") or "").strip()
         if not title:
@@ -171,9 +199,92 @@ def decompose_prd_to_stories(
         if prio not in ("critical", "high", "medium", "low"):
             prio = "medium"
         try:
-            pts = int(item.get("story_points") or 0)
+            pts = int(item.get("story_points") or 3)
+            if pts not in (1, 2, 3, 5, 8, 13):
+                pts = 3
         except (ValueError, TypeError):
-            pts = 0
+            pts = 3
+
+        risk = (item.get("risk_level") or "medium").lower().strip()
+        persona = (item.get("persona") or "End-User").strip()
+        tags = item.get("tags") or []
+        if isinstance(tags, str):
+            tags = [t.strip() for t in tags.split(",") if t.strip()]
+
+        normalized_stories.append({
+            "title": title,
+            "description": description,
+            "acceptance_criteria": criteria,
+            "priority": prio,
+            "story_points": pts,
+            "persona": persona,
+            "risk_level": risk,
+            "tags": tags,
+        })
+
+    duration_ms = int((time.time() - start_time) * 1000)
+
+    # If preview_only is requested, return without database persistence
+    if preview_only:
+        ai_db.record_tool_run(
+            tool_name="story_decomposer",
+            input_data={"project_id": project_id, "mode": "preview", "count": len(normalized_stories)},
+            output_data={"preview_count": len(normalized_stories)},
+            duration_ms=duration_ms,
+            status="success",
+            conversation_id=conversation_id,
+        )
+        return {
+            "success": True,
+            "preview": True,
+            "count": len(normalized_stories),
+            "stories": normalized_stories,
+            "project_id": project_id,
+            "project_name": proj.get("name") if proj else None,
+            "duration_ms": duration_ms,
+        }
+
+    # Deterministically write each story to database
+    created_tasks = commit_decomposed_stories(project_id, normalized_stories)
+
+    ai_db.record_tool_run(
+        tool_name="story_decomposer",
+        input_data={"project_id": project_id, "mode": "commit", "source_length": len(doc_context)},
+        output_data={"created_count": len(created_tasks), "task_ids": [t["id"] for t in created_tasks]},
+        duration_ms=duration_ms,
+        status="success",
+        conversation_id=conversation_id,
+    )
+
+    return {
+        "success": True,
+        "preview": False,
+        "count": len(created_tasks),
+        "created_tasks": created_tasks,
+        "project_id": project_id,
+        "project_name": proj.get("name") if proj else None,
+        "duration_ms": duration_ms,
+    }
+
+
+def commit_decomposed_stories(project_id: Optional[int], stories: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Commit a batch of approved decomposed stories to pmtool.db as Sprint tasks.
+    """
+    created_tasks = []
+    for item in stories:
+        title = (item.get("title") or "").strip()
+        if not title:
+            continue
+        description = (item.get("description") or "").strip()
+        criteria = (item.get("acceptance_criteria") or "").strip()
+        prio = (item.get("priority") or "medium").lower().strip()
+        if prio not in ("critical", "high", "medium", "low"):
+            prio = "medium"
+        try:
+            pts = int(item.get("story_points") or 3)
+        except (ValueError, TypeError):
+            pts = 3
 
         task = db.create_task(
             project_id=project_id,
@@ -185,22 +296,4 @@ def decompose_prd_to_stories(
             acceptance_criteria=criteria,
         )
         created_tasks.append(task)
-
-    duration_ms = int((time.time() - start_time) * 1000)
-    ai_db.record_tool_run(
-        tool_name="story_decomposer",
-        input_data={"project_id": project_id, "source_length": len(doc_context)},
-        output_data={"created_count": len(created_tasks), "task_ids": [t["id"] for t in created_tasks]},
-        duration_ms=duration_ms,
-        status="success",
-        conversation_id=conversation_id,
-    )
-
-    return {
-        "success": True,
-        "count": len(created_tasks),
-        "created_tasks": created_tasks,
-        "project_id": project_id,
-        "project_name": proj.get("name") if proj else None,
-        "duration_ms": duration_ms,
-    }
+    return created_tasks

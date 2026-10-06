@@ -7,6 +7,7 @@ interface TitlebarProps {
   projectName?: string;
   version?: string;
   onOpenPalette?: () => void;
+  onOpenWhatsNew?: () => void;
 }
 
 const tabTitles: Record<NavTab, string> = {
@@ -23,15 +24,21 @@ export const Titlebar: React.FC<TitlebarProps> = ({
   projectName = 'General',
   version = '2.0.1',
   onOpenPalette,
+  onOpenWhatsNew,
 }) => {
   return (
     <header className="app-drag-region h-10 w-full bg-[#111110] border-b border-[#2e2c2a] flex items-center justify-between px-3 select-none flex-shrink-0 z-50">
       {/* Brand & Breadcrumbs */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-[#1a1918] border border-[#2e2c2a]">
+        <button
+          type="button"
+          onClick={onOpenWhatsNew}
+          className="app-no-drag flex items-center gap-2 px-2 py-0.5 rounded bg-[#1a1918] hover:bg-[#222120] border border-[#2e2c2a] hover:border-[#e8a84c]/50 cursor-pointer transition-colors group"
+          title="Click to view What's New"
+        >
           <span className="text-xs font-mono font-bold text-[#e8a84c]">PmT</span>
-          <span className="text-[11px] text-[#9b9690] font-mono">v{version}</span>
-        </div>
+          <span className="text-[11px] text-[#9b9690] group-hover:text-[#edeae4] font-mono">v{version}</span>
+        </button>
 
         <div className="h-3.5 w-[1px] bg-[#2e2c2a] mx-1" />
 

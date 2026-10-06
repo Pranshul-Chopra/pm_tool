@@ -123,8 +123,19 @@ class BridgeService {
       const q = projectId ? `?project_id=${projectId}` : '';
       return this.request<any>(`/api/tasks/metrics${q}`);
     },
-    decomposePRD: (payload: { project_id?: number; prd_text: string }) =>
+    decomposePRD: (payload: {
+      project_id?: number;
+      prd_text: string;
+      target_persona?: string;
+      story_count?: number;
+      preview_only?: boolean;
+    }) =>
       this.request<any>('/api/tools/breakdown', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    commitStories: (payload: { project_id?: number; stories: any[] }) =>
+      this.request<any>('/api/tools/breakdown/commit', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
@@ -244,6 +255,56 @@ class BridgeService {
       const q = projectId ? `?project_id=${projectId}` : '';
       return this.request<{ widgets: KPIWidget[] }>(`/api/data/widgets${q}`);
     },
+
+    // Advanced Industry Analytics Engine (v2.1.0)
+    getFunnelAnalysis: (payload: {
+      source_id: number;
+      stage_column: string;
+      stages: string[];
+      entity_column?: string;
+    }) =>
+      this.request<any>('/api/analytics/funnel', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    getCohortRetention: (payload: {
+      source_id: number;
+      user_column: string;
+      date_column: string;
+      period_type?: string;
+      max_periods?: number;
+    }) =>
+      this.request<any>('/api/analytics/retention', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    getColumnStatistics: (payload: {
+      source_id: number;
+      column_name: string;
+    }) =>
+      this.request<any>('/api/analytics/statistics', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    getCorrelationMatrix: (payload: {
+      source_id: number;
+      columns?: string[];
+    }) =>
+      this.request<any>('/api/analytics/correlation', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    getTrendForecast: (payload: {
+      source_id: number;
+      date_column: string;
+      metric_column: string;
+      periods_ahead?: number;
+      aggregation?: string;
+    }) =>
+      this.request<any>('/api/analytics/forecast', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
 
     // Decisions
     getDecisions: (projectId?: number) => {

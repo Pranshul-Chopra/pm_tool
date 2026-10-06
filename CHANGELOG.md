@@ -3,6 +3,36 @@
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-10-06
+
+### 📈 Industry-Standard Advanced Analytics Workbench
+- **Multi-Stage Conversion Funnel & Drop-Off Analyzer (`tools/analytics_engine.py`)**:
+  - Sequential pipeline tracking with step-to-step drop-off percentages, top-of-funnel relative conversions, and lost volume calculations.
+  - Interactive visual funnel bar graph with dynamic color gradients and executive milestone counters.
+- **Period-over-Period Cohort Retention Matrix**:
+  - Automated month-over-month (MoM), week-over-week (WoW), and day-over-day (DoD) cohort construction.
+  - Interactive heatmap retention matrix with color-coded retention intensity cells.
+- **Statistical Distributions & Outlier Detection**:
+  - Full parametric and non-parametric distribution profiling: Mean, Median (P50), P25, P75, P90, P99, Standard Deviation, and Interquartile Range (IQR).
+  - Outlier detection leveraging Tukey's fences ($1.5 \times \text{IQR}$) and Z-scores ($|Z| > 3.0$) with live table inspection.
+- **Pairwise Feature Correlation Matrix**:
+  - Automated detection of numerical features and computation of Pearson correlation coefficients $r \in [-1.0, 1.0]$.
+  - Heatmap grid with direction/strength classifications (Strong, Moderate, Weak).
+- **Linear Trendline & Trajectory Forecasting**:
+  - Time-series linear regression engine calculating slope rate ($\Delta / \text{period}$), intercept, and $R^2$ goodness-of-fit.
+  - Projection of future milestones across customizable forecasting horizons.
+
+### 🤖 High-Precision Agile Story Decomposer Overhaul
+- **INVEST Principles & Atomic Story Slicing**:
+  - Re-architected `tools/story_decomposer.py` prompt system enforcing Independent, Negotiable, Valuable, Estimable, Small, and Testable user stories.
+- **Strict Multi-Scenario Gherkin Acceptance Criteria**:
+  - Every synthesized story includes at least 3 distinct Given/When/Then scenarios: Happy Path, Validation & Negative Flows, and Boundary/Resilience edge cases.
+- **Calibrated Fibonacci Point Estimation**:
+  - Standardized Fibonacci estimates ($1, 2, 3, 5, 8, 13$) calibrated to architectural complexity, schema impact, and risk rather than raw token length.
+- **Interactive Decomposer Studio Modal (`DecomposerModal.tsx`)**:
+  - Stakeholder persona filters (End-User, Administrator, API Consumer, DevOps/Platform) and story count selector (3–10).
+  - Live pre-commit review step allowing engineers to inspect, select, adjust story points, and batch-commit approved stories directly to the sprint Kanban board.
+
 ## [2.0.1] - 2026-10-06
 
 ### 📊 Interactive Data Studio & KPI Dashboard Studio

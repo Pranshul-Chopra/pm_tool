@@ -11,6 +11,7 @@ import DocsView from './views/DocsView';
 import ChatView from './views/ChatView';
 import SettingsView from './views/SettingsView';
 import ErrorBoundary from './components/ErrorBoundary';
+import WhatsNewModal from './components/WhatsNewModal';
 import AppBridge from './services/bridge';
 
 export const App: React.FC = () => {
@@ -20,6 +21,26 @@ export const App: React.FC = () => {
   const [updateData, setUpdateData] = useState<UpdateData>({ status: 'idle' });
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
+
+  // Check whether to show What's New dialog (only once per version update)
+  useEffect(() => {
+    const currentVersion = updateData.version || '2.0.1';
+    const lastSeenVersion = localStorage.getItem('pm_tool_last_seen_version');
+    if (!lastSeenVersion || lastSeenVersion !== currentVersion) {
+      setIsWhatsNewOpen(true);
+    }
+  }, [updateData.version]);
+
+  const handleCloseWhatsNew = () => {
+    const currentVersion = updateData.version || '2.0.1';
+    localStorage.setItem('pm_tool_last_seen_version', currentVersion);
+    setIsWhatsNewOpen(false);
+  };
+
+  const handleOpenWhatsNew = () => {
+    setIsWhatsNewOpen(true);
+  };
 
   useEffect(() => {
     // 1. Listen for background auto-updater events via Electron contextBridge
@@ -116,6 +137,7 @@ export const App: React.FC = () => {
         activeTab={activeTab}
         version={updateData.version || '2.0.1'}
         onOpenPalette={() => setIsPaletteOpen(true)}
+        onOpenWhatsNew={handleOpenWhatsNew}
       />
 
       {/* Main Workstation Container */}
@@ -126,6 +148,7 @@ export const App: React.FC = () => {
           updateData={updateData}
           collapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+          onOpenWhatsNew={handleOpenWhatsNew}
         />
 
         <main className="flex-1 h-full overflow-hidden bg-[#111110] relative">
@@ -160,6 +183,13 @@ export const App: React.FC = () => {
           onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
         />
       </ErrorBoundary>
+
+      {/* Centered What's New Dialog Box */}
+      <WhatsNewModal
+        isOpen={isWhatsNewOpen}
+        onClose={handleCloseWhatsNew}
+        activeVersion={updateData.version || '2.0.1'}
+      />
 
       {/* In-App Background Auto-Updater Toast */}
       <UpdaterToast data={updateData} />

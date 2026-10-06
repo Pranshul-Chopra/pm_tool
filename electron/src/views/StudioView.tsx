@@ -24,14 +24,15 @@ import type { DataSource, KPIWidget } from '../types';
 import AppBridge from '../services/bridge';
 import DeleteDatasetModal from '../components/studio/DeleteDatasetModal';
 import AddWidgetModal from '../components/studio/AddWidgetModal';
+import AdvancedAnalyticsWorkbench from '../components/studio/AdvancedAnalyticsWorkbench';
 
 export const StudioView: React.FC = () => {
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Active Tab: 'sandbox' | 'dashboard'
-  const [activeTab, setActiveTab] = useState<'sandbox' | 'dashboard'>('sandbox');
+  // Active Tab: 'sandbox' | 'dashboard' | 'analytics'
+  const [activeTab, setActiveTab] = useState<'sandbox' | 'dashboard' | 'analytics'>('sandbox');
 
   // SQL Sandbox State
   const [sqlQuery, setSqlQuery] = useState<string>('SELECT * FROM data LIMIT 25;');
@@ -308,6 +309,17 @@ export const StudioView: React.FC = () => {
             >
               <LayoutGrid className="w-3.5 h-3.5" />
               <span>KPI Dashboard</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                activeTab === 'analytics'
+                  ? 'bg-[#222120] text-[#e8a84c] shadow-sm font-semibold'
+                  : 'text-[#9b9690] hover:text-[#edeae4]'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>Advanced Analytics</span>
             </button>
           </div>
 
@@ -788,6 +800,16 @@ export const StudioView: React.FC = () => {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {/* Advanced Analytics Workbench Tab */}
+      {activeTab === 'analytics' && (
+        <div className="flex-1 flex flex-col min-h-0 bg-[#161514] border border-[#2e2c2a] rounded-xl p-5 overflow-hidden">
+          <AdvancedAnalyticsWorkbench
+            activeSource={activeSource}
+            columns={parsedColumns}
+          />
         </div>
       )}
 

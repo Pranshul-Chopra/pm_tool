@@ -117,8 +117,27 @@ Ensure the target version string is synchronized across all core files:
    ```
 3. `CHANGELOG.md`: Document release notes under `## [2.0.1] - YYYY-MM-DD`.
 4. `DEV_HANDBOOK.md`: Update version header to `2.0.1`.
+5. `electron/src/data/whatsNewData.ts`: **Curate In-App "What's New" Release Notes** (Mandatory release step):
+   - Prepend a new `WhatsNewRelease` object to `WHATS_NEW_RELEASES`.
+   - Include version number, codename, release title, summary, key highlights with icons, and categorized sections (`feature`, `improvement`, `fix`).
 
-### Step 2: Run the Local Build Script
+### Step 2: In-App "What's New" Modal System & Verification
+PM Tool features a dedicated, centered **"What's New"** modal dialog (`WhatsNewModal.tsx`):
+- **Automatic Post-Update Launch:** Immediately after updating to a new version, the dialog box automatically appears centered in the window on first launch to inform users of new capabilities.
+- **Single-Trigger Guarantee:** Uses `localStorage.getItem('pm_tool_last_seen_version')`. Once dismissed, it will **never auto-popup again** for that version.
+- **Dismissal Controls:**
+  - **"Got it" Button:** Prominent amber button on the bottom-right of the dialog shell.
+  - **"X" Close Button:** Clean dismissal icon on the top-right of the header.
+- **On-Demand Manual Access:** Users can reopen the "What's New" dialog at any time by clicking the **version button at the bottom-left of the shell** (the sidebar version strip) or the titlebar version badge.
+
+To test the auto-popup locally before release:
+```javascript
+// Open DevTools (Ctrl+Shift+I) and reset the seen flag:
+localStorage.removeItem('pm_tool_last_seen_version');
+// Refresh (Ctrl+R) — modal will immediately appear centered.
+```
+
+### Step 3: Run the Local Build Script
 From the repository root in PowerShell:
 ```powershell
 $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
@@ -128,10 +147,10 @@ $env:CSC_IDENTITY_AUTO_DISCOVERY="false"
 The script runs the 4-stage pipeline:
 1. Validates Python environment
 2. Compiles Flask backend into `dist\flask\`
-3. Compiles Vite React SPA and installs Electron dependencies in `electron\`
+3. Compiles Vite React SPA (`npm run build:ui`) and installs Electron dependencies in `electron\`
 4. Runs `electron-builder` and outputs artifacts to `release\`
 
-### Step 3: Manual GitHub Release Publication
+### Step 4: Manual GitHub Release Publication
 1. Navigate to: `https://github.com/Pranshul-Chopra/pm_tool/releases/new`
 2. **Tag:** `v2.0.1`
 3. **Release Title:** `PM Tool v2.0.1`
@@ -171,6 +190,9 @@ Before distributing any new release:
 - [ ] Run `PM Tool-Setup-<version>.exe` to verify 1-click installation succeeds.
 - [ ] Verify desktop and Start Menu shortcuts are created with the new **PmT** icon.
 - [ ] Launch PM Tool and verify single-DOM SPA window boots cleanly without console errors.
+- [ ] Verify "What's New" dialog appears centered on first launch after update and dismisses via "Got it" (bottom-right) and "X" (top-right).
+- [ ] Verify "What's New" does NOT reappear on subsequent app restarts after being dismissed.
+- [ ] Verify clicking the bottom-left version button in the sidebar (or top-left titlebar badge) reopens "What's New" on demand.
 - [ ] Verify Flask starts automatically and `/api/ping` succeeds.
 - [ ] Verify Command Palette (`Ctrl+K` / `Cmd+K`) opens and filters navigation, projects, and actions.
 - [ ] Verify universal shortcuts (`Ctrl+B` toggle sidebar, `Ctrl+1..6` tab switcher).
