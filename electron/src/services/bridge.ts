@@ -217,6 +217,27 @@ class BridgeService {
         method: 'POST',
         body: JSON.stringify(data),
       }),
+    createWidget: (
+      dashboardId: number,
+      data: {
+        title: string;
+        data_source_id: number;
+        widget_type?: string;
+        metric_op?: string;
+        value_column?: string;
+        group_by_column?: string;
+        format_type?: string;
+        target_value?: number;
+      }
+    ) =>
+      this.request<any>(`/api/dashboards/${dashboardId}/widgets`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    deleteWidget: (widgetId: number) =>
+      this.request<{ status: string; id: number }>(`/api/dashboards/widgets/${widgetId}`, {
+        method: 'DELETE',
+      }),
     getWidgets: (projectId?: number) => {
       const q = projectId ? `?project_id=${projectId}` : '';
       return this.request<{ widgets: KPIWidget[] }>(`/api/data/widgets${q}`);

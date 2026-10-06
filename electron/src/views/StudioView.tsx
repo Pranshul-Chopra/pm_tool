@@ -14,9 +14,16 @@ import {
   TrendingUp,
   LayoutGrid,
   CheckCircle,
+  Plus,
+  BarChart3,
+  PieChart,
+  ArrowUpRight,
+  ArrowDownRight,
 } from 'lucide-react';
 import type { DataSource, KPIWidget } from '../types';
 import AppBridge from '../services/bridge';
+import DeleteDatasetModal from '../components/studio/DeleteDatasetModal';
+import AddWidgetModal from '../components/studio/AddWidgetModal';
 
 export const StudioView: React.FC = () => {
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
@@ -40,6 +47,12 @@ export const StudioView: React.FC = () => {
   // Dashboard / KPI Widgets State
   const [widgets, setWidgets] = useState<any[]>([]);
   const [loadingWidgets, setLoadingWidgets] = useState(false);
+  const [activeDashboardId, setActiveDashboardId] = useState<number | null>(null);
+  const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
+
+  // Modals State
+  const [deleteConfirmSource, setDeleteConfirmSource] = useState<DataSource | null>(null);
+  const [deletingSource, setDeletingSource] = useState(false);
 
   const fetchStudioData = async () => {
     setLoading(true);
@@ -87,8 +100,26 @@ export const StudioView: React.FC = () => {
     try {
       const res = await AppBridge.api.getDashboards();
       const dashboards = Array.isArray(res?.dashboards) ? res.dashboards : [];
-      if (dashboards.length > 0) {
-        const detail = await AppBridge.api.getDashboardDetail(dashboards[0].id);
+      let dashId = dashboards.length > 0 ? dashboards[0].id : null;
+
+      if (!dashId) {
+        // Auto-provision default KPI dashboard if none exists
+        try {
+          const created = await AppBridge.api.createDashboard({ title: 'Analytics & KPI Dashboard' });
+          if (created?.id) {
+            dashId = created.id;
+          } else if (created?.dashboard?.id) {
+            dashId = created.dashboard.id;
+          }
+        } catch (createErr) {
+          console.warn('Could not auto-create dashboard:', createErr);
+        }
+      }
+
+      setActiveDashboardId(dashId);
+
+      if (dashId) {
+        const detail = await AppBridge.api.getDashboardDetail(dashId);
         const wList = Array.isArray(detail?.widgets) ? detail.widgets : [];
         setWidgets(wList);
       } else {
@@ -166,18 +197,38 @@ export const StudioView: React.FC = () => {
     }
   };
 
-  const handleDeleteSource = async (sourceId: number, name: string) => {
-    if (!window.confirm(`Delete dataset "${name}" and drop its materialized table?`)) return;
+  const handleDeleteSource = (source: DataSource) => {
+    setDeleteConfirmSource(source);
+  };
 
+  const handleConfirmDeleteSource = async () => {
+    if (!deleteConfirmSource) return;
+    setDeletingSource(true);
     try {
-      await AppBridge.api.deleteDataSource(sourceId);
-      setDataSources((prev) => prev.filter((s) => s.id !== sourceId));
-      if (selectedSourceId === sourceId) {
+      await AppBridge.api.deleteDataSource(deleteConfirmSource.id);
+      setDataSources((prev) => prev.filter((s) => s.id !== deleteConfirmSource.id));
+      if (selectedSourceId === deleteConfirmSource.id) {
         setSelectedSourceId(null);
         setQueryResult(null);
       }
+      setDeleteConfirmSource(null);
+      if (activeTab === 'dashboard') {
+        loadDashboardWidgets();
+      }
     } catch (err: any) {
-      alert(`Failed to delete dataset: ${err.message}`);
+      console.error('Failed to delete dataset:', err);
+      alert(`Failed to delete dataset: ${err.message || 'Unknown error'}`);
+    } finally {
+      setDeletingSource(false);
+    }
+  };
+
+  const handleDeleteWidget = async (widgetId: number) => {
+    try {
+      await AppBridge.api.deleteWidget(widgetId);
+      setWidgets((prev) => prev.filter((w) => (w.id || w.widget_id) !== widgetId));
+    } catch (err: any) {
+      console.error('Failed to delete widget:', err);
     }
   };
 
@@ -260,6 +311,18 @@ export const StudioView: React.FC = () => {
             </button>
           </div>
 
+          {activeTab === 'dashboard' && (
+            <button
+              onClick={() => setIsAddWidgetOpen(true)}
+              disabled={dataSources.length === 0}
+              className="px-3.5 py-1.5 bg-[#e8a84c] hover:bg-[#d4973b] disabled:opacity-40 text-black font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+              title={dataSources.length === 0 ? 'Upload a dataset first' : 'Add KPI metric or chart'}
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add KPI Metric</span>
+            </button>
+          )}
+
           <input
             type="file"
             ref={fileInputRef}
@@ -271,9 +334,13 @@ export const StudioView: React.FC = () => {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="px-3.5 py-1.5 bg-[#e8a84c] hover:bg-[#d4973b] disabled:opacity-50 text-black font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+            className={`px-3.5 py-1.5 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-sm ${
+              activeTab === 'dashboard'
+                ? 'bg-[#222120] hover:bg-[#282725] text-[#edeae4] border border-[#2e2c2a]'
+                : 'bg-[#e8a84c] hover:bg-[#d4973b] text-black disabled:opacity-50'
+            }`}
           >
-            <Upload className={`w-3.5 h-3.5 ${uploading ? 'animate-spin' : ''}`} />
+            <Upload className={`w-3.5 h-3.5 ${uploading ? 'animate-spin text-[#e8a84c]' : ''}`} />
             <span>{uploading ? 'Materializing...' : 'Upload Dataset'}</span>
           </button>
         </div>
@@ -337,9 +404,9 @@ export const StudioView: React.FC = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteSource(ds.id, ds.name);
+                      handleDeleteSource(ds);
                     }}
-                    className="p-1 text-[#5c5955] hover:text-[#e85c4c] rounded"
+                    className="p-1 text-[#5c5955] hover:text-[#e85c4c] rounded transition-colors"
                     title="Delete dataset"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -484,59 +551,264 @@ export const StudioView: React.FC = () => {
         </div>
       ) : (
         /* ── KPI Dashboard View ────────────────────────────────────────────── */
-        <div className="flex-1 overflow-y-auto space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {Array.isArray(widgets) && widgets.map((w) => (
-              <div
-                key={w.id}
-                className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl p-5 flex flex-col justify-between space-y-3"
-              >
-                <div className="flex items-center justify-between text-xs text-[#9b9690]">
-                  <span className="font-semibold text-[#edeae4] truncate">{w.title}</span>
-                  <span className="font-mono text-[10px] text-[#e8a84c] uppercase">
-                    {w.operation || 'METRIC'}
-                  </span>
-                </div>
+        <div className="flex-1 overflow-y-auto space-y-6 pr-1">
+          {(() => {
+            const allWidgets = Array.isArray(widgets) ? widgets : [];
+            const kpiCards = allWidgets.filter((w) => w.widget_type === 'kpi_card' || !w.widget_type);
+            const chartWidgets = allWidgets.filter(
+              (w) => w.widget_type === 'bar_chart' || w.widget_type === 'donut_chart' || w.widget_type === 'pie_chart'
+            );
 
-                <div>
-                  <div className="text-3xl font-bold font-mono text-[#edeae4]">
-                    {w.value_formatted || w.computed_value || w.current_value || '0'}
+            if (allWidgets.length === 0 && !loadingWidgets) {
+              return (
+                <div className="py-16 text-center text-xs text-[#5c5955] bg-[#1a1918] border border-dashed border-[#2e2c2a] rounded-xl p-8 max-w-lg mx-auto flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-2xl bg-[#e8a84c]/10 border border-[#e8a84c]/30 flex items-center justify-center text-[#e8a84c] mb-3 shadow-inner">
+                    <TrendingUp className="w-6 h-6" />
                   </div>
+                  <span className="font-semibold text-sm text-[#edeae4]">No KPI Metrics or Charts Configured</span>
+                  <p className="text-xs text-[#9b9690] mt-1.5 leading-relaxed max-w-sm">
+                    Configure live computed metric cards, target benchmarks, and dimensional distribution charts directly from your connected datasets.
+                  </p>
+                  <div className="mt-5 flex items-center gap-3">
+                    {dataSources.length > 0 ? (
+                      <button
+                        onClick={() => setIsAddWidgetOpen(true)}
+                        className="px-4 py-2 bg-[#e8a84c] hover:bg-[#d4973b] text-black font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span>Create Your First KPI Metric</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-[#e8a84c] hover:bg-[#d4973b] text-black font-semibold text-xs rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>Upload Dataset First</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            }
 
-                  {w.target_value && (
-                    <div className="flex items-center gap-1.5 text-[11px] font-mono mt-1 text-[#9b9690]">
-                      <span>Target: {w.target_value}</span>
-                      {w.direction && (
-                        <span
-                          className={`font-bold ${
-                            w.direction === 'up' ? 'text-[#5aab7f]' : 'text-[#e85c4c]'
-                          }`}
-                        >
-                          ({w.diff_pct || '0%'})
-                        </span>
-                      )}
+            return (
+              <div className="space-y-6">
+                {/* KPI Cards Section */}
+                {kpiCards.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-mono text-[#9b9690] uppercase font-semibold flex items-center gap-2">
+                        <TrendingUp className="w-3.5 h-3.5 text-[#e8a84c]" />
+                        <span>Key Performance Indicators ({kpiCards.length})</span>
+                      </h3>
+                      <button
+                        onClick={() => setIsAddWidgetOpen(true)}
+                        className="text-xs text-[#e8a84c] hover:underline flex items-center gap-1 font-mono"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Metric</span>
+                      </button>
                     </div>
-                  )}
-                </div>
 
-                <div className="text-[10px] font-mono text-[#5c5955] border-t border-[#2e2c2a] pt-2">
-                  Column: {w.target_column || 'dataset'}
-                </div>
-              </div>
-            ))}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {kpiCards.map((w) => (
+                        <div
+                          key={w.id || w.widget_id}
+                          className="group relative bg-[#1a1918] hover:bg-[#1e1d1c] border border-[#2e2c2a] hover:border-[#3a3835] rounded-xl p-5 flex flex-col justify-between space-y-3 transition-all shadow-sm"
+                        >
+                          {/* Header */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="truncate">
+                              <span className="font-semibold text-[#edeae4] text-xs truncate block" title={w.title}>
+                                {w.title}
+                              </span>
+                              <span className="text-[10px] text-[#9b9690] font-mono mt-0.5 block truncate">
+                                {w.data_source_name || 'Dataset'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteWidget(w.id || w.widget_id)}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-[#5c5955] hover:text-[#e85c4c] rounded transition-all flex-shrink-0"
+                              title="Delete KPI metric"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
 
-            {(!Array.isArray(widgets) || widgets.length === 0) && !loadingWidgets && (
-              <div className="col-span-full py-12 text-center text-xs text-[#5c5955] bg-[#1a1918] border border-dashed border-[#2e2c2a] rounded-xl p-6">
-                <TrendingUp className="w-8 h-8 mx-auto mb-2 opacity-40 text-[#e8a84c]" />
-                <span className="font-semibold text-[#edeae4]">No KPI metrics created yet</span>
-                <p className="text-[11px] text-[#9b9690] mt-1">
-                  Connect datasets in SQL Sandbox to configure dynamic KPI cards and benchmarks.
-                </p>
+                          {/* Value & Comparison */}
+                          <div>
+                            {w.error ? (
+                              <div className="text-xs text-[#e85c4c] font-mono">{w.error}</div>
+                            ) : (
+                              <>
+                                <div className="text-3xl font-bold font-mono text-[#edeae4] tracking-tight">
+                                  {w.display_value || (w.value !== undefined ? String(w.value) : (w.value_formatted || w.computed_value || w.current_value || '0'))}
+                                </div>
+
+                                {w.comparison ? (
+                                  <div className="flex items-center gap-1.5 text-xs font-mono mt-1.5">
+                                    {w.comparison.direction === 'up' ? (
+                                      <span className="text-[#5aab7f] flex items-center gap-0.5 font-semibold">
+                                        <ArrowUpRight className="w-3.5 h-3.5" />
+                                        {w.comparison.label}
+                                      </span>
+                                    ) : (
+                                      <span className="text-[#e85c4c] flex items-center gap-0.5 font-semibold">
+                                        <ArrowDownRight className="w-3.5 h-3.5" />
+                                        {w.comparison.label}
+                                      </span>
+                                    )}
+                                  </div>
+                                ) : w.target_value ? (
+                                  <div className="text-[11px] font-mono text-[#9b9690] mt-1.5">
+                                    Target: {String(w.target_value)}
+                                  </div>
+                                ) : null}
+                              </>
+                            )}
+                          </div>
+
+                          {/* Footer */}
+                          <div className="text-[10px] font-mono text-[#5c5955] border-t border-[#2e2c2a] pt-2 flex items-center justify-between">
+                            <span className="uppercase">{(w.metric_op || 'COUNT')} ({w.value_column || '*'})</span>
+                            <span className="text-[#e8a84c] text-[9px] px-1.5 py-0.5 rounded bg-[#e8a84c]/10 border border-[#e8a84c]/20">
+                              KPI
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Charts Section */}
+                {chartWidgets.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-mono text-[#9b9690] uppercase font-semibold flex items-center gap-2">
+                      <BarChart3 className="w-3.5 h-3.5 text-[#4c97e8]" />
+                      <span>Distribution & Breakdown Charts ({chartWidgets.length})</span>
+                    </h3>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      {chartWidgets.map((w) => {
+                        const isDonut = w.widget_type === 'donut_chart' || w.widget_type === 'pie_chart';
+                        return (
+                          <div
+                            key={w.id || w.widget_id}
+                            className="group relative bg-[#1a1918] hover:bg-[#1e1d1c] border border-[#2e2c2a] hover:border-[#3a3835] rounded-xl p-5 flex flex-col justify-between space-y-4 transition-all shadow-sm"
+                          >
+                            {/* Chart Header */}
+                            <div className="flex items-start justify-between gap-3 border-b border-[#2e2c2a] pb-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-[#4c97e8]/10 border border-[#4c97e8]/30 flex items-center justify-center text-[#4c97e8] flex-shrink-0">
+                                  {isDonut ? <PieChart className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-[#edeae4] text-xs leading-none">{w.title}</h4>
+                                  <div className="text-[10px] text-[#9b9690] font-mono mt-1">
+                                    {w.data_source_name} · Grouped by <span className="text-[#edeae4] font-medium">"{w.group_by_column}"</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#222120] text-[#9b9690] border border-[#2e2c2a] uppercase">
+                                  {w.widget_type === 'donut_chart' ? 'Donut' : 'Bar'}
+                                </span>
+                                <button
+                                  onClick={() => handleDeleteWidget(w.id || w.widget_id)}
+                                  className="opacity-0 group-hover:opacity-100 p-1 text-[#5c5955] hover:text-[#e85c4c] rounded transition-all"
+                                  title="Delete chart"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Total Summary */}
+                            <div className="flex items-baseline justify-between text-xs">
+                              <span className="text-[#9b9690] font-mono text-[11px]">Total {w.metric_op?.toUpperCase() || 'COUNT'}:</span>
+                              <span className="text-xl font-bold font-mono text-[#edeae4]">
+                                {w.display_total || (w.total !== undefined ? String(w.total) : '0')}
+                              </span>
+                            </div>
+
+                            {/* Series Progress Bars */}
+                            <div className="space-y-2.5 pt-1">
+                              {w.error ? (
+                                <div className="text-xs text-[#e85c4c] font-mono">{w.error}</div>
+                              ) : Array.isArray(w.series) && w.series.length > 0 ? (
+                                w.series.map((s: any, idx: number) => (
+                                  <div key={idx} className="space-y-1">
+                                    <div className="flex items-center justify-between text-xs">
+                                      <div className="flex items-center gap-2 truncate pr-2">
+                                        <span
+                                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                          style={{ backgroundColor: s.color }}
+                                        />
+                                        <span className="text-[#edeae4] text-[11px] truncate font-medium">
+                                          {s.label}
+                                        </span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5 font-mono text-[11px] text-[#9b9690] flex-shrink-0">
+                                        <span className="text-[#edeae4] font-semibold">{s.display_value}</span>
+                                        <span>({s.percent}%)</span>
+                                      </div>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-[#222120] rounded-full overflow-hidden">
+                                      <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{
+                                          width: `${Math.min(100, Math.max(2, s.percent))}%`,
+                                          backgroundColor: s.color,
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="text-center py-6 text-xs text-[#5c5955] font-mono">
+                                  No breakdown series available for this grouping.
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="text-[10px] font-mono text-[#5c5955] border-t border-[#2e2c2a] pt-2 flex items-center justify-between">
+                              <span>Aggregation: {(w.metric_op || 'COUNT').toUpperCase()}({w.value_column || '*'})</span>
+                              <span>{Array.isArray(w.series) ? w.series.length : 0} series segments</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
       )}
+
+      {/* Delete Dataset Confirmation Modal */}
+      <DeleteDatasetModal
+        isOpen={Boolean(deleteConfirmSource)}
+        dataset={deleteConfirmSource}
+        loading={deletingSource}
+        onClose={() => setDeleteConfirmSource(null)}
+        onConfirm={handleConfirmDeleteSource}
+      />
+
+      {/* Add KPI Metric / Chart Modal */}
+      <AddWidgetModal
+        isOpen={isAddWidgetOpen}
+        dataSources={dataSources}
+        initialSourceId={selectedSourceId}
+        dashboardId={activeDashboardId}
+        onClose={() => setIsAddWidgetOpen(false)}
+        onCreated={() => loadDashboardWidgets()}
+      />
     </div>
   );
 };
