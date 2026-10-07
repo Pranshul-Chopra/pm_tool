@@ -1,16 +1,17 @@
-# Implementation Plan: PM Tool v2.1.0 ("Atlas")
+# Implementation Plan: PM Tool v2.2.0 ("Scribe & Foundry")
 
-**Release Focus:** Advanced Analytics, Calibrated Story Decomposer & Team Vault Scaffolding  
-**Current Milestone:** v2.1.0  
+**Release Focus:** First-Launch Onboarding Wizard, In-Built Living Document Editor (PranshulOS Style), Contextual AI Artifacts Promotion, and Segregated Database Architecture (`artifacts.db`)  
+**Current Milestone:** v2.2.0  
 **Target Platform:** Windows Desktop (Local-First, Privacy-Preserving)
 
 ---
 
 ## 1. Executive Summary & Goals
 
-PM Tool v2.1.0 elevates core agile execution and data intelligence across two primary tracks:
-1. **Story Decomposer & Quality Elevation:** Transform automated PRD-to-story decomposition with calibrated prompt architectures, atomic INVEST sizing, explicit positive/negative Gherkin scenarios, and an interactive pre-commit preview studio.
-2. **Industry-Standard Dataset Analytics:** Introduce professional analytics tools into Data Studio, including multi-stage funnel conversion tracking, cohort retention heatmaps, statistical outlier detection (Z-scores/IQR), correlation matrices, and linear trend forecasting.
+PM Tool v2.2.0 introduces two major strategic capabilities:
+1. **User Onboarding Flow for First-Time App Launches:** A clean, friction-free setup wizard that greets first-time users, sets up their project initiative, configures their AI provider (with live Ollama probing and cloud API key options), and introduces the workstation's core capabilities and keyboard shortcuts (`Ctrl+K`, `Ctrl+B`, `Ctrl+1..6`).
+2. **Contextual Artifacts Management (Docs - PranshulOS Style):** An in-built living document editor for PRDs, architecture RFCs, sprint briefs, and meeting notes with live split preview, multi-format export (`.docx`, `.md`, HTML), 1-click sprint board decomposition, and 1-click chat-to-artifact promotion.
+3. **Segregated Database Architecture (`artifacts.db`):** Zero bloat on existing databases. Retains `pmtool.db` strictly for agile entities and `ai_context.db` strictly for conversations and RAG chunks, placing all document bodies, ASTs, and revision histories into a dedicated SQLite database (`%LOCALAPPDATA%\PMTool\artifacts.db`).
 
 ---
 
@@ -18,29 +19,37 @@ PM Tool v2.1.0 elevates core agile execution and data intelligence across two pr
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│                        PM TOOL v2.1.0 ARCHITECTURE                     │
+│                        PM TOOL v2.2.0 ARCHITECTURE                     │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 1. Core Version & What's New                                           │
-│    • version.json (2.1.0, codename: "Atlas")                           │
-│    • electron/package.json (2.1.0)                                     │
-│    • electron/src/data/whatsNewData.ts (v2.1.0 curated release notes)  │
+│ 1. Segregated Database Architecture                                    │
+│    • pmtool.db      → Agile entities, tasks, sprints, datasets, widgets│
+│    • ai_context.db  → Conversations, chat messages, RAG vector chunks  │
+│    • artifacts.db   → Living document bodies, versions, FTS5 index    │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 2. Agile Story Decomposer Suite (tools/story_decomposer.py)            │
-│    • Calibrated INVEST Prompt Matrix & Slicing Heuristics              │
-│    • Explicit Given/When/Then (Happy Path, Error, Edge Case)           │
-│    • Fibonacci Point Calibration Engine (1, 2, 3, 5, 8, 13)            │
-│    • DecomposerModal.tsx: Persona selector, count slider & preview     │
+│ 2. Backend Artifacts Service (artifacts_db.py & routes.py)             │
+│    • artifacts table: id, uuid, project_id, title, doc_type, content,  │
+│      summary, tags, is_pinned, word_count, created_at, updated_at      │
+│    • artifact_versions table: historical snapshot tree                 │
+│    • artifacts_fts table: SQLite FTS5 instant text search              │
+│    • REST API: /api/artifacts CRUD, /api/artifacts/from-chat, export   │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 3. Advanced Analytical Engine (tools/analytics_engine.py & routes.py)  │
-│    • Funnel Drop-Off Analytics: Step-by-step conversion & drop-off %   │
-│    • Cohort Retention Matrix: Period-over-period retention matrix      │
-│    • Statistical Distribution: P25/50/75/90/99, StdDev, IQR, Z-scores │
-│    • Correlation Matrix: Pearson/Spearman pairwise coefficient grid    │
-│    • Trendline Forecasting: Linear regression trajectory projection    │
+│ 3. Artifacts Studio & Living Doc Editor (ArtifactsStudio.tsx)         │
+│    • Gallery View: Doc cards, type chips (PRD, RFC, Brief), pin, delete│
+│    • Editor View: Title autosave, Markdown toolbar, Edit/Split/Preview │
+│    • Export: 1-click Word (.docx), Markdown (.md), HTML                │
+│    • Sprint Bridge: 1-click "Decompose to Sprint" via DecomposerModal  │
+│    • RAG Bridge: 1-click "Ingest to Knowledge Base"                    │
+│    • Version History: Snapshots drawer and revision restore            │
 ├────────────────────────────────────────────────────────────────────────┤
-│ 4. Data Studio Analytics Workbench (StudioView.tsx)                    │
-│    • 3rd Tab: "Advanced Analytics" workbench                           │
-│    • Interactive visualizers for Funnels, Cohorts, and Distributions   │
+│ 4. First-Launch Onboarding Wizard (OnboardingModal.tsx)                │
+│    • State gate: localStorage.getItem('pm_tool_onboarding_completed') │
+│    • Step 1: Workspace Initiative & Tech Stack                         │
+│    • Step 2: AI Gateway (Ollama Live Probe, Gemini, Custom, Offline)  │
+│    • Step 3: Workstation Feature Tour & Keyboard Shortcuts Spotlight   │
+│    • Step 4: Instant Launch into Workspace                             │
+├────────────────────────────────────────────────────────────────────────┤
+│ 5. Chat-to-Artifact Promotion Bridge (ChatView.tsx)                    │
+│    • 1-click "Save as Living Artifact" on Copilot markdown outputs     │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -48,48 +57,53 @@ PM Tool v2.1.0 elevates core agile execution and data intelligence across two pr
 
 ## 3. Detailed Task & Implementation Checklist
 
-- [x] **Phase 1: Version Bumping & Release Scaffold**
-  - [x] Synchronize `version.json` to `2.1.0` ("Atlas").
-  - [x] Update `electron/package.json` to `2.1.0`.
-  - [x] Scaffold `v2.1.0` entry in `electron/src/data/whatsNewData.ts` with new feature highlights.
+- [x] **Phase 1: Segregated Database Architecture (`artifacts_db.py`)**
+  - [x] Implement `artifacts_db.py` with dedicated SQLite connection pool at `%LOCALAPPDATA%\PMTool\artifacts.db`.
+  - [x] Implement `artifacts` table, `artifact_versions` table, and `artifacts_fts` virtual table.
+  - [x] Implement CRUD methods: `create_artifact`, `get_artifact`, `update_artifact`, `delete_artifact`, `list_artifacts`, `toggle_pin`, `create_version`, `restore_version`.
+  - [x] Add REST API endpoints in `routes.py`:
+    - `GET /api/artifacts` (list with filters: project_id, doc_type, search, pinned)
+    - `POST /api/artifacts` (create document)
+    - `GET /api/artifacts/<id>` (get document)
+    - `PUT /api/artifacts/<id>` (update document)
+    - `DELETE /api/artifacts/<id>` (delete document)
+    - `POST /api/artifacts/<id>/pin` (toggle pinned)
+    - `GET /api/artifacts/<id>/versions` (list revisions)
+    - `POST /api/artifacts/<id>/versions/restore` (restore revision)
+    - `POST /api/artifacts/from-chat` (promote AI response to artifact)
 
-- [x] **Phase 2: High-Precision Story Decomposer Overhaul**
-  - [x] Upgrade `tools/story_decomposer.py`:
-    - Enforced INVEST criteria (Independent, Negotiable, Valuable, Estimable, Small, Testable).
-    - Multi-scenario acceptance criteria: 3 distinct Given/When/Then scenarios (Happy Path, Validation/Negative, Boundary/Resilience).
-    - Calibrated Fibonacci estimation model (1, 2, 3, 5, 8, 13) based on cognitive complexity, schema impact, and risk.
-    - Added preview mode (`preview_only=True`) to return synthesized stories without direct DB write.
-  - [x] Added `/api/tools/breakdown/commit` endpoint in `routes.py` for batch-committing approved stories.
-  - [x] Upgraded `DecomposerModal.tsx`:
-    - Added target persona selector (All, End-User, Administrator, API Consumer, DevOps/Platform).
-    - Added story count selector (3 to 10 stories).
-    - Added interactive pre-commit review card step with individual story selection, point adjustments, and expandable Gherkin criteria inspection before committing.
+- [x] **Phase 2: TypeScript Types & Bridge Integration**
+  - [x] Add `Artifact`, `ArtifactVersion`, `ArtifactDocType`, `CreateArtifactPayload`, and `UpdateArtifactPayload` to `electron/src/types/index.ts`.
+  - [x] Add `AppBridge.artifacts` client service methods in `electron/src/services/bridge.ts`.
 
-- [x] **Phase 3: Dataset Analytics Engine (Backend)**
-  - [x] Created `tools/analytics_engine.py`:
-    - `compute_funnel_analysis(source_id, stage_column, stages, entity_column)` with step-to-step drop-offs.
-    - `compute_cohort_retention(source_id, user_column, date_column, period_type, max_periods)` with MoM/WoW/DoD retention heatmaps.
-    - `compute_column_statistics(source_id, column_name)` with P25/50/75/90/99, mean, stddev, Tukey fences, and Z-score outlier detection.
-    - `compute_correlation_matrix(source_id, columns)` with Pearson pairwise coefficient grid.
-    - `compute_trend_forecast(source_id, date_column, metric_column, periods_ahead, aggregation)` with linear regression & $R^2$ fit.
-  - [x] Registered REST endpoints in `routes.py`:
-    - `POST /api/analytics/funnel`
-    - `POST /api/analytics/retention`
-    - `POST /api/analytics/statistics`
-    - `POST /api/analytics/correlation`
-    - `POST /api/analytics/forecast`
+- [x] **Phase 3: Living Document Editor & Artifacts Studio (PranshulOS Style)**
+  - [x] Create `electron/src/components/docs/ArtifactsStudio.tsx`:
+    - [x] Document grid/list mode with filtering by type (`PRD`, `RFC`, `Brief`, `Architecture`, `Meeting Notes`) and instant search.
+    - [x] Template picker for new documents (Blank, PRD Template, Architecture RFC, Sprint Brief).
+    - [x] Rich editor with auto-save debounce, IBM Plex styling, and formatting toolbar.
+    - [x] Segmented mode switcher (`Edit` / `Split` live preview / `Preview`).
+    - [x] Export actions (`.md`, `.docx`, HTML).
+    - [x] 1-click "Decompose to Sprint" bridge triggering `DecomposerModal`.
+    - [x] 1-click "Ingest to Knowledge Base" bridge.
+    - [x] Snapshot revision history drawer.
+  - [x] Integrate `ArtifactsStudio` into `electron/src/views/DocsView.tsx` with top-level tabs:
+    - Tab 1: **Artifacts Studio (Living Docs)**
+    - Tab 2: **Knowledge Base (RAG Index & Chunks)**
 
-- [x] **Phase 4: Data Studio Advanced Analytics Workbench (Frontend)**
-  - [x] Added "Advanced Analytics" tab to `StudioView.tsx`.
-  - [x] Created specialized analytics workbench component `AdvancedAnalyticsWorkbench.tsx`:
-    - Funnel visualization bar chart with drop-off percentages and conversion badges.
-    - Retention cohort heatmap table with color intensity mapping.
-    - Summary distribution stats card & outlier table inspector.
-    - Correlation matrix heatmap grid with strength indicators.
-    - Trendline forecasting card with future projected milestones.
-  - [x] Connected bridge client methods in `bridge.ts`.
+- [x] **Phase 4: AI Copilot Chat-to-Artifact Bridge**
+  - [x] Add "Save as Artifact" action on Copilot markdown responses in `electron/src/views/ChatView.tsx`.
+  - [x] Auto-detect document title and type, create artifact in `artifacts.db`, and provide feedback toast with quick link to editor.
 
-- [x] **Phase 5: Verification & Packaging**
-  - [x] Verified analytical engine calculations with comprehensive automated test script (`test_v210.py`).
-  - [x] Compiled Vite React SPA bundle (`npm --prefix electron run build:ui`) with 0 errors.
-  - [x] Updated `CHANGELOG.md` and `DEV_HANDBOOK.md` with `v2.1.0` release notes.
+- [x] **Phase 5: First-Time User Onboarding Wizard**
+  - [x] Create `electron/src/components/onboarding/OnboardingModal.tsx`:
+    - [x] Step 1: Workspace & Initiative Setup (Project Name, Domain, Tech Stack, Seed Backlog).
+    - [x] Step 2: AI Gateway Setup (Local Ollama probe, Gemini, OpenAI / Custom, or Offline).
+    - [x] Step 3: Workstation Feature Tour & Global Hotkeys Spotlight (`Ctrl+K`, `Ctrl+B`, `Ctrl+1..6`).
+    - [x] Step 4: Launch into Workstation.
+  - [x] Add first-launch state gate in `electron/src/App.tsx` (`localStorage.getItem('pm_tool_onboarding_completed')`).
+  - [x] Add "Launch Onboarding Tour" action in `CommandPalette.tsx` and `SettingsView.tsx`.
+
+- [x] **Phase 6: Automated Verification & Production Build**
+  - [x] Write and run backend verification script (`test_v220_artifacts.py`).
+  - [x] Compile Vite SPA bundle (`npm --prefix electron run build:ui`).
+  - [x] Verify zero regressions across all views.

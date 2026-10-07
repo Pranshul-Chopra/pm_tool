@@ -15,11 +15,16 @@ import {
   Globe,
   Server,
   Zap,
+  Compass,
 } from 'lucide-react';
 import AppBridge from '../services/bridge';
 import type { LLMStatus, LLMProviderPref, TicketAccessScope } from '../types';
 
-export const SettingsView: React.FC = () => {
+interface SettingsViewProps {
+  onOpenOnboarding?: () => void;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) => {
   // App Version
   const [versionInfo, setVersionInfo] = useState<{ version: string; app_name: string; build_date: string } | null>(null);
 
@@ -725,6 +730,28 @@ export const SettingsView: React.FC = () => {
           >
             <Bell className="w-3.5 h-3.5 text-[#e8a84c]" />
             <span>Dispatch Test Notification</span>
+          </button>
+        </div>
+
+        {/* First-Time Onboarding Re-run Card */}
+        <div className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl p-5 space-y-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-[#edeae4]">
+            <Compass className="w-4 h-4 text-[#e8a84c]" />
+            <span>Onboarding & Architecture Tour</span>
+          </div>
+
+          <p className="text-xs text-[#9b9690] leading-relaxed">
+            Re-run the initial setup wizard to configure your default initiative, calibrate LLM gateways, and explore workstation hotkeys.
+          </p>
+
+          <button
+            onClick={() => {
+              if (onOpenOnboarding) onOpenOnboarding();
+            }}
+            className="px-3.5 py-2 bg-[#222120] hover:bg-[#282725] border border-[#e8a84c]/40 hover:border-[#e8a84c] text-xs text-[#e8a84c] font-medium rounded-lg transition-colors flex items-center gap-2 cursor-pointer font-mono"
+          >
+            <Compass className="w-3.5 h-3.5 text-[#e8a84c]" />
+            <span>Launch Onboarding Wizard</span>
           </button>
         </div>
 

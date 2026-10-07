@@ -12,34 +12,67 @@ import ChatView from './views/ChatView';
 import SettingsView from './views/SettingsView';
 import ErrorBoundary from './components/ErrorBoundary';
 import WhatsNewModal from './components/WhatsNewModal';
+import OnboardingModal from './components/onboarding/OnboardingModal';
+import { LATEST_RELEASE } from './data/whatsNewData';
 import AppBridge from './services/bridge';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [previousTab, setPreviousTab] = useState<NavTab | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
-  const [updateData, setUpdateData] = useState<UpdateData>({ status: 'idle' });
+  const [updateData, setUpdateData] = useState<UpdateData>({ status: 'idle', version: LATEST_RELEASE.version });
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(false);
-
-  // Check whether to show What's New dialog (only once per version update)
-  useEffect(() => {
-    const currentVersion = updateData.version || '2.0.1';
-    const lastSeenVersion = localStorage.getItem('pm_tool_last_seen_version');
-    if (!lastSeenVersion || lastSeenVersion !== currentVersion) {
-      setIsWhatsNewOpen(true);
-    }
-  }, [updateData.version]);
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
 
   const handleCloseWhatsNew = () => {
-    const currentVersion = updateData.version || '2.0.1';
+    const currentVersion = updateData.version || LATEST_RELEASE.version;
     localStorage.setItem('pm_tool_last_seen_version', currentVersion);
+    localStorage.setItem('pm_tool_installed_version', currentVersion);
     setIsWhatsNewOpen(false);
   };
 
   const handleOpenWhatsNew = () => {
     setIsWhatsNewOpen(true);
+  };
+
+  // Only pop up What's New once when an update actually went through and restarted into the new version
+  const checkUpdateStatusOnBoot = (liveVersion: string) => {
+    try {
+      const justRestartedFromUpdate = localStorage.getItem('pm_tool_just_updated_restart') === 'true';
+      const previousInstalledVersion = localStorage.getItem('pm_tool_installed_version');
+      const lastSeenVersion = localStorage.getItem('pm_tool_last_seen_version');
+
+      // Clear the one-time restart flag
+      if (justRestartedFromUpdate) {
+        localStorage.removeItem('pm_tool_just_updated_restart');
+      }
+
+      if (!previousInstalledVersion) {
+        // First-time fresh install: save baseline version without interrupting user
+        localStorage.setItem('pm_tool_installed_version', liveVersion);
+        localStorage.setItem('pm_tool_last_seen_version', liveVersion);
+        return;
+      }
+
+      // An update actually went through if:
+      // 1. The in-app auto-updater restarted into the new build, OR
+      // 2. The binary version actually changed from a previously installed version
+      const versionActuallyChanged = previousInstalledVersion !== liveVersion;
+      const notYetSeenForThisVersion = lastSeenVersion !== liveVersion;
+
+      if ((justRestartedFromUpdate || versionActuallyChanged) && notYetSeenForThisVersion) {
+        // App just restarted after the update actually went through!
+        setIsWhatsNewOpen(true);
+        localStorage.setItem('pm_tool_installed_version', liveVersion);
+      } else {
+        // Everyday normal app opening: do NOT pop up
+        localStorage.setItem('pm_tool_installed_version', liveVersion);
+      }
+    } catch (err) {
+      console.warn('Could not check update status:', err);
+    }
   };
 
   useEffect(() => {
@@ -50,11 +83,22 @@ export const App: React.FC = () => {
 
     // 2. Fetch updater info on boot and trigger automated background update check
     AppBridge.os.getUpdaterInfo().then((info) => {
+      const liveVersion = info.version || LATEST_RELEASE.version;
       setUpdateData((prev) => ({
         ...prev,
-        version: info.version,
+        version: liveVersion,
         isPortable: info.isPortable,
       }));
+
+      // Check if this boot is right after an update actually went through
+      checkUpdateStatusOnBoot(liveVersion);
+
+      // Check if clean first-time install: launch interactive onboarding wizard
+      const onboardingCompleted = localStorage.getItem('pm_tool_onboarding_completed');
+      if (!onboardingCompleted) {
+        setIsOnboardingOpen(true);
+      }
+
       // Automatically check for updates silently on startup
       AppBridge.os.checkForUpdates();
     });
@@ -169,7 +213,9 @@ export const App: React.FC = () => {
                 onClearInheritedTab={() => setPreviousTab(null)}
               />
             )}
-            {activeTab === 'settings' && <SettingsView />}
+            {activeTab === 'settings' && (
+              <SettingsView onOpenOnboarding={() => setIsOnboardingOpen(true)} />
+            )}
           </ErrorBoundary>
         </main>
       </div>
@@ -181,14 +227,27 @@ export const App: React.FC = () => {
           onClose={() => setIsPaletteOpen(false)}
           onNavigate={handleNavigate}
           onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
+          onOpenOnboarding={() => setIsOnboardingOpen(true)}
         />
       </ErrorBoundary>
+
+      {/* First-Time Launch Onboarding Wizard */}
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        onComplete={(newProjectId) => {
+          if (newProjectId) {
+            setSelectedProjectId(newProjectId);
+            navigateWithTransition('board');
+          }
+        }}
+      />
 
       {/* Centered What's New Dialog Box */}
       <WhatsNewModal
         isOpen={isWhatsNewOpen}
         onClose={handleCloseWhatsNew}
-        activeVersion={updateData.version || '2.0.1'}
+        activeVersion={updateData.version || LATEST_RELEASE.version}
       />
 
       {/* In-App Background Auto-Updater Toast */}

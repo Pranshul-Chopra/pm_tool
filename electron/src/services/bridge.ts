@@ -11,6 +11,11 @@ import type {
   LLMConfigPayload,
   AITicketPolicy,
   WorkspaceContext,
+  Artifact,
+  ArtifactVersion,
+  ArtifactSummaryStats,
+  CreateArtifactPayload,
+  UpdateArtifactPayload,
 } from '../types';
 
 class BridgeService {
@@ -416,6 +421,87 @@ class BridgeService {
         body: JSON.stringify(payload),
       }),
 
+    // ── Living Documents & Contextual Artifacts Studio Plane ────────────
+    getArtifacts: (params?: {
+      projectId?: number;
+      docType?: string;
+      search?: string;
+      isPinned?: boolean;
+    }) => {
+      const q = new URLSearchParams();
+      if (params?.projectId) q.set('project_id', params.projectId.toString());
+      if (params?.docType && params.docType !== 'all') q.set('doc_type', params.docType);
+      if (params?.search) q.set('search', params.search);
+      if (params?.isPinned !== undefined) q.set('is_pinned', params.isPinned ? '1' : '0');
+      const queryString = q.toString() ? `?${q.toString()}` : '';
+      return this.request<{
+        artifacts: Artifact[];
+        count: number;
+        stats: ArtifactSummaryStats;
+      }>(`/api/artifacts${queryString}`);
+    },
+
+    getArtifact: (id: number) =>
+      this.request<{ artifact: Artifact; success: boolean }>(`/api/artifacts/${id}`),
+
+    createArtifact: (payload: CreateArtifactPayload) =>
+      this.request<{ artifact: Artifact; success: boolean }>('/api/artifacts', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+
+    updateArtifact: (id: number, payload: UpdateArtifactPayload) =>
+      this.request<{ artifact: Artifact; success: boolean }>(`/api/artifacts/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }),
+
+    deleteArtifact: (id: number) =>
+      this.request<{ success: boolean; id: number }>(`/api/artifacts/${id}`, {
+        method: 'DELETE',
+      }),
+
+    togglePinArtifact: (id: number) =>
+      this.request<{ artifact: Artifact; is_pinned: boolean; success: boolean }>(
+        `/api/artifacts/${id}/pin`,
+        { method: 'POST' }
+      ),
+
+    getArtifactVersions: (id: number) =>
+      this.request<{ versions: ArtifactVersion[]; count: number; success: boolean }>(
+        `/api/artifacts/${id}/versions`
+      ),
+
+    restoreArtifactVersion: (id: number, versionNum: number) =>
+      this.request<{ artifact: Artifact; restored_version: number; success: boolean }>(
+        `/api/artifacts/${id}/versions/restore`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ version_num: versionNum }),
+        }
+      ),
+
+    saveArtifactFromChat: (payload: {
+      content: string;
+      title?: string;
+      doc_type?: string;
+      project_id?: number;
+    }) =>
+      this.request<{ artifact: Artifact; success: boolean; message: string }>(
+        '/api/artifacts/from-chat',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      ),
+
+    exportArtifactFile: async (id: number, format: 'docx' | 'markdown' | 'html'): Promise<Blob> => {
+      const url = `${this.apiBase}/api/artifacts/${id}/export/${format}`;
+      const res = await fetch(url, { method: 'POST' });
+      if (!res.ok) throw new Error(`Failed to export artifact as ${format.toUpperCase()}`);
+      return res.blob();
+    },
+
     // ── Workspace Context & AI Policy Plane ─────────────────────────────
     getWorkspaceContext: (params?: { projectId?: number; query?: string }) => {
       const q = new URLSearchParams();
@@ -488,6 +574,9 @@ class BridgeService {
     },
 
     restartAndInstallUpdate: () => {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('pm_tool_just_updated_restart', 'true');
+      }
       if (window.electronUpdater) {
         window.electronUpdater.restartAndInstall();
       }
@@ -504,7 +593,7 @@ class BridgeService {
       if (window.electronUpdater) {
         return await window.electronUpdater.getInfo();
       }
-      return { version: '2.0.1', isPackaged: false, isPortable: false };
+      return { version: '2.1.0', isPackaged: false, isPortable: false };
     },
 
     notify: (title: string, body: string) => {

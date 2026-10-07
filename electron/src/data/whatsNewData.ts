@@ -25,10 +25,84 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW_RELEASES: WhatsNewRelease[] = [
   {
+    version: '2.2.0',
+    codename: 'Scribe & Foundry',
+    date: 'October 2026',
+    isLatest: true,
+    title: 'Artifacts Living Docs Studio & First-Launch Onboarding Wizard',
+    summary:
+      'PM Tool v2.2.0 introduces an in-built living document editor for PRDs and architecture RFCs (PranshulOS style), contextual AI artifacts promotion, isolated database architecture (artifacts.db), and a friction-free first-launch onboarding wizard.',
+    highlights: [
+      {
+        id: 'artifacts-studio',
+        icon: 'file-text',
+        title: 'Living Document Editor & Artifacts Studio',
+        tag: 'Documentation',
+        description:
+          'In-built living document editor with edit, split live preview, and preview modes for PRDs, architecture RFCs, and sprint briefs with auto-saving, template picker, and rich toolbar.',
+      },
+      {
+        id: 'segregated-db',
+        icon: 'database',
+        title: 'Zero-Bloat Segregated Database Architecture',
+        tag: 'Storage',
+        description:
+          'Dedicated artifacts.db SQLite engine strictly isolating document bodies, markdown ASTs, and revision snapshots, preserving high throughput in pmtool.db and ai_context.db.',
+      },
+      {
+        id: 'onboarding-wizard',
+        icon: 'sparkles',
+        title: 'First-Launch Onboarding & Setup Wizard',
+        tag: 'Experience',
+        description:
+          'Friction-free setup wizard guiding first-time users through project initialization, live Ollama/cloud AI gateway probing, and keyboard navigation shortcuts.',
+      },
+      {
+        id: 'chat-to-artifact',
+        icon: 'bot',
+        title: '1-Click AI Chat-to-Artifact Promotion',
+        tag: 'Copilot Bridge',
+        description:
+          'Promote transient AI chat answers and architectural proposals into permanent, version-controlled living documents with a single click.',
+      },
+      {
+        id: 'sprint-decomposition',
+        icon: 'zap',
+        title: 'Direct Living Doc to Sprint Story Decomposition',
+        tag: 'Agile Engine',
+        description:
+          'Bridge directly from living PRDs and RFCs into the Agile Decomposer modal to synthesize INVEST user stories and commit them straight to the Kanban board.',
+      },
+    ],
+    sections: [
+      {
+        title: 'New Features',
+        type: 'feature',
+        items: [
+          'Artifacts Studio in Docs View with split preview, Markdown toolbar, and template picker (PRD, RFC, Sprint Brief).',
+          'Segregated SQLite database (artifacts.db) with instant FTS5 text search and revision snapshot trees.',
+          'Multi-format document export engine (.docx Microsoft Word, .md Markdown, and styled HTML).',
+          'First-time user onboarding wizard configuring initial project, AI gateway, and hotkeys.',
+          '1-click "Save as Living Artifact" on Copilot markdown outputs in Chat View.',
+          'Direct 1-click decomposition bridge connecting living PRDs and RFCs into Agile Sprint Backlog.',
+        ],
+      },
+      {
+        title: 'Improvements & Quality',
+        type: 'improvement',
+        items: [
+          'Clean 3-database separation: pmtool.db for agile entities, ai_context.db for chats/RAG, artifacts.db for documents.',
+          'Global keyboard navigation and shortcuts spotlight (Ctrl+K palette, Ctrl+B sidebar, Ctrl+1..6 views).',
+          'Zero-crash debounce auto-saving with word count calculation and tag categorization.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.1.0',
     codename: 'Atlas',
     date: 'October 2026',
-    isLatest: true,
+    isLatest: false,
     title: 'Advanced Dataset Analytics & Calibrated Story Decomposer',
     summary:
       'PM Tool v2.1.0 introduces industry-standard analytical instruments for datasets (funnel drop-offs, cohort retention, correlation matrices, and statistical outlier detection) along with an overhauled high-precision agile story decomposer.',

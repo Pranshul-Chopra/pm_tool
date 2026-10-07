@@ -32,7 +32,7 @@ const navItems: NavItem[] = [
   { id: 'home', label: 'Workspace', icon: LayoutDashboard },
   { id: 'board', label: 'Sprint Board', icon: Kanban },
   { id: 'dashboard', label: 'Data Studio', icon: Database },
-  { id: 'documents', label: 'Knowledge Base', icon: BookOpen },
+  { id: 'documents', label: 'Docs & Artifacts', icon: BookOpen },
   { id: 'chat', label: 'AI Copilot', icon: Bot, badge: 'AI' },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];

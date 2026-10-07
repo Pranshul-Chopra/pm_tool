@@ -99,6 +99,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [exportingDocId, setExportingDocId] = useState<string | null>(null);
   const [savingDocId, setSavingDocId] = useState<string | null>(null);
   const [savedDocId, setSavedDocId] = useState<string | null>(null);
+  const [savingArtifactId, setSavingArtifactId] = useState<string | null>(null);
+  const [savedArtifactId, setSavedArtifactId] = useState<string | null>(null);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   // Applied Actions State (Persisted across tab switches)
   const [appliedActionKeys, setAppliedActionKeys] = useState<Set<string>>(new Set());
@@ -333,6 +335,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
       console.error('Save to Knowledge Base failed:', err);
     } finally {
       setSavingDocId(null);
+    }
+  };
+
+  const handleSaveAsArtifact = async (msg: ChatMessage) => {
+    setSavingArtifactId(msg.id);
+    try {
+      const res = await AppBridge.api.saveArtifactFromChat({
+        content: msg.content,
+        project_id: selectedProjectId || undefined,
+      });
+      if (res && res.success) {
+        setSavedArtifactId(msg.id);
+        setTimeout(() => {
+          setSavedArtifactId((prev) => (prev === msg.id ? null : prev));
+        }, 3500);
+      }
+    } catch (err: any) {
+      console.error('Save as artifact failed:', err);
+    } finally {
+      setSavingArtifactId(null);
     }
   };
 
@@ -841,6 +863,35 @@ export const ChatView: React.FC<ChatViewProps> = ({
                           <Download className="w-3 h-3 text-[#9b9690]" />
                         )}
                         <span>Markdown</span>
+                      </button>
+
+                      {/* Save as Living Artifact (artifacts.db) */}
+                      <button
+                        onClick={() => handleSaveAsArtifact(m)}
+                        disabled={savingArtifactId === m.id}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded border transition-colors disabled:opacity-50 cursor-pointer ${
+                          savedArtifactId === m.id
+                            ? 'bg-[#e8a84c]/20 text-[#e8a84c] border-[#e8a84c]/50 font-semibold'
+                            : 'bg-[#222120] hover:bg-[#2e2c2a] text-[#edeae4] border-[#2e2c2a] hover:border-[#e8a84c]/50'
+                        }`}
+                        title="Promote into a living, editable document in artifacts.db"
+                      >
+                        {savedArtifactId === m.id ? (
+                          <>
+                            <CheckCircle2 className="w-3 h-3 text-[#e8a84c]" />
+                            <span>Saved to Artifacts</span>
+                          </>
+                        ) : savingArtifactId === m.id ? (
+                          <>
+                            <Loader2 className="w-3 h-3 text-[#e8a84c] animate-spin" />
+                            <span>Saving...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3 h-3 text-[#e8a84c]" />
+                            <span>Save as Artifact</span>
+                          </>
+                        )}
                       </button>
 
                       {/* Save directly to Knowledge Base (RAG) */}

@@ -2,6 +2,44 @@
 
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.2.0] - 2026-10-07
+
+### 📝 In-Built Living Document Editor & Artifacts Studio (PranshulOS Style)
+- **Artifacts Studio in Docs View (`ArtifactsStudio.tsx`)**:
+  - Full-featured living document workstation supporting PRDs, Architecture RFCs, Sprint Briefs, Strategy Documents, and Meeting Notes.
+  - Multi-mode reading and authoring: `Edit`, `Split` (side-by-side synchronized preview), and `Preview`.
+  - Comprehensive Markdown formatting toolbar (Headings, Bold, Italic, Strikethrough, Code block, Quotes, Tables, Checklist tasks).
+  - Built-in document template selector (Standard PRD, Architecture RFC, Sprint Brief, Blank).
+  - Debounced auto-save engine with live status indicator ("All changes saved" / "Saving...") and live word counter.
+- **Segregated Database Architecture (`artifacts_db.py` & `%LOCALAPPDATA%\PMTool\artifacts.db`)**:
+  - Zero database bloat: all document bodies, markdown ASTs, and revision trees are stored in an independent SQLite engine.
+  - Full text search powered by SQLite FTS5 index (`artifacts_fts`) for sub-millisecond document query performance.
+  - Snapshot revision history tree (`artifact_versions` table) with 1-click historical version inspection and restoration.
+- **Multi-Format Export Engine**:
+  - 1-click client-side export to Microsoft Word (`.docx`), Markdown (`.md`), and styled HTML.
+- **Bridges to Sprint Kanban & Knowledge Base**:
+  - Direct 1-click bridge from living PRDs/RFCs into the Agile Decomposer modal (`DecomposerModal.tsx`), generating INVEST user stories directly from living document text.
+  - Direct 1-click bridge to vectorize and ingest living documents into the RAG Knowledge Base.
+
+### 🚀 Friction-Free First-Launch Onboarding Wizard
+- **Interactive Multi-Step Setup Wizard (`OnboardingModal.tsx`)**:
+  - Clean-launch detection via `pm_tool_onboarding_completed` localStorage signal.
+  - **Step 1: Workspace & Initiative**: Project naming, domain selection, technology stack tagger, and optional seed backlog generator.
+  - **Step 2: AI Gateway Probe**: Live Ollama local instance connectivity probe and model detection, alongside cloud Gemini and OpenAI gateway configuration.
+  - **Step 3: Workstation Tour & Hotkey Spotlight**: Visual overview of core workstations and global keyboard shortcuts (`Ctrl+K` Command Palette, `Ctrl+B` Sidebar, `Ctrl+1..6` Quick View switching).
+  - Re-accessible at any time via the Command Palette or Settings view ("Launch Onboarding Tour").
+
+### 🤖 AI Copilot Chat-to-Artifact Promotion Bridge
+- **1-Click "Save as Living Artifact" (`ChatView.tsx`)**:
+  - Added quick promotion button to AI Copilot assistant markdown responses.
+  - Automatically infers document title and document type, persisting the artifact directly into `artifacts.db` and displaying a toast notification.
+
+## [2.1.1] - 2026-10-06
+
+### 🐛 What's New Lifecycle & Presentation Hardening
+- **Post-Update Restart Enforcement**:
+  - Gated automatic "What's New" modal display exclusively to actual post-update application restarts via the `pm_tool_just_updated_restart` signal or genuine binary version upgrades.
+  - Eliminated unwanted automatic modal popups on regular application launches while preserving full on-demand modal accessibility via the shell status bar version badge.
 
 ## [2.1.0] - 2026-10-06
 

@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 2.1.0  
+**Current Version:** 2.2.0  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -687,29 +687,38 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 │              │ • Industry Analytical Tools   │                         │
 │              │ • Funnel, Cohort, Outliers    │                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
-│ v2.2.0       │ Team Workspaces & Vaults      │ 🔥 NEXT UP              │
-│              │ • Isolated Project Vaults     │ (Active Planning)       │
+│ v2.2.0       │ Onboarding & Artifacts Studio │ ✅ COMPLETED            │
+│              │ • First-Launch Onboarding Flow│ (Shipped)               │
+│              │ • Contextual Artifacts (Docs) │                         │
+│              │ • Segregated artifacts.db     │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v2.3.0       │ Team Workspaces & Vaults      │ 🔥 NEXT UP              │
+│              │ • Isolated Project Vaults     │ (ACTIVE SPRINT)         │
 │              │ • Encrypted Workspace Port    │                         │
 └──────────────┴───────────────────────────────┴─────────────────────────┘
 ```
 
-### Active Sprint Priorities (v2.1.0)
+### Active Sprint Priorities (v2.3.0)
 
-The active sprint focuses on elevating reasoning precision for agile project execution and integrating enterprise-grade analytical tooling into Data Studio:
+The active sprint focuses on streamlining the initial user adoption experience and introducing a professional-grade living documents system:
 
-1. **Sprint Priority 1: Improve User Stories Decompose & Response Qualities**
-   - **Calibrated Prompt Architecture**: Re-engineer the system prompt and instructions in `tools/story_decomposer.py` to enforce high-precision decomposition of PRDs into atomic, non-overlapping user stories.
-   - **Rigorous Acceptance Criteria**: Standardize on testable, industry-standard Given/When/Then (Gherkin) acceptance criteria format with positive and negative testing edge cases.
-   - **Fibonacci Point Calibration**: Calibrate story estimation (`1, 2, 3, 5, 8, 13`) against task complexity, dependency count, and architectural risk rather than token length.
-   - **Response Depth & Completeness**: Upgrade LLM context assembly and schema formatting to prevent truncated, generic, or boilerplate story generation, ensuring actionable engineering tasks.
+1. **Sprint Priority 1: User Onboarding Flow for First-Time App Launches**
+   - **First-Launch Handshake & State Gate**: Detect clean installations using persistent storage (`pm_tool_onboarding_completed`), launching an interactive onboarding modal only for brand-new users without disrupting existing workflows.
+   - **Multi-Step Setup Wizard**:
+     - *Step 1: Workspace & Initiative Setup:* Configure default project name, domain, and primary engineering stack.
+     - *Step 2: AI Gateway Configuration:* Guide users through selecting and testing their LLM provider (local Ollama with automatic model probing, or cloud Gemini/OpenAI/Anthropic API keys).
+     - *Step 3: Workstation Feature Tour:* Interactive spotlight introducing the 3 Core Pipelines (Knowledge RAG, Sprint Kanban, Data Studio Analytics) and global keyboard navigation (`Ctrl+K` palette, `Ctrl+B` sidebar, `Ctrl+1..6` tabs).
+     - *Step 4: Launch & Baseline:* Populate initial template tasks and transition smoothly into the main workstation.
 
-2. **Sprint Priority 2: Add Complex Industry-Used Analytical Tools for Datasets**
-   - **Cohort Retention Matrices**: Implement cohort-based retention analysis computing month-over-month and week-over-week user or transaction retention rates.
-   - **Funnel Drop-Off Analytics**: Add multi-stage conversion funnel tracking with step-by-step drop-off percentages and conversion velocity metrics.
-   - **Statistical Distributions & Outlier Detection**: Provide automatic computation of percentiles (P25, P50/Median, P75, P90, P99), standard deviations, interquartile ranges, and Z-score outlier detection on numeric fields.
-   - **Correlation Matrices & Multi-Dimensional Cross-Filtering**: Allow comparing numerical feature pairs to identify correlations and dependencies across dataset columns.
-   - **Executive Forecasting Models**: Linear trendlines and moving averages to extrapolate trajectory milestones and sprint burn-up forecasts.
+2. **Sprint Priority 2: Contextual Artifacts Management (Docs) & Segregated Database Architecture**
+   - **In-Built Living Document Editor (PranshulOS-Style)**: A dedicated rich-text and Markdown document editor integrated directly into PM Tool, allowing users to draft, edit, and iterate on living specifications, PRDs, sprint briefs, and architecture RFCs.
+   - **Bridging the Chat-to-Document Gap**: Promotes transient AI chat answers and proposals into permanent, version-controlled artifacts with one click.
+   - **Dedicated Segregated Database (`artifacts.db`)**:
+     - To ensure zero database bloat and preserve high-throughput execution across the existing stores, all document bodies, markdown ASTs, revision trees, and syntax metadata are stored in a dedicated SQLite database (`%LOCALAPPDATA%\PMTool\artifacts.db`).
+     - Strictly preserves the separation of concerns: `pmtool.db` remains dedicated to entities and sprint tasks; `ai_context.db` remains dedicated to conversations and audit logging; `artifacts.db` handles all long-form document storage.
+   - **Multi-Format Export Engine**: 1-click document exportation to clean Markdown (`.md`), Microsoft Word (`.docx`), styled HTML, and printable formats.
+   - **Bidirectional Traceability**: Seamlessly link artifacts to sprint Kanban tickets, decisions, and knowledge base collections.
 
-3. **Sprint Priority 3: Team Workspaces & Multi-Vault Architecture**
+3. **Sprint Priority 3: Team Workspaces & Multi-Vault Architecture (v2.3.0)**
    - **Independent Project Workspaces**: Support creating isolated project vaults with segregated SQLite databases, separate RAG document collections, and dedicated settings.
    - **Workspace Export & Portability**: 1-click archiving and importing of encrypted workspaces for cross-machine synchronization.

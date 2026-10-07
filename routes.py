@@ -4,6 +4,7 @@
 from flask import Blueprint, render_template, request, jsonify, send_file, send_from_directory
 import db
 import ai_db
+import artifacts_db
 from llm import gateway as llm_gateway
 import workspace_context
 
@@ -1127,6 +1128,257 @@ def api_export_markdown():
         download_name=f"{safe_name}.md",
         mimetype="text/markdown"
     )
+
+
+# ── Living Documents & Contextual Artifacts Studio APIs ───────────────────────
+
+@bp.route("/api/artifacts", methods=["GET"])
+def api_artifacts_list():
+    project_id = request.args.get("project_id", type=int)
+    doc_type = request.args.get("doc_type")
+    search = request.args.get("search")
+    is_pinned_raw = request.args.get("is_pinned")
+    is_pinned = None
+    if is_pinned_raw is not None:
+        is_pinned = is_pinned_raw.lower() in ("1", "true")
+    limit = min(request.args.get("limit", default=100, type=int), 200)
+    offset = max(request.args.get("offset", default=0, type=int), 0)
+
+    artifacts = artifacts_db.list_artifacts(
+        project_id=project_id,
+        doc_type=doc_type,
+        search=search,
+        is_pinned=is_pinned,
+        limit=limit,
+        offset=offset
+    )
+    stats = artifacts_db.get_artifacts_summary_stats()
+    return jsonify({"artifacts": artifacts, "count": len(artifacts), "stats": stats})
+
+
+@bp.route("/api/artifacts", methods=["POST"])
+def api_artifacts_create():
+    data = request.get_json(silent=True) or {}
+    title = data.get("title", "").strip() or "Untitled Document"
+    content = data.get("content", "")
+    doc_type = data.get("doc_type", "document")
+    project_id = data.get("project_id")
+    if project_id is not None:
+        try:
+            project_id = int(project_id)
+            if project_id == 0:
+                project_id = None
+        except (ValueError, TypeError):
+            project_id = None
+    tags = data.get("tags") or []
+    summary = data.get("summary", "")
+    is_pinned = bool(data.get("is_pinned", False))
+
+    artifact = artifacts_db.create_artifact(
+        title=title,
+        content=content,
+        doc_type=doc_type,
+        project_id=project_id,
+        tags=tags,
+        summary=summary,
+        is_pinned=1 if is_pinned else 0
+    )
+    return jsonify({"artifact": artifact, "success": True}), 201
+
+
+@bp.route("/api/artifacts/<int:artifact_id>", methods=["GET"])
+def api_artifacts_get(artifact_id: int):
+    artifact = artifacts_db.get_artifact(artifact_id)
+    if not artifact:
+        return jsonify({"error": f"Artifact {artifact_id} not found"}), 404
+    return jsonify({"artifact": artifact, "success": True})
+
+
+@bp.route("/api/artifacts/<int:artifact_id>", methods=["PUT"])
+def api_artifacts_update(artifact_id: int):
+    data = request.get_json(silent=True) or {}
+    create_version = bool(data.get("create_version", False))
+    version_summary = data.get("version_summary", "")
+
+    project_id = data.get("project_id")
+    if project_id is not None:
+        try:
+            project_id = int(project_id)
+        except (ValueError, TypeError):
+            project_id = None
+
+    updated = artifacts_db.update_artifact(
+        artifact_id=artifact_id,
+        title=data.get("title"),
+        content=data.get("content"),
+        doc_type=data.get("doc_type"),
+        project_id=project_id,
+        tags=data.get("tags"),
+        summary=data.get("summary"),
+        is_pinned=data.get("is_pinned"),
+        create_version=create_version,
+        version_summary=version_summary
+    )
+    if not updated:
+        return jsonify({"error": f"Artifact {artifact_id} not found"}), 404
+    return jsonify({"artifact": updated, "success": True})
+
+
+@bp.route("/api/artifacts/<int:artifact_id>", methods=["DELETE"])
+def api_artifacts_delete(artifact_id: int):
+    ok = artifacts_db.delete_artifact(artifact_id)
+    if not ok:
+        return jsonify({"error": f"Artifact {artifact_id} not found"}), 404
+    return jsonify({"success": True, "id": artifact_id})
+
+
+@bp.route("/api/artifacts/<int:artifact_id>/pin", methods=["POST"])
+def api_artifacts_toggle_pin(artifact_id: int):
+    updated = artifacts_db.toggle_pin_artifact(artifact_id)
+    if not updated:
+        return jsonify({"error": f"Artifact {artifact_id} not found"}), 404
+    return jsonify({"artifact": updated, "is_pinned": updated["is_pinned"], "success": True})
+
+
+@bp.route("/api/artifacts/<int:artifact_id>/versions", methods=["GET"])
+def api_artifacts_versions_list(artifact_id: int):
+    versions = artifacts_db.list_artifact_versions(artifact_id)
+    return jsonify({"versions": versions, "count": len(versions), "success": True})
+
+
+@bp.route("/api/artifacts/<int:artifact_id>/versions/restore", methods=["POST"])
+def api_artifacts_versions_restore(artifact_id: int):
+    data = request.get_json(silent=True) or {}
+    version_num = data.get("version_num")
+    if not version_num:
+        return jsonify({"error": "version_num is required"}), 400
+
+    restored = artifacts_db.restore_artifact_version(artifact_id, int(version_num))
+    if not restored:
+        return jsonify({"error": f"Version {version_num} not found for artifact {artifact_id}"}), 404
+    return jsonify({"artifact": restored, "success": True})
+
+
+@bp.route("/api/artifacts/from-chat", methods=["POST"])
+def api_artifacts_from_chat():
+    """Promote transient AI response or copilot proposal into a permanent living document."""
+    data = request.get_json(silent=True) or {}
+    content = (data.get("content") or "").strip()
+    if not content:
+        return jsonify({"error": "Content cannot be empty"}), 400
+
+    title = (data.get("title") or "").strip()
+    doc_type = (data.get("doc_type") or "").strip().lower()
+    project_id = data.get("project_id")
+
+    # Smart heuristics if title/type not provided
+    lines = [l.strip() for l in content.splitlines() if l.strip()]
+    if not title:
+        for line in lines:
+            if line.startswith("#"):
+                title = line.lstrip("#").strip()
+                break
+        if not title and lines:
+            title = lines[0][:60]
+        if not title:
+            title = "Copilot Generated Document"
+
+    if not doc_type:
+        low = (title + "\n" + content[:500]).lower()
+        if "prd" in low or "product requirement" in low:
+            doc_type = "prd"
+        elif "rfc" in low or "request for comment" in low:
+            doc_type = "rfc"
+        elif "architecture" in low or "system design" in low:
+            doc_type = "architecture"
+        elif "brief" in low or "sprint brief" in low:
+            doc_type = "brief"
+        elif "story" in low or "breakdown" in low:
+            doc_type = "breakdown"
+        else:
+            doc_type = "document"
+
+    artifact = artifacts_db.create_artifact(
+        title=title,
+        content=content,
+        doc_type=doc_type,
+        project_id=project_id,
+        tags=["ai-copilot", doc_type],
+        summary="Synthesized from AI Copilot generation"
+    )
+    return jsonify({"artifact": artifact, "success": True, "message": "Promoted to Living Artifact"}), 201
+
+
+@bp.route("/api/artifacts/<int:artifact_id>/export/<export_format>", methods=["GET", "POST"])
+def api_artifacts_export(artifact_id: int, export_format: str):
+    """Export living artifact directly to DOCX, Markdown (.md), or styled HTML."""
+    artifact = artifacts_db.get_artifact(artifact_id)
+    if not artifact:
+        return jsonify({"error": f"Artifact {artifact_id} not found"}), 404
+
+    title = artifact["title"]
+    content = artifact["content"]
+    safe_name = "".join(c for c in title if c.isalnum() or c in (" ", "_", "-")).rstrip() or "Document"
+
+    fmt = export_format.lower()
+    if fmt in ("docx", "doc"):
+        from tools.document_generator import generate_docx_from_markdown
+        meta = {
+            "Document Title": title,
+            "Document Type": artifact["doc_type"].upper(),
+            "Word Count": str(artifact["word_count"]),
+            "Updated At": artifact["updated_at"]
+        }
+        buf = generate_docx_from_markdown(title=title, markdown_content=content, metadata=meta)
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=f"{safe_name}.docx",
+            mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    elif fmt in ("md", "markdown"):
+        from io import BytesIO
+        buf = BytesIO(content.encode("utf-8"))
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=f"{safe_name}.md",
+            mimetype="text/markdown"
+        )
+    elif fmt in ("html", "htm"):
+        from io import BytesIO
+        import html
+        html_doc = f"""<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{html.escape(title)}</title>
+  <style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; max-width: 860px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }}
+    h1, h2, h3 {{ color: #111; }}
+    pre, code {{ background: #f4f4f4; border-radius: 4px; font-family: Consolas, monospace; }}
+    pre {{ padding: 12px; overflow-x: auto; }}
+    table {{ border-collapse: collapse; width: 100%; margin: 16px 0; }}
+    th, td {{ border: 1px solid #ddd; padding: 8px 12px; text-align: left; }}
+    th {{ background: #f8f8f8; }}
+  </style>
+</head>
+<body>
+  <h1>{html.escape(title)}</h1>
+  <p><em>Type: {html.escape(artifact['doc_type'].upper())} | Words: {artifact['word_count']} | Updated: {artifact['updated_at']}</em></p>
+  <hr>
+  <pre style="white-space: pre-wrap; font-family: inherit;">{html.escape(content)}</pre>
+</body>
+</html>"""
+        buf = BytesIO(html_doc.encode("utf-8"))
+        return send_file(
+            buf,
+            as_attachment=True,
+            download_name=f"{safe_name}.html",
+            mimetype="text/html"
+        )
+    else:
+        return jsonify({"error": f"Unsupported export format: {export_format}"}), 400
 
 
 # ── Data Studio & Dashboards APIs ──────────────────────────────────────────────

@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 import type { KnowledgeDocument, Project } from '../types';
 import AppBridge from '../services/bridge';
+import ArtifactsStudio from '../components/docs/ArtifactsStudio';
 
 interface DocsViewProps {
   initialProjectId?: number | null;
 }
 
 export const DocsView: React.FC<DocsViewProps> = ({ initialProjectId }) => {
+  const [subTab, setSubTab] = useState<'artifacts' | 'knowledge'>('artifacts');
   const [docs, setDocs] = useState<KnowledgeDocument[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<number | 'all'>(
@@ -185,9 +187,49 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialProjectId }) => {
   );
 
   return (
-    <div className="h-full w-full flex flex-col p-6 overflow-hidden space-y-6">
-      {/* Top Header Strip */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2e2c2a] flex-shrink-0">
+    <div className="h-full w-full flex flex-col overflow-hidden bg-[#111110]">
+      {/* Top Segmented Sub-Tab Switcher */}
+      <div className="h-12 px-6 border-b border-[#2e2c2a] bg-[#161514] flex items-center justify-between flex-shrink-0 select-none">
+        <div className="flex items-center gap-1 bg-[#111110] p-1 rounded-lg border border-[#2e2c2a]">
+          <button
+            onClick={() => setSubTab('artifacts')}
+            className={`px-3 py-1 rounded-md text-xs font-mono transition-colors flex items-center gap-1.5 ${
+              subTab === 'artifacts'
+                ? 'bg-[#252422] text-[#e8a84c] font-semibold shadow-sm'
+                : 'text-[#716d67] hover:text-[#edeae4]'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>Artifacts Studio (Docs)</span>
+          </button>
+          <button
+            onClick={() => setSubTab('knowledge')}
+            className={`px-3 py-1 rounded-md text-xs font-mono transition-colors flex items-center gap-1.5 ${
+              subTab === 'knowledge'
+                ? 'bg-[#252422] text-[#e8a84c] font-semibold shadow-sm'
+                : 'text-[#716d67] hover:text-[#edeae4]'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>Knowledge Base (RAG)</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] font-mono text-[#716d67] hidden sm:block">
+          {subTab === 'artifacts' ? 'Dedicated artifacts.db Store' : 'FTS5 + Vector Embedding Store'}
+        </div>
+      </div>
+
+      {subTab === 'artifacts' ? (
+        <ArtifactsStudio
+          initialProjectId={selectedProjectId === 'all' ? null : selectedProjectId}
+          projects={projects}
+          onOpenKnowledgeBase={() => setSubTab('knowledge')}
+        />
+      ) : (
+        <div className="flex-1 flex flex-col p-6 overflow-hidden space-y-6 min-h-0">
+          {/* Top Header Strip */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[#2e2c2a] flex-shrink-0">
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-bold tracking-tight text-[#edeae4]">
@@ -525,6 +567,8 @@ export const DocsView: React.FC<DocsViewProps> = ({ initialProjectId }) => {
               </button>
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

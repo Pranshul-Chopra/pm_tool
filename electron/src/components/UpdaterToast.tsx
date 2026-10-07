@@ -86,7 +86,12 @@ export const UpdaterToast: React.FC<UpdaterToastProps> = ({ data }) => {
             Later
           </button>
           <button
-            onClick={() => AppBridge.os.restartAndInstallUpdate()}
+            onClick={() => {
+              if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('pm_tool_just_updated_restart', 'true');
+              }
+              AppBridge.os.restartAndInstallUpdate();
+            }}
             className="px-3 py-1 bg-[#e8a84c] hover:bg-[#d4973b] text-black font-semibold rounded text-xs transition-colors flex items-center gap-1.5"
           >
             Restart Now

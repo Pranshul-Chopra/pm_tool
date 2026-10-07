@@ -15,6 +15,7 @@ import {
   X,
   Sparkles,
   Columns3,
+  Compass,
 } from 'lucide-react';
 import type { NavTab, Project } from '../types';
 import AppBridge from '../services/bridge';
@@ -24,6 +25,7 @@ interface CommandPaletteProps {
   onClose: () => void;
   onNavigate: (tab: NavTab, projectId?: number | null) => void;
   onToggleSidebar?: () => void;
+  onOpenOnboarding?: () => void;
 }
 
 interface PaletteAction {
@@ -207,6 +209,29 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         shortcut: 'Ctrl+B',
         run: () => {
           if (onToggleSidebar) onToggleSidebar();
+          onClose();
+        },
+      },
+      {
+        id: 'act-new-artifact',
+        category: 'Quick Actions',
+        title: 'New Living Document / PRD',
+        subtitle: 'Open Artifacts Studio to draft a specification or RFC',
+        icon: FileText,
+        shortcut: 'Ctrl+4',
+        run: () => {
+          onNavigate('documents');
+          onClose();
+        },
+      },
+      {
+        id: 'act-onboarding-tour',
+        category: 'Quick Actions',
+        title: 'Launch Onboarding Tour & Setup Wizard',
+        subtitle: 'Configure default initiative, LLM gateways, and workstation hotkeys',
+        icon: Compass,
+        run: () => {
+          if (onOpenOnboarding) onOpenOnboarding();
           onClose();
         },
       },

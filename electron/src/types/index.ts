@@ -208,4 +208,73 @@ export interface ActionProposal {
   [key: string]: any;
 }
 
+export type ArtifactDocType = 'prd' | 'rfc' | 'brief' | 'architecture' | 'notes' | 'breakdown' | 'document';
+
+export interface Artifact {
+  id: number;
+  uuid: string;
+  project_id?: number | null;
+  title: string;
+  doc_type: ArtifactDocType | string;
+  content: string;
+  summary?: string;
+  tags: string[];
+  is_pinned: boolean;
+  word_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ArtifactVersion {
+  id: number;
+  artifact_id: number;
+  version_num: number;
+  title: string;
+  summary?: string;
+  created_at: string;
+  byte_size?: number;
+}
+
+export interface ArtifactSummaryStats {
+  total_count: number;
+  prd_count: number;
+  rfc_count: number;
+  brief_count: number;
+  pinned_count: number;
+  total_words: number;
+}
+
+export interface CreateArtifactPayload {
+  title: string;
+  content?: string;
+  doc_type?: string;
+  project_id?: number | null;
+  tags?: string[];
+  summary?: string;
+  is_pinned?: boolean;
+}
+
+export interface UpdateArtifactPayload {
+  title?: string;
+  content?: string;
+  doc_type?: string;
+  project_id?: number | null;
+  tags?: string[];
+  summary?: string;
+  is_pinned?: boolean;
+  create_version?: boolean;
+  version_summary?: string;
+}
+
+export interface OnboardingConfig {
+  projectName: string;
+  domain: string;
+  techStack: string;
+  seedBacklog: boolean;
+  provider: 'ollama' | 'gemini' | 'openai' | 'offline';
+  ollamaModel?: string;
+  apiKey?: string;
+  apiBase?: string;
+}
+
 
