@@ -54,7 +54,7 @@ const COMMAND_CHIPS = [
   { cmd: '/data', label: 'KPI Insights', desc: 'Inspect dataset metrics and health' },
   { cmd: '/search', label: 'Knowledge Base', desc: 'Grounded query on indexed docs' },
   { cmd: '/metrics', label: 'Telemetry', desc: 'Define North Star and funnel metrics' },
-  { cmd: '/summarize', label: 'Executive Summary', desc: '8K budget document synthesis' },
+  { cmd: '/summarize', label: 'Executive Summary', desc: '16K budget document synthesis' },
 ];
 
 const DEFAULT_SUGGESTIONS = [

@@ -16,9 +16,15 @@ import {
   Server,
   Zap,
   Compass,
+  Sliders,
+  FileText,
+  ListTodo,
+  Wrench,
+  MessageSquare,
 } from 'lucide-react';
 import AppBridge from '../services/bridge';
-import type { LLMStatus, LLMProviderPref, TicketAccessScope } from '../types';
+import OutpostsSettingsPanel from '../components/settings/OutpostsSettingsPanel';
+import type { LLMStatus, LLMProviderPref, LLMConfigPayload, TicketAccessScope } from '../types';
 
 interface SettingsViewProps {
   onOpenOnboarding?: () => void;
@@ -39,6 +45,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) 
   const [modelIdentifier, setModelIdentifier] = useState('');
   const [customBaseUrl, setCustomBaseUrl] = useState('');
   const [ollamaSelectedModel, setOllamaSelectedModel] = useState('');
+
+  // Token Headroom & Generation Limits State
+  const [chatMaxTokens, setChatMaxTokens] = useState(8192);
+  const [fileGenMaxTokens, setFileGenMaxTokens] = useState(16384);
+  const [planMaxTokens, setPlanMaxTokens] = useState(8192);
+  const [toolCallMaxTokens, setToolCallMaxTokens] = useState(16384);
 
   // AI Ticket Policy & Execution Privileges State
   const [ticketScope, setTicketScope] = useState<TicketAccessScope>('all');
@@ -83,6 +95,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) 
         setOllamaSelectedModel(data.ollama.selected_model);
       } else if (data.ollama?.models && data.ollama.models.length > 0) {
         setOllamaSelectedModel(data.ollama.models[0]);
+      }
+      if (data.token_limits) {
+        if (typeof data.token_limits.chat_max_tokens === 'number') {
+          setChatMaxTokens(data.token_limits.chat_max_tokens);
+        }
+        if (typeof data.token_limits.file_gen_max_tokens === 'number') {
+          setFileGenMaxTokens(data.token_limits.file_gen_max_tokens);
+        }
+        if (typeof data.token_limits.plan_max_tokens === 'number') {
+          setPlanMaxTokens(data.token_limits.plan_max_tokens);
+        }
+        if (typeof data.token_limits.tool_call_max_tokens === 'number') {
+          setToolCallMaxTokens(data.token_limits.tool_call_max_tokens);
+        }
       }
     } catch (err: any) {
       console.error('Failed to load LLM status:', err);
@@ -198,19 +224,40 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) 
     }
   };
 
+  const applyTokenPreset = (preset: 'eco' | 'balanced' | 'max') => {
+    if (preset === 'eco') {
+      setChatMaxTokens(4096);
+      setFileGenMaxTokens(8192);
+      setPlanMaxTokens(4096);
+      setToolCallMaxTokens(8192);
+      showNotification('info', 'Applied Eco / Fast preset (4K / 8K). Click Save to persist.');
+    } else if (preset === 'balanced') {
+      setChatMaxTokens(8192);
+      setFileGenMaxTokens(16384);
+      setPlanMaxTokens(8192);
+      setToolCallMaxTokens(16384);
+      showNotification('info', 'Applied Balanced Recommended preset (8K / 16K). Click Save to persist.');
+    } else if (preset === 'max') {
+      setChatMaxTokens(16384);
+      setFileGenMaxTokens(32768);
+      setPlanMaxTokens(16384);
+      setToolCallMaxTokens(32768);
+      showNotification('info', 'Applied Maximum Headroom preset (16K / 32K). Click Save to persist.');
+    }
+  };
+
   // Save full configuration
   const handleSaveConfiguration = async () => {
     setSavingConfig(true);
     try {
-      const payload: {
-        provider: LLMProviderPref;
-        api_key?: string;
-        api_base?: string;
-        model_name?: string;
-      } = {
+      const payload: LLMConfigPayload = {
         provider: providerPref,
         model_name: modelIdentifier.trim() || undefined,
         api_base: customBaseUrl.trim() || undefined,
+        chat_max_tokens: Number(chatMaxTokens) || 8192,
+        file_gen_max_tokens: Number(fileGenMaxTokens) || 16384,
+        plan_max_tokens: Number(planMaxTokens) || 8192,
+        tool_call_max_tokens: Number(toolCallMaxTokens) || 16384,
       };
 
       if (apiKey.trim()) {
@@ -218,7 +265,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) 
       }
 
       await AppBridge.api.saveLLMConfig(payload);
-      showNotification('success', 'AI settings saved and encrypted successfully.');
+      showNotification('success', 'AI settings and token limits saved successfully.');
       setApiKey(''); // Clear plain-text key from state
       await loadStatus(); // Refresh telemetry & key badge
     } catch (err: any) {
@@ -569,6 +616,216 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) 
         </div>
       </div>
 
+      {/* 4. Token Headroom & Generation Limits */}
+      <div className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl p-5 space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#2e2c2a] pb-3">
+          <div className="flex items-center gap-2.5 text-sm font-semibold text-[#edeae4]">
+            <div className="p-1.5 rounded-lg bg-[#e8a84c]/10 text-[#e8a84c]">
+              <Sliders className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="block">4. Token Headroom & Output Budgets</span>
+              <span className="text-[11px] font-normal text-[#9b9690]">
+                Configure maximum generation token limits for chats, long-form document synthesis, plans, and tool summaries
+              </span>
+            </div>
+          </div>
+
+          {/* Quick Presets */}
+          <div className="flex items-center gap-1.5 bg-[#161514] p-1 rounded-lg border border-[#2e2c2a] flex-shrink-0">
+            <span className="text-[10px] font-mono text-[#5c5955] px-1.5 hidden sm:inline">Presets:</span>
+            <button
+              type="button"
+              onClick={() => applyTokenPreset('eco')}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+                chatMaxTokens === 4096 && fileGenMaxTokens === 8192
+                  ? 'bg-[#282725] text-[#edeae4] border border-[#3e3c39]'
+                  : 'text-[#9b9690] hover:text-[#edeae4] hover:bg-[#201f1e]'
+              }`}
+            >
+              ⚡ Eco (4k/8k)
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTokenPreset('balanced')}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+                chatMaxTokens === 8192 && fileGenMaxTokens === 16384
+                  ? 'bg-[#e8a84c]/15 text-[#e8a84c] border border-[#e8a84c]/30 font-semibold'
+                  : 'text-[#9b9690] hover:text-[#edeae4] hover:bg-[#201f1e]'
+              }`}
+            >
+              ⚖️ Balanced (8k/16k)
+            </button>
+            <button
+              type="button"
+              onClick={() => applyTokenPreset('max')}
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-colors ${
+                chatMaxTokens === 16384 && fileGenMaxTokens === 32768
+                  ? 'bg-[#4c97e8]/15 text-[#4c97e8] border border-[#4c97e8]/30 font-semibold'
+                  : 'text-[#9b9690] hover:text-[#edeae4] hover:bg-[#201f1e]'
+              }`}
+            >
+              🚀 Max (16k/32k)
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Token Control Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Standard AI Chat */}
+          <div className="p-3.5 rounded-lg bg-[#161514] border border-[#2e2c2a] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-3.5 h-3.5 text-[#e8a84c]" />
+                <span className="text-xs font-semibold text-[#edeae4]">Standard AI Chat</span>
+              </div>
+              <span className="text-xs font-mono font-bold text-[#e8a84c] bg-[#222120] px-2 py-0.5 rounded border border-[#2e2c2a]">
+                {chatMaxTokens.toLocaleString()} tokens
+              </span>
+            </div>
+            <p className="text-[11px] text-[#9b9690] leading-relaxed">
+              Ceiling for standard Q&A, interactive conversations, and quick prompts.
+            </p>
+            <div className="flex items-center gap-3 pt-1">
+              <input
+                type="range"
+                min="1024"
+                max="32768"
+                step="1024"
+                value={chatMaxTokens}
+                onChange={(e) => setChatMaxTokens(Number(e.target.value))}
+                className="flex-1 accent-[#e8a84c] cursor-pointer h-1.5 bg-[#222120] rounded-lg"
+              />
+              <input
+                type="number"
+                min="1024"
+                max="65536"
+                step="512"
+                value={chatMaxTokens}
+                onChange={(e) => setChatMaxTokens(Math.max(1024, Number(e.target.value)))}
+                className="w-20 bg-[#1e1d1b] border border-[#2e2c2a] focus:border-[#e8a84c] rounded px-2 py-1 text-xs text-[#edeae4] font-mono text-right outline-none"
+              />
+            </div>
+          </div>
+
+          {/* File & Document Synthesis */}
+          <div className="p-3.5 rounded-lg bg-[#161514] border border-[#2e2c2a] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-3.5 h-3.5 text-[#5aab7f]" />
+                <span className="text-xs font-semibold text-[#edeae4]">File & Document Generation</span>
+              </div>
+              <span className="text-xs font-mono font-bold text-[#5aab7f] bg-[#222120] px-2 py-0.5 rounded border border-[#2e2c2a]">
+                {fileGenMaxTokens.toLocaleString()} tokens
+              </span>
+            </div>
+            <p className="text-[11px] text-[#9b9690] leading-relaxed">
+              High headroom for multi-section PRDs, architecture specs, RFCs, and exports.
+            </p>
+            <div className="flex items-center gap-3 pt-1">
+              <input
+                type="range"
+                min="2048"
+                max="65536"
+                step="1024"
+                value={fileGenMaxTokens}
+                onChange={(e) => setFileGenMaxTokens(Number(e.target.value))}
+                className="flex-1 accent-[#5aab7f] cursor-pointer h-1.5 bg-[#222120] rounded-lg"
+              />
+              <input
+                type="number"
+                min="2048"
+                max="131072"
+                step="1024"
+                value={fileGenMaxTokens}
+                onChange={(e) => setFileGenMaxTokens(Math.max(2048, Number(e.target.value)))}
+                className="w-20 bg-[#1e1d1b] border border-[#2e2c2a] focus:border-[#5aab7f] rounded px-2 py-1 text-xs text-[#edeae4] font-mono text-right outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Plan Mode & Decompositions */}
+          <div className="p-3.5 rounded-lg bg-[#161514] border border-[#2e2c2a] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <ListTodo className="w-3.5 h-3.5 text-[#4c97e8]" />
+                <span className="text-xs font-semibold text-[#edeae4]">Plan Mode & Epics</span>
+              </div>
+              <span className="text-xs font-mono font-bold text-[#4c97e8] bg-[#222120] px-2 py-0.5 rounded border border-[#2e2c2a]">
+                {planMaxTokens.toLocaleString()} tokens
+              </span>
+            </div>
+            <p className="text-[11px] text-[#9b9690] leading-relaxed">
+              Token budget for roadmap breakdown, sprint scoping, and ticket proposals.
+            </p>
+            <div className="flex items-center gap-3 pt-1">
+              <input
+                type="range"
+                min="1024"
+                max="32768"
+                step="1024"
+                value={planMaxTokens}
+                onChange={(e) => setPlanMaxTokens(Number(e.target.value))}
+                className="flex-1 accent-[#4c97e8] cursor-pointer h-1.5 bg-[#222120] rounded-lg"
+              />
+              <input
+                type="number"
+                min="1024"
+                max="65536"
+                step="512"
+                value={planMaxTokens}
+                onChange={(e) => setPlanMaxTokens(Math.max(1024, Number(e.target.value)))}
+                className="w-20 bg-[#1e1d1b] border border-[#2e2c2a] focus:border-[#4c97e8] rounded px-2 py-1 text-xs text-[#edeae4] font-mono text-right outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Tool Calls & Summaries */}
+          <div className="p-3.5 rounded-lg bg-[#161514] border border-[#2e2c2a] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Wrench className="w-3.5 h-3.5 text-[#a371f7]" />
+                <span className="text-xs font-semibold text-[#edeae4]">Tool Calls & Summaries</span>
+              </div>
+              <span className="text-xs font-mono font-bold text-[#a371f7] bg-[#222120] px-2 py-0.5 rounded border border-[#2e2c2a]">
+                {toolCallMaxTokens.toLocaleString()} tokens
+              </span>
+            </div>
+            <p className="text-[11px] text-[#9b9690] leading-relaxed">
+              Headroom for Knowledge Base RAG analysis, document synthesis, and SQL queries.
+            </p>
+            <div className="flex items-center gap-3 pt-1">
+              <input
+                type="range"
+                min="2048"
+                max="65536"
+                step="1024"
+                value={toolCallMaxTokens}
+                onChange={(e) => setToolCallMaxTokens(Number(e.target.value))}
+                className="flex-1 accent-[#a371f7] cursor-pointer h-1.5 bg-[#222120] rounded-lg"
+              />
+              <input
+                type="number"
+                min="2048"
+                max="131072"
+                step="1024"
+                value={toolCallMaxTokens}
+                onChange={(e) => setToolCallMaxTokens(Math.max(2048, Number(e.target.value)))}
+                className="w-20 bg-[#1e1d1b] border border-[#2e2c2a] focus:border-[#a371f7] rounded px-2 py-1 text-xs text-[#edeae4] font-mono text-right outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Provider Clamping Notice */}
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[#222120] border border-[#2e2c2a] text-[11px] text-[#9b9690]">
+          <Info className="w-4 h-4 text-[#e8a84c] flex-shrink-0 mt-0.5" />
+          <span className="leading-relaxed">
+            <strong className="text-[#edeae4]">Safety Clamping:</strong> Google Gemini native API is automatically clamped to 8,192 output tokens to prevent upstream HTTP 400 parameter errors. Extended limits up to 32,768+ tokens take effect on OpenAI, LM Studio, Ollama, and compatible custom gateway endpoints.
+          </span>
+        </div>
+      </div>
+
       {/* Save Settings Action Bar */}
       <div className="flex items-center justify-end gap-3 pt-2">
         <button
@@ -584,13 +841,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) 
           ) : (
             <>
               <Shield className="w-3.5 h-3.5" />
-              <span>Save AI Settings</span>
+              <span>Save AI & Token Settings</span>
             </>
           )}
         </button>
       </div>
 
-      {/* ── 3. AI Agent Permissions & Ticket Access Policy ───────────────── */}
+      {/* ── 5. AI Agent Permissions & Ticket Access Policy ───────────────── */}
       <div className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl p-5 space-y-5">
         <div className="flex items-center justify-between border-b border-[#2e2c2a] pb-3">
           <div className="flex items-center gap-2.5 text-sm font-semibold text-[#edeae4]">
@@ -712,7 +969,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenOnboarding }) 
         </div>
       </div>
 
-      {/* 4. Native OS Integrations */}
+      {/* 4. Connection Outposts & Hexagonal Adapters (v2.2.5) */}
+      <OutpostsSettingsPanel onNotification={showNotification} />
+
+      {/* 5. Native OS Integrations */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
         <div className="bg-[#1a1918] border border-[#2e2c2a] rounded-xl p-5 space-y-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-[#edeae4]">

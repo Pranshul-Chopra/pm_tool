@@ -2,6 +2,54 @@
 
 All notable changes to **PM Tool** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.2.5] - 2026-10-10
+
+### 🌐 Hexagonal Architecture Nexus & 100% Local Parity
+- **Decoupled Domain Ports (`ports/`)**:
+  - `TicketTrackerPort` (`ports/ticket_tracker.py`): Formal interfaces for board schema discovery, task creation, transitions, and delta synchronization.
+  - `DocumentRepositoryPort` (`ports/document_repo.py`): Formal interfaces for living document revisions, content trees, and cross-platform publishing.
+  - `KnowledgeSourcePort` (`ports/knowledge_source.py`): Formal interfaces for remote document ingestion, diagnostic checks, and RAG index population.
+- **Local Parity Adapters (`adapters/`)**:
+  - `LocalTicketAdapter` (`adapters/local_ticket_adapter.py`): High-throughput local SQLite ticket tracker implementing 100% contract parity.
+  - `LocalArtifactsAdapter` (`adapters/local_artifacts_adapter.py`): Living document repository adapter backed by segregated `artifacts.db`.
+  - `LocalDiskRAGAdapter` (`adapters/local_disk_rag_adapter.py`): Local disk RAG and knowledge base adapter with BM25 indexing.
+
+### 🔌 Connection Outposts: Jira Cloud, Notion & Google Docs
+- **Atlassian Jira Cloud REST API v3 Outpost (`adapters/jira_ticket_adapter.py`)**:
+  - Bidirectional integration with Jira Cloud projects via secure basic token authentication.
+  - Dynamic workflow status retrieval and board column mapping.
+  - Issue creation, field mapping, and status transition execution (`/rest/api/3/issue/{id}/transitions`).
+- **Notion Workspace Outpost (`adapters/notion_document_adapter.py`)**:
+  - Automated Markdown-to-Block transformer for living PRDs, RFCs, and meeting notes.
+  - Support for headings (H1/H2/H3), bulleted lists, numbered lists, blockquotes, code blocks, and callout call-to-actions.
+- **Google Docs Export Outpost (`adapters/gdocs_document_adapter.py`)**:
+  - Direct 1-click cloud publishing from Artifacts Studio to Google Docs using batch document update transformations.
+
+### 🛡️ Pre-Sync Safety Snapshot & Outpost-as-Dictator Model
+- **Pre-Sync Safety Backup Engine (`tools/outposts/snapshot.py`)**:
+  - Enforces the "Outpost as Dictator" model when linking external boards: before wiping local tickets to mirror remote Jira status, a full timestamped JSON backup snapshot is written to `%LOCALAPPDATA%\PMTool\backups\pre_sync_<provider>_<id>.json`.
+  - 1-click atomic restore capability (`/api/projects/<id>/restore-snapshot`) reversing accidental data overwrites instantly.
+  - Snapshot inspection API (`/api/projects/<id>/snapshots`).
+
+### 🔒 SSRF Defensive Perimeter & Machine-Bound Credential Vault
+- **SSRF Defensive Perimeter (`tools/outposts/security.py`)**:
+  - Strict HTTPS validation and IP resolution defense blocking loopback (`127.0.0.1`, `::1`), private networks (RFC 1918 `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), and cloud metadata IP (`169.254.169.254`).
+- **Machine-Bound PBKDF2 Credential Vault (`tools/outposts/security.py` & `db.py`)**:
+  - Hardware/OS-salted PBKDF2 encryption (`encrypt_token` / `decrypt_token`) storing outpost secrets in the dedicated `outpost_configs` table.
+  - Sensitive token masking for frontend display and log security (`mask_token`).
+
+### 🖥️ React Desktop UI & Workflow Bridges
+- **Outposts Integration Hub (`OutpostsSettingsPanel.tsx` in `SettingsView.tsx`)**:
+  - Unified configuration studio for Jira, Notion, and Google Docs with live latency diagnostics.
+- **Link Jira Board Modal & Dynamic Workflow Columns (`LinkJiraModal.tsx` & `BoardView.tsx`)**:
+  - Dynamic column rendering based on remote Jira workflow statuses (`To Do`, `In Progress`, `Code Review`, `Done`).
+  - Pre-sync snapshot warning and confirmation modal.
+  - Jira board sync button with live sync status toast.
+- **Task Card Jira Badges (`TaskCard.tsx`)**:
+  - External issue key badge `[PROJ-102 ↗]` with deep link and labels.
+- **Artifacts Studio Cloud Export (`ArtifactsStudio.tsx`)**:
+  - "Publish to Notion" and "Export to Google Docs" integrated into the Artifacts Studio export menu.
+
 ## [2.2.0] - 2026-10-07
 
 ### 📝 In-Built Living Document Editor & Artifacts Studio (PranshulOS Style)
@@ -33,6 +81,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **1-Click "Save as Living Artifact" (`ChatView.tsx`)**:
   - Added quick promotion button to AI Copilot assistant markdown responses.
   - Automatically infers document title and document type, persisting the artifact directly into `artifacts.db` and displaying a toast notification.
+
+### 🎛️ Configurable Token Headroom & Extended Generation Limits (React + Backend)
+- **Token Headroom & Generation Limits Studio (`SettingsView.tsx`)**:
+  - Interactive configuration panel directly integrated into the React Desktop Settings workstation.
+  - Range sliders and numeric inputs for 4 independent execution planes:
+    - 💬 **Standard AI Chat** (`chat_max_tokens`, default 8,192, up to 32,768 tokens)
+    - 📄 **File & Document Generation** (`file_gen_max_tokens`, default 16,384, up to 65,536 tokens)
+    - 📋 **Plan Mode & Epics** (`plan_max_tokens`, default 8,192, up to 32,768 tokens)
+    - 🛠️ **Tool Calls & Summaries** (`tool_call_max_tokens`, default 16,384, up to 65,536 tokens)
+  - 1-Click Headroom Presets: `⚡ Eco (4k/8k)`, `⚖️ Balanced (8k/16k)`, and `🚀 Max (16k/32k)`.
+  - Machine-bound encrypted atomic saving via `AppBridge.api.saveLLMConfig` and `/api/llm/config`.
+- **Intelligent Gateway Token Routing (`llm/gateway.py` & `routes.py`)**:
+  - Dynamic request classification routing output tokens based on intent (`/prd`, `/breakdown`, `/document`, `/plan`, `/search`, `/summarize`).
+  - Native Gemini API Safety Clamping: Automatically clamps generation requests to $\le 8,192$ output tokens for Google Gemini native API to prevent upstream HTTP 400 parameter errors, while unlocking extended budgets (up to 32K/64K) for OpenAI, Ollama, and LM Studio.
+- **RAG Document Summarizer Upgrade (`tools/summarizer.py`)**:
+  - Default summary budget expanded from 8,192 to 16,384 tokens with dynamic parameter pass-through.
+- **Document Generator Headroom Awareness (`DocumentGeneratorModal.tsx` & `ChatView.tsx`)**:
+  - Added active `Extended 16K Headroom` telemetry badge to the AI Document Generator header.
+  - Updated `/summarize` command chip description to reflect 16K document synthesis.
 
 ## [2.1.1] - 2026-10-06
 

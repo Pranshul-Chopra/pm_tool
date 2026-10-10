@@ -124,6 +124,20 @@ def init_artifacts_db():
             conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_updated_at ON artifacts(updated_at DESC)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_artifact_versions_doc ON artifact_versions(artifact_id, version_num DESC)")
 
+            # Outpost external linkage columns
+            for col_def in (
+                "external_provider TEXT DEFAULT NULL",
+                "external_id TEXT DEFAULT NULL",
+                "external_url TEXT DEFAULT NULL",
+                "external_properties TEXT DEFAULT '{}'",
+                "sync_status TEXT DEFAULT 'synced'",
+                "last_synced_at TIMESTAMP DEFAULT NULL",
+            ):
+                try:
+                    conn.execute(f"ALTER TABLE artifacts ADD COLUMN {col_def}")
+                except sqlite3.OperationalError:
+                    pass
+
             # Setup SQLite FTS5 for fast full-text searching across all documents
             try:
                 conn.execute("""
@@ -339,6 +353,7 @@ def update_artifact(
     is_pinned: Optional[int | bool] = None,
     create_version: bool = False,
     version_summary: str = "",
+    **kwargs,
 ) -> Optional[Dict[str, Any]]:
     """Update fields of an artifact and optionally snapshot a new version."""
     current = get_artifact(artifact_id)
@@ -362,6 +377,19 @@ def update_artifact(
         updates["summary"] = summary.strip()
     if is_pinned is not None:
         updates["is_pinned"] = 1 if is_pinned else 0
+    if "external_provider" in kwargs and kwargs["external_provider"] is not None:
+        updates["external_provider"] = kwargs["external_provider"]
+    if "external_id" in kwargs and kwargs["external_id"] is not None:
+        updates["external_id"] = kwargs["external_id"]
+    if "external_url" in kwargs and kwargs["external_url"] is not None:
+        updates["external_url"] = kwargs["external_url"]
+    if "external_properties" in kwargs and kwargs["external_properties"] is not None:
+        ep = kwargs["external_properties"]
+        updates["external_properties"] = json.dumps(ep) if isinstance(ep, dict) else str(ep)
+    if "sync_status" in kwargs and kwargs["sync_status"] is not None:
+        updates["sync_status"] = kwargs["sync_status"]
+    if "last_synced_at" in kwargs and kwargs["last_synced_at"] is not None:
+        updates["last_synced_at"] = kwargs["last_synced_at"]
 
     if not updates and not create_version:
         return current
@@ -452,6 +480,34 @@ def restore_artifact_version(artifact_id: int, version_num: int) -> Optional[Dic
     )
 
 
+revert_to_version = restore_artifact_version
+
+
+def create_artifact_version(artifact_id: int, summary: str = "") -> Dict[str, Any]:
+    """Explicitly snapshot a historical version of an existing artifact."""
+    doc = get_artifact(artifact_id)
+    if not doc:
+        raise ValueError(f"Artifact {artifact_id} not found.")
+    now = _now_iso()
+    with get_artifacts_db() as conn:
+        with conn:
+            cur_v = conn.execute(
+                "SELECT COALESCE(MAX(version_num), 0) + 1 AS next_v FROM artifact_versions WHERE artifact_id = ?",
+                (artifact_id,),
+            )
+            next_v = cur_v.fetchone()["next_v"]
+            cur = conn.execute(
+                """
+                INSERT INTO artifact_versions (artifact_id, version_num, title, content, summary, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                RETURNING *
+                """,
+                (artifact_id, next_v, doc["title"], doc.get("content", ""), summary.strip() or f"Snapshot v{next_v}", now),
+            )
+            return dict(cur.fetchone())
+
+
+
 def get_artifacts_summary_stats() -> Dict[str, Any]:
     """Summary metrics across all living documents."""
     with get_artifacts_db() as conn:
@@ -481,6 +537,15 @@ def _format_artifact_dict(row: Dict[str, Any]) -> Dict[str, Any]:
         d["tags"] = []
 
     d["is_pinned"] = bool(d.get("is_pinned", 0))
+
+    if isinstance(d.get("external_properties"), str):
+        try:
+            d["external_properties"] = json.loads(d["external_properties"])
+        except Exception:
+            d["external_properties"] = {}
+    elif not d.get("external_properties"):
+        d["external_properties"] = {}
+
     return d
 
 

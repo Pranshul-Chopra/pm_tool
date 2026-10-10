@@ -180,6 +180,30 @@ def get_available_gemini_models(api_key: str) -> List[str]:
 
 # ── Provider Status & Config ───────────────────────────────────────────────────
 
+DEFAULT_TOKEN_LIMITS = {
+    "chat_max_tokens": 8192,
+    "file_gen_max_tokens": 16384,
+    "plan_max_tokens": 8192,
+    "tool_call_max_tokens": 16384,
+}
+
+
+def get_configured_token_limits(db_module) -> Dict[str, int]:
+    """Retrieve user-configured token headroom from ai_config table."""
+    limits = {}
+    for key, default_val in DEFAULT_TOKEN_LIMITS.items():
+        try:
+            raw = db_module.get_ai_config(key)
+            if raw is not None and str(raw).strip():
+                val = int(str(raw).strip())
+                limits[key] = max(256, min(131072, val))
+                continue
+        except Exception:
+            pass
+        limits[key] = default_val
+    return limits
+
+
 def get_llm_status(db_module) -> Dict[str, Any]:
     """
     Determine the active LLM provider and return full status.
@@ -230,17 +254,22 @@ def get_llm_status(db_module) -> Dict[str, Any]:
         "saved_provider_pref": saved_provider,
         "saved_model": saved_model,
         "setup_required": (active_provider == "none"),
+        "token_limits": get_configured_token_limits(db_module),
     }
 
 
 def save_llm_config(
     db_module,
-    provider: str,
+    provider: Optional[str] = None,
     api_key: Optional[str] = None,
     api_base: Optional[str] = None,
     model_name: Optional[str] = None,
+    chat_max_tokens: Optional[int] = None,
+    file_gen_max_tokens: Optional[int] = None,
+    plan_max_tokens: Optional[int] = None,
+    tool_call_max_tokens: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Save LLM provider preferences with encrypted API key to ai_config table."""
+    """Save LLM provider preferences with encrypted API key and token limits to ai_config table."""
     if provider:
         db_module.set_ai_config("provider", provider.strip().lower())
     if api_key is not None:
@@ -252,6 +281,19 @@ def save_llm_config(
         db_module.set_ai_config("api_base", api_base.strip())
     if model_name is not None:
         db_module.set_ai_config("model_name", model_name.strip())
+
+    for key, val in (
+        ("chat_max_tokens", chat_max_tokens),
+        ("file_gen_max_tokens", file_gen_max_tokens),
+        ("plan_max_tokens", plan_max_tokens),
+        ("tool_call_max_tokens", tool_call_max_tokens),
+    ):
+        if val is not None:
+            try:
+                clamped_val = max(256, min(131072, int(val)))
+                db_module.set_ai_config(key, str(clamped_val))
+            except (ValueError, TypeError):
+                pass
 
     return get_llm_status(db_module)
 
@@ -302,10 +344,12 @@ def _dispatch_gemini(
     else:
         contents.append({"role": "user", "parts": [{"text": message}]})
 
+    # Native Gemini REST API imposes an 8192 token output limit
+    gemini_max_tokens = min(max(1, max_tokens), 8192)
     payload = {
         "system_instruction": {"parts": [{"text": system_prompt}]},
         "contents": contents,
-        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": gemini_max_tokens},
     }
     headers = {"Content-Type": "application/json"}
 
@@ -427,6 +471,8 @@ def call_llm(
     provider = status["active_provider"]
     model_name = status["active_model"] or ""
 
+    effective_max_tokens = max_tokens if (max_tokens and max_tokens > 0) else status.get("token_limits", {}).get("chat_max_tokens", 8192)
+
     # ── Ollama ──────────────────────────────────────────────────────────────────
     if provider == "ollama":
         messages = [{"role": "system", "content": system_prompt}]
@@ -438,7 +484,7 @@ def call_llm(
                 "messages": messages,
                 "stream": False,
                 "keep_alive": "30m",
-                "options": {"temperature": temperature, "num_ctx": max(16384, max_tokens * 2), "num_predict": max_tokens},
+                "options": {"temperature": temperature, "num_ctx": max(16384, effective_max_tokens * 2), "num_predict": effective_max_tokens},
             }
             res = requests.post(f"{OLLAMA_BASE_URL}/api/chat", json=payload,
                                 timeout=120.0, proxies={"http": None, "https": None})
@@ -479,7 +525,7 @@ def call_llm(
                 system_prompt=system_prompt,
                 history=clean_history,
                 message=message.strip()[:4000],
-                max_tokens=max_tokens,
+                max_tokens=effective_max_tokens,
                 temperature=temperature,
             )
 
@@ -501,7 +547,7 @@ def call_llm(
             "model": model_name or "gpt-4o-mini",
             "messages": messages,
             "temperature": temperature,
-            "max_tokens": max_tokens,
+            "max_tokens": effective_max_tokens,
         }
         try:
             res = requests.post(endpoint, json=payload, headers=headers, timeout=60.0)

@@ -25,10 +25,86 @@ export interface WhatsNewRelease {
 
 export const WHATS_NEW_RELEASES: WhatsNewRelease[] = [
   {
+    version: '2.2.5',
+    codename: 'Outpost & Nexus',
+    date: 'October 2026',
+    isLatest: true,
+    title: 'Connection Outposts & Hexagonal Architecture Nexus',
+    summary:
+      'PM Tool v2.2.5 introduces secure Connection Outposts for Atlassian Jira Cloud, Notion, and Google Docs, backed by clean Hexagonal Architecture ports, safety-snapshot state synchronization, and an SSRF-hardened credential vault.',
+    highlights: [
+      {
+        id: 'hexagonal-ports',
+        icon: 'zap',
+        title: 'Hexagonal Architecture & 100% Local Parity',
+        tag: 'Architecture',
+        description:
+          'Decoupled domain core via TicketTrackerPort, DocumentRepositoryPort, and KnowledgeSourcePort contracts with full local parity adapters.',
+      },
+      {
+        id: 'jira-outpost',
+        icon: 'zap',
+        title: 'Jira Cloud Two-Way Backlog Synchronization',
+        tag: 'Outposts',
+        description:
+          'Direct integration with Atlassian Jira Cloud REST API v3 featuring dynamic workflow status mapping, issue pushing, transitions, and issue key badges.',
+      },
+      {
+        id: 'snapshot-safety',
+        icon: 'shield',
+        title: 'Pre-Sync Safety Backup Snapshots',
+        tag: 'Data Integrity',
+        description:
+          'Enforces an Outpost-as-Dictator model with automatic timestamped JSON backup snapshots prior to any board sync or wiping, with one-click atomic restore.',
+      },
+      {
+        id: 'cloud-publishing',
+        icon: 'file-text',
+        title: 'Notion & Google Docs Cloud Publishing',
+        tag: 'Artifacts',
+        description:
+          'Publish living PRDs and RFCs directly from Artifacts Studio to Notion workspaces and Google Docs with full markdown block transformation.',
+      },
+      {
+        id: 'credential-vault',
+        icon: 'shield',
+        title: 'SSRF Perimeter & Machine-Bound Token Vault',
+        tag: 'Security',
+        description:
+          'Defense-in-depth credential protection with PBKDF2 encryption, UI token masking, and strict SSRF blocking against loopback, cloud metadata, and private IP ranges.',
+      },
+    ],
+    sections: [
+      {
+        title: 'New Features',
+        type: 'feature',
+        items: [
+          'Hexagonal Ports & Adapters architecture decoupling core project management logic from third-party storage.',
+          'Atlassian Jira Cloud Outpost supporting project board linking, dynamic status columns, and two-way status transitions.',
+          'Notion Workspace Outpost with automated markdown-to-block transformer for living document publishing.',
+          'Google Docs Outpost enabling one-click cloud document export directly from Artifacts Studio.',
+          'Pre-Sync Safety Backup Snapshot engine writing atomic JSON backups before any external sync operation.',
+          'Interactive Outposts Settings panel with live latency ping testbench and credential management.',
+          'Link Jira Project modal on Kanban Board with pre-sync safety backup confirmation and dynamic column remapping.',
+          'Task card visual Jira badges with deep links (e.g., [PROJ-102 ↗]) and remote status indicators.',
+        ],
+      },
+      {
+        title: 'Security & Integrity',
+        type: 'improvement',
+        items: [
+          'SSRF defensive perimeter preventing connections to localhost, private RFC 1918 subnets, and cloud metadata endpoints (169.254.169.254).',
+          'Machine-bound PBKDF2 token encryption with salted credential vaulting.',
+          'Sensitive token masking in UI and logs (e.g., ATATT...***4a2b).',
+          'Automatic pre-sync snapshot verification and 1-click atomic restore capability.',
+        ],
+      },
+    ],
+  },
+  {
     version: '2.2.0',
     codename: 'Scribe & Foundry',
     date: 'October 2026',
-    isLatest: true,
     title: 'Artifacts Living Docs Studio & First-Launch Onboarding Wizard',
     summary:
       'PM Tool v2.2.0 introduces an in-built living document editor for PRDs and architecture RFCs (PranshulOS style), contextual AI artifacts promotion, isolated database architecture (artifacts.db), and a friction-free first-launch onboarding wizard.',
@@ -73,6 +149,14 @@ export const WHATS_NEW_RELEASES: WhatsNewRelease[] = [
         description:
           'Bridge directly from living PRDs and RFCs into the Agile Decomposer modal to synthesize INVEST user stories and commit them straight to the Kanban board.',
       },
+      {
+        id: 'token-headroom',
+        icon: 'zap',
+        title: 'Configurable Token Limits & Extended Generation Headroom',
+        tag: 'AI Gateway',
+        description:
+          'Fine-tune output token budgets across chats, living PRD generation, plan mode, and tool summaries with one-click presets and native Gemini safety clamping.',
+      },
     ],
     sections: [
       {
@@ -85,6 +169,8 @@ export const WHATS_NEW_RELEASES: WhatsNewRelease[] = [
           'First-time user onboarding wizard configuring initial project, AI gateway, and hotkeys.',
           '1-click "Save as Living Artifact" on Copilot markdown outputs in Chat View.',
           'Direct 1-click decomposition bridge connecting living PRDs and RFCs into Agile Sprint Backlog.',
+          'Configurable token headroom in Settings (Chat, Docs, Plans, Tools) with 1-click presets (Eco, Balanced, Max).',
+          'Extended token limits up to 16K/32K for long-form file generation, multi-page PRDs, and RAG document summaries.',
         ],
       },
       {
@@ -92,6 +178,7 @@ export const WHATS_NEW_RELEASES: WhatsNewRelease[] = [
         type: 'improvement',
         items: [
           'Clean 3-database separation: pmtool.db for agile entities, ai_context.db for chats/RAG, artifacts.db for documents.',
+          'Safety clamping for native Gemini (max 8,192 tokens) preventing HTTP 400 parameter errors while unlocking high headroom for Ollama & OpenAI.',
           'Global keyboard navigation and shortcuts spotlight (Ctrl+K palette, Ctrl+B sidebar, Ctrl+1..6 views).',
           'Zero-crash debounce auto-saving with word count calculation and tag categorization.',
         ],

@@ -16,6 +16,9 @@ import type {
   ArtifactSummaryStats,
   CreateArtifactPayload,
   UpdateArtifactPayload,
+  OutpostConfig,
+  DynamicBoardSchema,
+  PreSyncSnapshot,
 } from '../types';
 
 class BridgeService {
@@ -560,6 +563,71 @@ class BridgeService {
       a.remove();
       window.URL.revokeObjectURL(url);
     },
+
+    // ── Connection Outposts Plane ──────────────────────────────────────────
+    getOutposts: () => this.request<{ outposts: OutpostConfig[] }>('/api/outposts'),
+    saveOutpost: (provider: string, payload: Partial<OutpostConfig>) =>
+      this.request<{ outpost: OutpostConfig; success: boolean }>(`/api/outposts/${provider}`, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }),
+    testOutpost: (provider: string, payload?: Partial<OutpostConfig>) =>
+      this.request<{ provider: string; healthy: boolean; latency_ms: number; message: string; details?: any }>(
+        `/api/outposts/${provider}/test`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload || {}),
+        }
+      ),
+    deleteOutpost: (provider: string) =>
+      this.request<{ success: boolean }>(`/api/outposts/${provider}`, {
+        method: 'DELETE',
+      }),
+    linkProjectOutpost: (projectId: number, payload: { provider: string; project_key?: string }) =>
+      this.request<{ success: boolean; message: string; snapshot: any; sync_result?: any }>(
+        `/api/projects/${projectId}/link-outpost`,
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      ),
+    unlinkProjectOutpost: (projectId: number) =>
+      this.request<{ success: boolean; message: string }>(`/api/projects/${projectId}/unlink-outpost`, {
+        method: 'POST',
+      }),
+    restoreProjectSnapshot: (projectId: number, snapshotPath?: string) =>
+      this.request<{ success: boolean; restored_count: number }>(`/api/projects/${projectId}/restore-snapshot`, {
+        method: 'POST',
+        body: JSON.stringify({ snapshot_path: snapshotPath }),
+      }),
+    getProjectSnapshots: (projectId: number) =>
+      this.request<{ snapshots: PreSyncSnapshot[] }>(`/api/projects/${projectId}/snapshots`),
+    getBoardSchema: (projectId: number) =>
+      this.request<DynamicBoardSchema>(`/api/projects/${projectId}/board-schema`),
+    pushTaskToJira: (taskId: number) =>
+      this.request<{ success: boolean; external_id?: string; external_url?: string }>(
+        '/api/outposts/jira/push-task',
+        {
+          method: 'POST',
+          body: JSON.stringify({ task_id: taskId }),
+        }
+      ),
+    pushArtifactToNotion: (artifactId: number) =>
+      this.request<{ success: boolean; external_id?: string; external_url?: string }>(
+        '/api/outposts/notion/push-artifact',
+        {
+          method: 'POST',
+          body: JSON.stringify({ artifact_id: artifactId }),
+        }
+      ),
+    pushArtifactToGDocs: (artifactId: number) =>
+      this.request<{ success: boolean; external_id?: string; external_url?: string }>(
+        '/api/outposts/gdocs/push-artifact',
+        {
+          method: 'POST',
+          body: JSON.stringify({ artifact_id: artifactId }),
+        }
+      ),
   };
 
 

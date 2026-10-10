@@ -24,6 +24,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  ExternalLink,
 } from 'lucide-react';
 import type { Task, TaskStatus, TaskPriority, Project } from '../types';
 import AppBridge from '../services/bridge';
@@ -32,6 +33,7 @@ import TaskCard from '../components/kanban/TaskCard';
 import TaskModal from '../components/kanban/TaskModal';
 import CreateTaskModal from '../components/kanban/CreateTaskModal';
 import DecomposerModal from '../components/kanban/DecomposerModal';
+import LinkJiraModal from '../components/board/LinkJiraModal';
 
 const COLUMNS: { id: TaskStatus; title: string; color: string }[] = [
   { id: 'todo', title: 'Backlog / To Do', color: '#9b9690' },
@@ -71,6 +73,9 @@ export const BoardView: React.FC<BoardViewProps> = ({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createInitialStatus, setCreateInitialStatus] = useState<TaskStatus>('todo');
   const [isDecomposerOpen, setIsDecomposerOpen] = useState(false);
+  const [isLinkJiraOpen, setIsLinkJiraOpen] = useState(false);
+  const [syncingJira, setSyncingJira] = useState(false);
+  const [dynamicColumns, setDynamicColumns] = useState(COLUMNS);
 
   // DnD Sensors
   const sensors = useSensors(
@@ -117,6 +122,41 @@ export const BoardView: React.FC<BoardViewProps> = ({
     }
   };
 
+  const activeProject = useMemo(() => {
+    return projects.find((p) => p.id === currentProjectId) || null;
+  }, [projects, currentProjectId]);
+
+  const fetchBoardSchema = async (projId: number | null) => {
+    if (!projId) {
+      setDynamicColumns(COLUMNS);
+      return;
+    }
+    try {
+      const res = await AppBridge.api.getBoardSchema(projId);
+      if (res && res.columns && res.columns.length > 0) {
+        const palette = ['#9b9690', '#4c97e8', '#e8a84c', '#a855f7', '#5aab7f'];
+        setDynamicColumns(
+          res.columns.map((col, idx) => ({
+            id: col.id as TaskStatus,
+            title: col.name,
+            color:
+              col.status_category === 'done'
+                ? '#5aab7f'
+                : col.status_category === 'in_progress'
+                ? '#e8a84c'
+                : col.status_category === 'blocked'
+                ? '#e85c4c'
+                : palette[idx % palette.length],
+          }))
+        );
+      } else {
+        setDynamicColumns(COLUMNS);
+      }
+    } catch (_) {
+      setDynamicColumns(COLUMNS);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
     fetchProjects();
@@ -127,6 +167,24 @@ export const BoardView: React.FC<BoardViewProps> = ({
       setCurrentProjectId(selectedProjectId);
     }
   }, [selectedProjectId]);
+
+  useEffect(() => {
+    fetchBoardSchema(currentProjectId);
+  }, [currentProjectId]);
+
+  const handleSyncJira = async () => {
+    if (!currentProjectId) return;
+    setSyncingJira(true);
+    try {
+      await AppBridge.api.linkProjectOutpost(currentProjectId, { provider: 'jira' });
+      await fetchTasks();
+      await fetchBoardSchema(currentProjectId);
+    } catch (err: any) {
+      setError(`Jira sync error: ${err.message}`);
+    } finally {
+      setSyncingJira(false);
+    }
+  };
 
   // Filtered Tasks
   const filteredTasks = useMemo(() => {
@@ -183,7 +241,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
     if (!activeTaskItem) return;
 
     // Is 'over' a Column directly?
-    const isOverColumn = COLUMNS.some((c) => c.id === overId);
+    const isOverColumn = dynamicColumns.some((c) => c.id === overId);
     if (isOverColumn) {
       const newStatus = overId as TaskStatus;
       if (activeTaskItem.status !== newStatus) {
@@ -220,7 +278,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
     if (over) {
       const overId = over.id.toString();
       // If dropped on column container
-      if (COLUMNS.some((c) => c.id === overId)) {
+      if (dynamicColumns.some((c) => c.id === overId)) {
         targetStatus = overId as TaskStatus;
       } else {
         const overTask = tasks.find((t) => t.id.toString() === overId);
@@ -230,7 +288,7 @@ export const BoardView: React.FC<BoardViewProps> = ({
       }
 
       // Reorder in array if needed
-      if (activeId !== overId && !COLUMNS.some((c) => c.id === overId)) {
+      if (activeId !== overId && !dynamicColumns.some((c) => c.id === overId)) {
         const oldIndex = tasks.findIndex((t) => t.id.toString() === activeId);
         const newIndex = tasks.findIndex((t) => t.id.toString() === overId);
         if (oldIndex !== -1 && newIndex !== -1) {
@@ -341,6 +399,32 @@ export const BoardView: React.FC<BoardViewProps> = ({
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2">
+          {/* Jira Outpost Link/Sync Control */}
+          {currentProjectId && (
+            Boolean(activeProject?.is_outpost_dictated) ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[#0052cc]/15 border border-[#0052cc]/30 text-xs font-mono text-[#4c97e8]">
+                <span>Jira Synced ({activeProject?.outpost_project_key || 'PROJ'})</span>
+                <button
+                  onClick={handleSyncJira}
+                  disabled={syncingJira}
+                  className="hover:text-[#edeae4] transition-colors p-0.5"
+                  title="Synchronize Jira sprint issues"
+                >
+                  <RefreshCw className={`w-3 h-3 ${syncingJira ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsLinkJiraOpen(true)}
+                className="px-2.5 py-1.5 bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] hover:border-[#0052cc]/40 text-xs text-[#9b9690] hover:text-[#4c97e8] font-medium rounded-lg transition-colors flex items-center gap-1.5"
+                title="Link initiative to Atlassian Jira with safety snapshot"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Link Jira</span>
+              </button>
+            )
+          )}
+
           <button
             onClick={() => setIsDecomposerOpen(true)}
             className="px-3 py-1.5 bg-[#222120] hover:bg-[#282725] border border-[#2e2c2a] hover:border-[#e8a84c]/40 text-xs text-[#edeae4] font-medium rounded-lg transition-colors flex items-center gap-1.5"
@@ -462,8 +546,14 @@ export const BoardView: React.FC<BoardViewProps> = ({
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
       >
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 overflow-hidden min-h-0 pt-1">
-          {COLUMNS.map((col) => {
+        <div
+          className="flex-1 grid gap-4 overflow-hidden min-h-0 pt-1"
+          style={{
+            gridTemplateColumns: `repeat(${dynamicColumns.length}, minmax(260px, 1fr))`,
+            overflowX: dynamicColumns.length > 4 ? 'auto' : undefined,
+          }}
+        >
+          {dynamicColumns.map((col) => {
             const colTasks = filteredTasks.filter((t) => t.status === col.id);
 
             return (
@@ -523,6 +613,21 @@ export const BoardView: React.FC<BoardViewProps> = ({
         projectId={currentProjectId}
         projects={projects}
       />
+
+      {currentProjectId && activeProject && (
+        <LinkJiraModal
+          projectId={currentProjectId}
+          projectName={activeProject.name}
+          defaultProjectKey={activeProject.outpost_project_key || 'ACME'}
+          isOpen={isLinkJiraOpen}
+          onClose={() => setIsLinkJiraOpen(false)}
+          onLinked={() => {
+            fetchProjects();
+            fetchTasks();
+            fetchBoardSchema(currentProjectId);
+          }}
+        />
+      )}
     </div>
   );
 };

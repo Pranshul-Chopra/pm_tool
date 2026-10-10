@@ -177,6 +177,9 @@ export const DocumentGeneratorModal: React.FC<DocumentGeneratorModalProps> = ({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#e8a84c]" />
             <h3 className="text-sm font-bold text-[#edeae4]">AI Document Synthesis & Generator</h3>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#5aab7f]/10 text-[#5aab7f] border border-[#5aab7f]/30">
+              Extended 16K Headroom
+            </span>
           </div>
           <button
             onClick={onClose}

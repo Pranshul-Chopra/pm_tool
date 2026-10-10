@@ -430,6 +430,38 @@ export const ArtifactsStudio: React.FC<ArtifactsStudioProps> = ({
     }
   };
 
+  const handlePushNotion = async () => {
+    if (!activeArtifact) return;
+    setIsExportMenuOpen(false);
+    try {
+      showToast('Publishing living document to Notion...');
+      const res = await AppBridge.api.pushArtifactToNotion(activeArtifact.id);
+      if (res.success) {
+        showToast('Document published to Notion workspace!');
+      } else {
+        showToast('Failed to publish to Notion.');
+      }
+    } catch (err: any) {
+      showToast(`Notion error: ${err.message}`);
+    }
+  };
+
+  const handlePushGDocs = async () => {
+    if (!activeArtifact) return;
+    setIsExportMenuOpen(false);
+    try {
+      showToast('Exporting to Google Docs...');
+      const res = await AppBridge.api.pushArtifactToGDocs(activeArtifact.id);
+      if (res.success) {
+        showToast('Document exported to Google Docs!');
+      } else {
+        showToast('Failed to export to Google Docs.');
+      }
+    } catch (err: any) {
+      showToast(`Google Docs error: ${err.message}`);
+    }
+  };
+
   // Textarea formatting helper
   const insertFormatting = (prefix: string, suffix: string = '', placeholder: string = '') => {
     const textarea = textareaRef.current;
@@ -915,6 +947,24 @@ export const ArtifactsStudio: React.FC<ArtifactsStudioProps> = ({
                     >
                       <span className="w-2 h-2 rounded-full bg-emerald-400" />
                       <span>HTML / Print</span>
+                    </button>
+
+                    <div className="my-1 border-t border-[#2e2c2a]" />
+
+                    <button
+                      onClick={handlePushNotion}
+                      className="w-full text-left px-3 py-2 hover:bg-[#252422] text-[#edeae4] flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-white" />
+                      <span>Publish to Notion</span>
+                    </button>
+
+                    <button
+                      onClick={handlePushGDocs}
+                      className="w-full text-left px-3 py-2 hover:bg-[#252422] text-[#edeae4] flex items-center gap-2"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-[#4285f4]" />
+                      <span>Export to Google Docs</span>
                     </button>
                   </div>
                 )}

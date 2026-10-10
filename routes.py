@@ -491,9 +491,13 @@ def api_llm_save_config():
     api_key    = data.get("api_key")
     api_base   = data.get("api_base")
     model_name = data.get("model_name") or data.get("model")
+    chat_max_tokens = data.get("chat_max_tokens")
+    file_gen_max_tokens = data.get("file_gen_max_tokens")
+    plan_max_tokens = data.get("plan_max_tokens")
+    tool_call_max_tokens = data.get("tool_call_max_tokens")
 
-    if not provider:
-        return jsonify({"error": "provider is required"}), 400
+    if not provider and not any([chat_max_tokens, file_gen_max_tokens, plan_max_tokens, tool_call_max_tokens]):
+        return jsonify({"error": "provider or token limits are required"}), 400
 
     updated = llm_gateway.save_llm_config(
         db_module=db,
@@ -501,6 +505,10 @@ def api_llm_save_config():
         api_key=api_key,
         api_base=api_base,
         model_name=model_name,
+        chat_max_tokens=chat_max_tokens,
+        file_gen_max_tokens=file_gen_max_tokens,
+        plan_max_tokens=plan_max_tokens,
+        tool_call_max_tokens=tool_call_max_tokens,
     )
     return jsonify(updated)
 
@@ -1081,11 +1089,20 @@ def api_documents_summarize():
         return jsonify({"error": "Either file_path or valid doc_id must be provided."}), 400
 
     from tools.summarizer import summarize_document
+    summarizer_kwargs = {}
+    raw_max_tokens = data.get("max_tokens")
+    if raw_max_tokens is not None:
+        try:
+            summarizer_kwargs["max_tokens"] = int(raw_max_tokens)
+        except (ValueError, TypeError):
+            pass
+
     result = summarize_document(
         file_path=file_path,
         output_path=output_path,
         focus=focus,
         project_id=project_id,
+        **summarizer_kwargs
     )
 
     if not result.get("success"):
@@ -1759,6 +1776,366 @@ def api_analytics_forecast():
         return jsonify(res), 200
     except Exception as e:
         return jsonify({"error": str(e), "success": False}), 500
+
+
+# ── Outposts & External Integrations API ──────────────────────────────────────
+
+@bp.route("/api/outposts", methods=["GET"])
+def api_list_outposts():
+    """List configured outposts with masked credentials."""
+    import db
+    from tools.outposts.security import mask_token
+    configs = db.get_all_outpost_configs()
+    safe_configs = []
+    for c in configs:
+        c_copy = dict(c)
+        raw_tok = c_copy.get("auth_token", "")
+        c_copy["auth_token"] = mask_token(raw_tok)
+        c_copy["has_token"] = bool(raw_tok)
+        safe_configs.append(c_copy)
+    return jsonify({"outposts": safe_configs}), 200
+
+
+@bp.route("/api/outposts/<provider>", methods=["POST"])
+def api_save_outpost(provider):
+    """Save or update outpost credentials with authenticated encryption."""
+    import db
+    from tools.outposts.security import validate_outpost_url, encrypt_token, mask_token
+    data = request.get_json(force=True) or {}
+    base_url = data.get("base_url")
+    auth_token = data.get("auth_token")
+    user_email = data.get("user_email")
+    project_key = data.get("project_key")
+    database_id = data.get("database_id")
+    is_active = data.get("is_active", 1)
+    sync_policy = data.get("sync_policy", "manual")
+
+    if base_url:
+        is_safe, reason = validate_outpost_url(base_url, provider=provider, allow_localhost=True)
+        if not is_safe:
+            return jsonify({"error": f"Invalid outpost endpoint: {reason}", "success": False}), 400
+
+    enc_token = None
+    if auth_token and not auth_token.startswith("••••"):
+        enc_token = encrypt_token(auth_token)
+
+    saved = db.set_outpost_config(
+        provider=provider,
+        base_url=base_url,
+        auth_token=enc_token,
+        user_email=user_email,
+        project_key=project_key,
+        database_id=database_id,
+        is_active=is_active,
+        sync_policy=sync_policy,
+    )
+    if saved:
+        saved["auth_token"] = mask_token(saved.get("auth_token", ""))
+        saved["has_token"] = bool(saved.get("auth_token"))
+    return jsonify({"outpost": saved, "success": True}), 200
+
+
+@bp.route("/api/outposts/<provider>/test", methods=["POST"])
+def api_test_outpost(provider):
+    """Run live diagnostic connectivity and credential test."""
+    import db
+    from adapters.jira_ticket_adapter import JiraTicketAdapter
+    from adapters.notion_document_adapter import NotionDocumentAdapter
+    from adapters.gdocs_document_adapter import GDocsDocumentAdapter
+
+    data = request.get_json(force=True) or {}
+    stored = db.get_outpost_config(provider) or {}
+    base_url = data.get("base_url") or stored.get("base_url", "")
+    auth_token = data.get("auth_token") or stored.get("auth_token", "")
+    user_email = data.get("user_email") or stored.get("user_email", "")
+    project_key = data.get("project_key") or stored.get("project_key", "")
+    database_id = data.get("database_id") or stored.get("database_id", "")
+
+    prov = provider.lower().strip()
+    diag = None
+
+    if prov == "jira":
+        adapter = JiraTicketAdapter(
+            base_url=base_url,
+            user_email=user_email,
+            auth_token=auth_token,
+            project_key=project_key,
+            allow_localhost=True,
+        )
+        diag = adapter.test_connection()
+    elif prov == "notion":
+        adapter = NotionDocumentAdapter(
+            auth_token=auth_token,
+            database_id=database_id,
+            allow_localhost=True,
+        )
+        diag = adapter.test_connection()
+    elif prov in ("gdocs", "google"):
+        adapter = GDocsDocumentAdapter(
+            auth_token=auth_token,
+            user_email=user_email,
+            allow_localhost=True,
+        )
+        diag = adapter.test_connection()
+    else:
+        return jsonify({"error": f"Unsupported outpost provider: {provider}", "success": False}), 400
+
+    db.update_outpost_diagnostic(provider, last_error=None if diag.healthy else diag.message)
+
+    return jsonify({
+        "provider": diag.provider,
+        "healthy": diag.healthy,
+        "latency_ms": diag.latency_ms,
+        "message": diag.message,
+        "details": diag.details,
+        "success": diag.healthy,
+    }), 200
+
+
+@bp.route("/api/outposts/<provider>", methods=["DELETE"])
+def api_delete_outpost(provider):
+    """Delete an outpost configuration."""
+    import db
+    deleted = db.delete_outpost_config(provider)
+    return jsonify({"success": deleted}), 200
+
+
+@bp.route("/api/projects/<int:project_id>/link-outpost", methods=["POST"])
+def api_link_project_outpost(project_id):
+    """Link project to external outpost with pre-sync safety snapshot and board wipe."""
+    import db
+    from tools.outposts.snapshot import create_pre_sync_snapshot
+    from adapters.jira_ticket_adapter import JiraTicketAdapter
+
+    data = request.get_json(force=True) or {}
+    provider = data.get("provider", "jira").lower().strip()
+
+    try:
+        snapshot_res = create_pre_sync_snapshot(project_id=project_id, provider=provider)
+    except Exception as e:
+        return jsonify({"error": f"Failed to create pre-sync safety snapshot: {str(e)}", "success": False}), 500
+
+    sync_res_data = None
+    if provider == "jira":
+        cfg = db.get_outpost_config("jira")
+        if cfg and cfg.get("base_url") and cfg.get("auth_token"):
+            proj_key = data.get("project_key") or cfg.get("project_key")
+            adapter = JiraTicketAdapter(
+                base_url=cfg["base_url"],
+                user_email=cfg.get("user_email", ""),
+                auth_token=cfg["auth_token"],
+                project_key=proj_key,
+                allow_localhost=True,
+            )
+            sync_res = adapter.sync_external(project_id)
+            sync_res_data = sync_res.__dict__
+
+    return jsonify({
+        "success": True,
+        "message": f"Project linked to {provider.upper()}. Existing board archived to safety snapshot.",
+        "snapshot": snapshot_res,
+        "sync_result": sync_res_data,
+    }), 200
+
+
+@bp.route("/api/projects/<int:project_id>/unlink-outpost", methods=["POST"])
+def api_unlink_project_outpost(project_id):
+    """Unlink project from remote outpost dictator."""
+    import db
+    with db.get_db() as conn:
+        with conn:
+            conn.execute(
+                """
+                UPDATE projects
+                SET is_outpost_dictated = 0,
+                    outpost_provider = NULL,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (project_id,),
+            )
+    return jsonify({"success": True, "message": "Project unlinked from outpost."}), 200
+
+
+@bp.route("/api/projects/<int:project_id>/restore-snapshot", methods=["POST"])
+def api_restore_project_snapshot(project_id):
+    """Restore local board from safety backup snapshot."""
+    from tools.outposts.snapshot import restore_pre_sync_snapshot
+    data = request.get_json(force=True) or {}
+    snapshot_path = data.get("snapshot_path")
+    try:
+        res = restore_pre_sync_snapshot(project_id=project_id, snapshot_path=snapshot_path)
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+
+@bp.route("/api/projects/<int:project_id>/snapshots", methods=["GET"])
+def api_list_project_snapshots(project_id):
+    """List available snapshots for a project."""
+    from tools.outposts.snapshot import list_snapshots
+    res = list_snapshots(project_id=project_id)
+    return jsonify({"snapshots": res}), 200
+
+
+@bp.route("/api/projects/<int:project_id>/board-schema", methods=["GET"])
+def api_get_board_schema(project_id):
+    """Return dynamic board schema (local 4-column or Jira workflow stages)."""
+    import db
+    from adapters.local_ticket_adapter import LocalTicketAdapter
+    from adapters.jira_ticket_adapter import JiraTicketAdapter
+
+    project = db.get_project(project_id)
+    if not project:
+        return jsonify({"error": "Project not found", "success": False}), 404
+
+    is_dictated = project.get("is_outpost_dictated") == 1
+    provider = project.get("outpost_provider")
+
+    if is_dictated and provider == "jira":
+        cfg = db.get_outpost_config("jira")
+        if cfg and cfg.get("base_url") and cfg.get("auth_token"):
+            adapter = JiraTicketAdapter(
+                base_url=cfg["base_url"],
+                user_email=cfg.get("user_email", ""),
+                auth_token=cfg["auth_token"],
+                project_key=cfg.get("project_key", ""),
+                allow_localhost=True,
+            )
+            schema = adapter.get_board_schema(project_id)
+            return jsonify({
+                "provider": schema.provider,
+                "columns": [c.__dict__ for c in schema.columns],
+                "allowed_types": schema.allowed_types,
+                "allowed_labels": schema.allowed_labels,
+                "is_outpost_dictated": True,
+            }), 200
+
+    local_adapter = LocalTicketAdapter()
+    schema = local_adapter.get_board_schema(project_id)
+    return jsonify({
+        "provider": schema.provider,
+        "columns": [c.__dict__ for c in schema.columns],
+        "allowed_types": schema.allowed_types,
+        "allowed_labels": schema.allowed_labels,
+        "is_outpost_dictated": False,
+    }), 200
+
+
+@bp.route("/api/outposts/jira/push-task", methods=["POST"])
+def api_jira_push_task():
+    """Push an existing local task card to Jira."""
+    import db
+    from adapters.jira_ticket_adapter import JiraTicketAdapter
+    from ports.ticket_tracker import CreateTaskPayload
+
+    data = request.get_json(force=True) or {}
+    task_id = data.get("task_id")
+    if not task_id:
+        return jsonify({"error": "task_id is required", "success": False}), 400
+
+    task = db.get_task(task_id)
+    if not task:
+        return jsonify({"error": "Task not found", "success": False}), 404
+
+    cfg = db.get_outpost_config("jira")
+    if not cfg or not cfg.get("base_url") or not cfg.get("auth_token"):
+        return jsonify({"error": "Jira outpost is not configured.", "success": False}), 400
+
+    adapter = JiraTicketAdapter(
+        base_url=cfg["base_url"],
+        user_email=cfg.get("user_email", ""),
+        auth_token=cfg["auth_token"],
+        project_key=cfg.get("project_key", ""),
+        allow_localhost=True,
+    )
+
+    try:
+        ext_id = task.get("external_id")
+        if ext_id:
+            return jsonify({"success": True, "external_id": ext_id, "external_url": task.get("external_url")}), 200
+        else:
+            payload = CreateTaskPayload(
+                title=task["title"],
+                description=task.get("description", ""),
+                status=task.get("status", "todo"),
+                priority=task.get("priority", "medium"),
+                ticket_type=task.get("ticket_type", "task"),
+                story_points=task.get("story_points", 0),
+                assignee=task.get("assignee", ""),
+            )
+            entity = adapter.create_task(project_id=task["project_id"], payload=payload)
+            db.update_task(
+                task_id,
+                external_provider="jira",
+                external_id=entity.external_id,
+                external_url=entity.external_url,
+                external_type=entity.external_type,
+                sync_status="synced",
+            )
+            return jsonify({
+                "success": True,
+                "external_id": entity.external_id,
+                "external_url": entity.external_url,
+            }), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+
+@bp.route("/api/outposts/notion/push-artifact", methods=["POST"])
+def api_notion_push_artifact():
+    """Publish a living document from artifacts.db to Notion."""
+    import db
+    from adapters.notion_document_adapter import NotionDocumentAdapter
+
+    data = request.get_json(force=True) or {}
+    artifact_id = data.get("artifact_id")
+    if not artifact_id:
+        return jsonify({"error": "artifact_id is required", "success": False}), 400
+
+    cfg = db.get_outpost_config("notion")
+    if not cfg or not cfg.get("auth_token"):
+        return jsonify({"error": "Notion outpost is not configured.", "success": False}), 400
+
+    adapter = NotionDocumentAdapter(
+        auth_token=cfg["auth_token"],
+        database_id=cfg.get("database_id"),
+        allow_localhost=True,
+    )
+    try:
+        res = adapter.push_artifact(int(artifact_id))
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
+
+@bp.route("/api/outposts/gdocs/push-artifact", methods=["POST"])
+def api_gdocs_push_artifact():
+    """Publish a living document to Google Docs."""
+    import db
+    from adapters.gdocs_document_adapter import GDocsDocumentAdapter
+
+    data = request.get_json(force=True) or {}
+    artifact_id = data.get("artifact_id")
+    if not artifact_id:
+        return jsonify({"error": "artifact_id is required", "success": False}), 400
+
+    cfg = db.get_outpost_config("gdocs")
+    if not cfg or not cfg.get("auth_token"):
+        adapter = GDocsDocumentAdapter(auth_token="mock_token", allow_localhost=True)
+    else:
+        adapter = GDocsDocumentAdapter(
+            auth_token=cfg["auth_token"],
+            user_email=cfg.get("user_email"),
+            allow_localhost=True,
+        )
+
+    try:
+        res = adapter.push_artifact(int(artifact_id))
+        return jsonify(res), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "success": False}), 500
+
 
 
 

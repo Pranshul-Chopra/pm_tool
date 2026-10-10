@@ -413,6 +413,47 @@
         </span>
       </div>
     </div>
+  <!-- 4. Token Headroom & Generation Limits -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">4. Token Headroom &amp; Generation Limits</span>
+      <span class="badge-pill" id="token-headroom-badge">Configured</span>
+    </div>
+    <div class="card-body">
+      <div style="font-size:12px;color:var(--text-secondary,#6b7280);margin-bottom:12px;">
+        Configure maximum generation output tokens per workflow, tool execution, and drafting mode.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button type="button" class="btn-secondary btn-sm" onclick="applyTokenPreset('eco')">⚡ Eco / Fast</button>
+        <button type="button" class="btn-secondary btn-sm" onclick="applyTokenPreset('balanced')">⚖️ Balanced</button>
+        <button type="button" class="btn-secondary btn-sm" onclick="applyTokenPreset('max')">🚀 Maximum</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="form-group">
+          <label class="form-label">💬 Standard Chat (Tokens)</label>
+          <input type="number" id="token-chat-input" class="form-control" min="512" max="131072" step="512" value="8192" />
+          <span class="form-hint">Conversational turns, daily check-ins &amp; queries</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">📄 File &amp; Document Generation (Tokens)</label>
+          <input type="number" id="token-file-input" class="form-control" min="1024" max="131072" step="1024" value="16384" />
+          <span class="form-hint">Full PRDs, RFCs, specs &amp; code generation</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">📋 Plan Mode &amp; Decompositions (Tokens)</label>
+          <input type="number" id="token-plan-input" class="form-control" min="1024" max="131072" step="1024" value="8192" />
+          <span class="form-hint">Story decomposition, task checklists &amp; roadmaps</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🛠️ Tool Calls &amp; Summaries (Tokens)</label>
+          <input type="number" id="token-tool-input" class="form-control" min="1024" max="131072" step="1024" value="16384" />
+          <span class="form-hint">Document summarizer &amp; automated tool runs</span>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-secondary,#6b7280);margin-top:10px;">
+        💡 Google Gemini REST API enforces a strict output ceiling of 8,192 tokens and is clamped automatically.
+      </div>
+    </div>
   </div>
 
   <div style="display:flex; justify-content:flex-end; gap:12px; margin-bottom: 40px;">
@@ -491,12 +532,38 @@
           document.getElementById('api-model-input').value = data.saved_model;
         }
 
-        if (data.api_base && !data.api_base.includes('Gemini native')) {
-          document.getElementById('api-base-input').value = data.api_base;
+        if (data.token_limits) {
+          const chatInp = document.getElementById('token-chat-input');
+          const fileInp = document.getElementById('token-file-input');
+          const planInp = document.getElementById('token-plan-input');
+          const toolInp = document.getElementById('token-tool-input');
+          if (chatInp && data.token_limits.chat_max_tokens) chatInp.value = data.token_limits.chat_max_tokens;
+          if (fileInp && data.token_limits.file_gen_max_tokens) fileInp.value = data.token_limits.file_gen_max_tokens;
+          if (planInp && data.token_limits.plan_max_tokens) planInp.value = data.token_limits.plan_max_tokens;
+          if (toolInp && data.token_limits.tool_call_max_tokens) toolInp.value = data.token_limits.tool_call_max_tokens;
         }
 
       } catch (err) {
         console.error('Failed to load LLM status:', err);
+      }
+    }
+
+    function applyTokenPreset(preset) {
+      const chatInp = document.getElementById('token-chat-input');
+      const fileInp = document.getElementById('token-file-input');
+      const planInp = document.getElementById('token-plan-input');
+      const toolInp = document.getElementById('token-tool-input');
+      const presets = {
+        eco: { chat: 4096, file: 8192, plan: 4096, tool: 8192 },
+        balanced: { chat: 8192, file: 16384, plan: 8192, tool: 16384 },
+        max: { chat: 16384, file: 32768, plan: 16384, tool: 32768 }
+      };
+      const p = presets[preset];
+      if (p) {
+        if (chatInp) chatInp.value = p.chat;
+        if (fileInp) fileInp.value = p.file;
+        if (planInp) planInp.value = p.plan;
+        if (toolInp) toolInp.value = p.tool;
       }
     }
 
@@ -598,11 +665,19 @@
       const key = document.getElementById('api-key-input').value.trim();
       const model = document.getElementById('api-model-input').value.trim();
       const base = document.getElementById('api-base-input').value.trim();
+      const chat = parseInt(document.getElementById('token-chat-input')?.value, 10);
+      const file = parseInt(document.getElementById('token-file-input')?.value, 10);
+      const plan = parseInt(document.getElementById('token-plan-input')?.value, 10);
+      const tool = parseInt(document.getElementById('token-tool-input')?.value, 10);
 
       const payload = {
         provider: currentProvider,
         model_name: model || undefined,
         api_base: base || undefined,
+        chat_max_tokens: chat || undefined,
+        file_gen_max_tokens: file || undefined,
+        plan_max_tokens: plan || undefined,
+        tool_call_max_tokens: tool || undefined,
       };
       if (key) {
         payload.api_key = key;

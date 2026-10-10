@@ -30,6 +30,7 @@ def summarize_document(
     focus: Optional[str] = None,
     project_id: Optional[int] = None,
     conversation_id: Optional[str] = None,
+    max_tokens: int = 16384,
 ) -> Dict[str, Any]:
     """
     Deterministic Document Summarization Tool:
@@ -208,13 +209,13 @@ def summarize_document(
         f"{combined_doc_text}"
     )
 
-    # 5. Call LLM Gateway
+    # 5. Call LLM Gateway with extended token limit for comprehensive file generation
     llm_res = llm_gateway.call_llm(
         db_module=db,
         system_prompt=system_prompt,
         message=user_prompt,
         history=[],
-        max_tokens=8192,
+        max_tokens=max_tokens,
     )
 
     if "error" in llm_res:

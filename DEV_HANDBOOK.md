@@ -1,7 +1,7 @@
 # PM Tool — Developer Handbook
 
 **Document Status:** Current Architecture, Standards, and Engineering Guide  
-**Current Version:** 2.2.0  
+**Current Version:** 2.2.5  
 **Target Platform:** Windows 10/11 Desktop (Local-First, Privacy-Preserving)
 
 ---
@@ -692,33 +692,33 @@ Queries submitted through the UI Sandbox or AI data inspection route to `execute
 │              │ • Contextual Artifacts (Docs) │                         │
 │              │ • Segregated artifacts.db     │                         │
 ├──────────────┼───────────────────────────────┼─────────────────────────┤
+│ v2.2.5       │ External Connection Outposts  │ ✅ COMPLETED            │
+│              │ • Jira Sprint Backlog Sync    │ (Shipped)               │
+│              │ • Notion & Google Docs Bridge │                         │
+│              │ • Outpost Credential Vault    │                         │
+├──────────────┼───────────────────────────────┼─────────────────────────┤
 │ v2.3.0       │ Team Workspaces & Vaults      │ 🔥 NEXT UP              │
 │              │ • Isolated Project Vaults     │ (ACTIVE SPRINT)         │
 │              │ • Encrypted Workspace Port    │                         │
 └──────────────┴───────────────────────────────┴─────────────────────────┘
 ```
 
-### Active Sprint Priorities (v2.3.0)
+#### Shipped in v2.2.5: Connection Outposts & Hexagonal Nexus
 
-The active sprint focuses on streamlining the initial user adoption experience and introducing a professional-grade living documents system:
+PM Tool v2.2.5 successfully bridged the local-first architecture with enterprise cloud ecosystems through Hexagonal Architecture ports, Atlassian Jira Cloud REST API v3 two-way sync, Notion & Google Docs publishing, pre-sync safety backup snapshots, and an SSRF-hardened credential vault.
 
-1. **Sprint Priority 1: User Onboarding Flow for First-Time App Launches**
-   - **First-Launch Handshake & State Gate**: Detect clean installations using persistent storage (`pm_tool_onboarding_completed`), launching an interactive onboarding modal only for brand-new users without disrupting existing workflows.
-   - **Multi-Step Setup Wizard**:
-     - *Step 1: Workspace & Initiative Setup:* Configure default project name, domain, and primary engineering stack.
-     - *Step 2: AI Gateway Configuration:* Guide users through selecting and testing their LLM provider (local Ollama with automatic model probing, or cloud Gemini/OpenAI/Anthropic API keys).
-     - *Step 3: Workstation Feature Tour:* Interactive spotlight introducing the 3 Core Pipelines (Knowledge RAG, Sprint Kanban, Data Studio Analytics) and global keyboard navigation (`Ctrl+K` palette, `Ctrl+B` sidebar, `Ctrl+1..6` tabs).
-     - *Step 4: Launch & Baseline:* Populate initial template tasks and transition smoothly into the main workstation.
+### Active Sprint Priorities (v2.3.0: Team Workspaces & Project Vaults)
 
-2. **Sprint Priority 2: Contextual Artifacts Management (Docs) & Segregated Database Architecture**
-   - **In-Built Living Document Editor (PranshulOS-Style)**: A dedicated rich-text and Markdown document editor integrated directly into PM Tool, allowing users to draft, edit, and iterate on living specifications, PRDs, sprint briefs, and architecture RFCs.
-   - **Bridging the Chat-to-Document Gap**: Promotes transient AI chat answers and proposals into permanent, version-controlled artifacts with one click.
-   - **Dedicated Segregated Database (`artifacts.db`)**:
-     - To ensure zero database bloat and preserve high-throughput execution across the existing stores, all document bodies, markdown ASTs, revision trees, and syntax metadata are stored in a dedicated SQLite database (`%LOCALAPPDATA%\PMTool\artifacts.db`).
-     - Strictly preserves the separation of concerns: `pmtool.db` remains dedicated to entities and sprint tasks; `ai_context.db` remains dedicated to conversations and audit logging; `artifacts.db` handles all long-form document storage.
-   - **Multi-Format Export Engine**: 1-click document exportation to clean Markdown (`.md`), Microsoft Word (`.docx`), styled HTML, and printable formats.
-   - **Bidirectional Traceability**: Seamlessly link artifacts to sprint Kanban tickets, decisions, and knowledge base collections.
+The active sprint focuses on multi-project isolation, encrypted team workspace exports, and cross-project knowledge partitioning:
 
-3. **Sprint Priority 3: Team Workspaces & Multi-Vault Architecture (v2.3.0)**
-   - **Independent Project Workspaces**: Support creating isolated project vaults with segregated SQLite databases, separate RAG document collections, and dedicated settings.
-   - **Workspace Export & Portability**: 1-click archiving and importing of encrypted workspaces for cross-machine synchronization.
+1. **Sprint Priority 1: Multi-Workspace & Project Vault Isolation**
+   - **Isolated Storage Namespaces**: Partition SQLite databases (`pmtool.db`, `ai_context.db`, `artifacts.db`) per project workspace vault.
+   - **Fast Workspace Switcher**: Quick workspace selector dropdown in sidebar header and `Ctrl+W` palette action.
+
+2. **Sprint Priority 2: Encrypted Workspace Export & Portability (`.pmvault`)**
+   - **Zero-Trust Compressed Vaults**: AES-256-GCM encrypted export packages containing project records, decision logs, artifacts, and local vector embeddings.
+   - **Air-Gapped Vault Import**: Seamless import to offline workstations without cloud mediation.
+
+3. **Sprint Priority 3: Cross-Project Knowledge Scoping**
+   - **RAG Context Guardrails**: Scope vector retrieval and FTS5 keyword indexing to active project vault boundaries.
+   - **Global vs. Project-Specific Prompt Personas**: Contextual AI copilot templates tailored to the active project domain.

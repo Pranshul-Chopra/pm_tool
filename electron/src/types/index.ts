@@ -38,6 +38,10 @@ export interface Project {
   in_progress_task_count?: number;
   todo_task_count?: number;
   progress_pct?: number;
+  outpost_provider?: string | null;
+  outpost_project_key?: string | null;
+  is_outpost_dictated?: number | boolean;
+  last_synced_at?: string | null;
   color?: string;
   created_at?: string;
   updated_at?: string;
@@ -57,7 +61,7 @@ export interface CreateProjectPayload {
   initial_tasks?: Array<[string, string] | string>;
 }
 
-export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'done';
+export type TaskStatus = 'todo' | 'in_progress' | 'blocked' | 'done' | string;
 export type TaskPriority = 'low' | 'med' | 'high' | 'urgent';
 
 export interface Task {
@@ -67,12 +71,19 @@ export interface Task {
   description: string;
   status: TaskStatus;
   priority: TaskPriority;
-  ticket_type?: 'internal' | 'external';
+  ticket_type?: string;
   story_points?: number;
   acceptance_criteria?: string;
   assignee?: string;
   due_date?: string;
   position?: number;
+  external_provider?: string | null;
+  external_id?: string | null;
+  external_url?: string | null;
+  external_type?: string | null;
+  external_labels?: string[] | string;
+  sync_status?: string;
+  last_synced_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -128,6 +139,13 @@ export interface KPIWidget {
 
 export type LLMProviderPref = 'auto' | 'ollama' | 'api';
 
+export interface LLMTokenLimits {
+  chat_max_tokens: number;
+  file_gen_max_tokens: number;
+  plan_max_tokens: number;
+  tool_call_max_tokens: number;
+}
+
 export interface LLMStatus {
   active_provider: string;
   active_model: string;
@@ -143,6 +161,7 @@ export interface LLMStatus {
   saved_model?: string;
   saved_provider_pref?: string;
   setup_required: boolean;
+  token_limits?: LLMTokenLimits;
 }
 
 export interface LLMConfigPayload {
@@ -150,6 +169,10 @@ export interface LLMConfigPayload {
   api_key?: string;
   api_base?: string;
   model_name?: string;
+  chat_max_tokens?: number;
+  file_gen_max_tokens?: number;
+  plan_max_tokens?: number;
+  tool_call_max_tokens?: number;
 }
 
 export type TicketAccessScope = 'all' | 'internal_only' | 'external_only' | 'none';
@@ -221,8 +244,52 @@ export interface Artifact {
   tags: string[];
   is_pinned: boolean;
   word_count: number;
+  external_provider?: string | null;
+  external_id?: string | null;
+  external_url?: string | null;
+  sync_status?: string;
+  last_synced_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OutpostConfig {
+  id?: number;
+  provider: 'jira' | 'notion' | 'gdocs';
+  base_url?: string;
+  auth_token?: string;
+  has_token?: boolean;
+  user_email?: string;
+  project_key?: string;
+  database_id?: string;
+  is_active: number | boolean;
+  sync_policy: 'manual' | 'on_create';
+  last_tested_at?: string;
+  last_error?: string | null;
+}
+
+export interface BoardColumnSchema {
+  id: string;
+  name: string;
+  status_category: string;
+  order: number;
+}
+
+export interface DynamicBoardSchema {
+  provider: 'local' | 'jira';
+  columns: BoardColumnSchema[];
+  allowed_types: string[];
+  allowed_labels: string[];
+  is_outpost_dictated: boolean;
+}
+
+export interface PreSyncSnapshot {
+  filename: string;
+  path: string;
+  provider: string;
+  task_count: number;
+  created_at: string;
+  file_size?: number;
 }
 
 export interface ArtifactVersion {

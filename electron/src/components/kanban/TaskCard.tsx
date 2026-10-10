@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Trash2, GripVertical, User } from 'lucide-react';
+import { Trash2, GripVertical, User, ExternalLink } from 'lucide-react';
 import type { Task } from '../../types';
 
 interface TaskCardProps {
@@ -91,6 +91,42 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onOpenDetail, onDelete
           {task.description}
         </p>
       )}
+
+      {/* Outpost Issue Key & Labels */}
+      <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+        {task.external_id && (
+          <a
+            href={task.external_url || '#'}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0052cc]/15 text-[#4c97e8] border border-[#0052cc]/30 hover:underline"
+            title={`Open ${task.external_id} in Atlassian Jira`}
+          >
+            <span>{task.external_id}</span>
+            <ExternalLink className="w-2.5 h-2.5" />
+          </a>
+        )}
+
+        {(() => {
+          let labels: string[] = [];
+          if (Array.isArray(task.external_labels)) {
+            labels = task.external_labels;
+          } else if (typeof task.external_labels === 'string') {
+            try {
+              labels = JSON.parse(task.external_labels);
+            } catch (_) {}
+          }
+          return labels.slice(0, 3).map((lbl, idx) => (
+            <span
+              key={idx}
+              className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[#282725] text-[#9b9690] border border-[#343230]"
+            >
+              #{lbl}
+            </span>
+          ));
+        })()}
+      </div>
 
       {/* Footer Info: Task ID, Points, Assignee */}
       <div className="flex items-center justify-between mt-3 pt-2 border-t border-[#2e2c2a]/60 text-[10px] font-mono text-[#5c5955]">

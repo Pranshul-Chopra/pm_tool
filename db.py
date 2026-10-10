@@ -263,6 +263,65 @@ def init_db():
                 con.execute("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('ai_ticket_creation', 'enabled')")
                 con.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (7)")
 
+            if current_ver < 8:
+                con.executescript("""
+                    CREATE TABLE IF NOT EXISTS outpost_configs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        provider TEXT NOT NULL UNIQUE,       -- 'jira' | 'notion' | 'gdocs'
+                        base_url TEXT,                       -- e.g. 'https://myorg.atlassian.net'
+                        auth_token TEXT,                     -- machine-encrypted token
+                        user_email TEXT,                     -- Associated user email (Jira basic auth)
+                        project_key TEXT,                    -- Default project/workspace key
+                        database_id TEXT,                    -- Default Notion database ID
+                        is_active INTEGER DEFAULT 0,         -- 1 = enabled, 0 = disabled
+                        sync_policy TEXT DEFAULT 'manual',   -- 'manual' | 'on_create'
+                        last_tested_at TIMESTAMP,            -- Timestamp of last successful test
+                        last_error TEXT,                     -- Diagnostic error string if failed
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+
+                    CREATE TABLE IF NOT EXISTS outpost_transactions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        provider TEXT NOT NULL,
+                        entity_type TEXT NOT NULL,           -- 'task' | 'artifact'
+                        entity_id INTEGER NOT NULL,
+                        action TEXT NOT NULL,                -- 'create' | 'update' | 'transition' | 'delete'
+                        payload TEXT NOT NULL,               -- JSON payload
+                        status TEXT DEFAULT 'pending',       -- 'pending' | 'processing' | 'failed'
+                        retry_count INTEGER DEFAULT 0,
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    );
+                """)
+                for col_def in (
+                    "outpost_provider TEXT DEFAULT NULL",
+                    "outpost_project_key TEXT DEFAULT NULL",
+                    "outpost_board_id INTEGER DEFAULT NULL",
+                    "is_outpost_dictated INTEGER DEFAULT 0",
+                    "last_synced_at TIMESTAMP DEFAULT NULL",
+                ):
+                    try:
+                        con.execute(f"ALTER TABLE projects ADD COLUMN {col_def}")
+                    except sqlite3.OperationalError:
+                        pass
+
+                for col_def in (
+                    "external_provider TEXT DEFAULT NULL",
+                    "external_id TEXT DEFAULT NULL",
+                    "external_url TEXT DEFAULT NULL",
+                    "external_type TEXT DEFAULT 'Task'",
+                    "external_labels TEXT DEFAULT '[]'",
+                    "sync_status TEXT DEFAULT 'synced'",
+                    "last_synced_at TIMESTAMP DEFAULT NULL",
+                ):
+                    try:
+                        con.execute(f"ALTER TABLE tasks ADD COLUMN {col_def}")
+                    except sqlite3.OperationalError:
+                        pass
+                con.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (8)")
+
 
 # ── AI Config & Policy CRUD ────────────────────────────────────────────────────
 
@@ -487,6 +546,19 @@ def get_project_tasks(project_id: int) -> list[dict]:
         return [dict(r) for r in rows]
 
 
+def get_task(task_id: int) -> dict | None:
+    """Retrieve a single task by ID."""
+    with get_db() as con:
+        row = con.execute(
+            """SELECT t.*, p.name AS project_name, p.domain AS project_domain
+               FROM tasks t
+               LEFT JOIN projects p ON t.project_id = p.id
+               WHERE t.id = ?""",
+            (task_id,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
 def get_tasks(
     project_id: int | None = None,
     status: str | None = None,
@@ -596,15 +668,31 @@ def create_task(
     story_points: int = 0,
     acceptance_criteria: str = "",
     assignee: str = "",
-    ticket_type: str = "internal",
+    ticket_type: str = "task",
+    **kwargs,
 ) -> dict:
     """Create a task."""
-    t_type = "external" if str(ticket_type or "").lower().strip() == "external" else "internal"
+    t_type = str(ticket_type or "task").strip()
+    ext_prov = kwargs.get("external_provider")
+    ext_id = kwargs.get("external_id")
+    ext_url = kwargs.get("external_url")
+    ext_type = kwargs.get("external_type", "Task")
+    ext_labels = kwargs.get("external_labels", "[]")
+    if isinstance(ext_labels, list):
+        import json
+        ext_labels = json.dumps(ext_labels)
+    sync_stat = kwargs.get("sync_status", "synced")
+
     with get_db() as con:
         with con:
             cur = con.execute(
-                """INSERT INTO tasks (project_id, title, description, status, priority, due_date, story_points, acceptance_criteria, assignee, ticket_type)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO tasks (
+                       project_id, title, description, status, priority, due_date,
+                       story_points, acceptance_criteria, assignee, ticket_type,
+                       external_provider, external_id, external_url, external_type,
+                       external_labels, sync_status
+                   )
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    RETURNING *""",
                 (
                     project_id,
@@ -617,6 +705,12 @@ def create_task(
                     acceptance_criteria.strip(),
                     assignee.strip(),
                     t_type,
+                    ext_prov,
+                    ext_id,
+                    ext_url,
+                    ext_type,
+                    ext_labels,
+                    sync_stat,
                 ),
             )
             # Touch project updated_at
@@ -629,7 +723,9 @@ def update_task(task_id: int, **fields) -> dict | None:
     """Update task fields (e.g. status, priority, title, description, due_date, story_points, acceptance_criteria, assignee, ticket_type)."""
     allowed = {
         "title", "description", "status", "priority", "due_date", "project_id",
-        "story_points", "acceptance_criteria", "assignee", "ticket_type"
+        "story_points", "acceptance_criteria", "assignee", "ticket_type",
+        "external_provider", "external_id", "external_url", "external_type",
+        "external_labels", "sync_status", "last_synced_at"
     }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
@@ -998,4 +1094,121 @@ def delete_dashboard_widget(widget_id: int) -> bool:
         with con:
             cur = con.execute("DELETE FROM dashboard_widgets WHERE id = ?", (widget_id,))
             return cur.rowcount > 0
+
+
+# ── Outpost Configurations & Transaction Vault ────────────────────────────────
+
+def get_outpost_config(provider: str) -> dict | None:
+    """Retrieve stored outpost configuration by provider name ('jira', 'notion', 'gdocs')."""
+    with get_db() as con:
+        row = con.execute(
+            "SELECT * FROM outpost_configs WHERE provider = ?",
+            (provider.lower().strip(),),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_all_outpost_configs() -> list[dict]:
+    """Retrieve all configured outposts."""
+    with get_db() as con:
+        rows = con.execute("SELECT * FROM outpost_configs ORDER BY provider ASC").fetchall()
+        return [dict(r) for r in rows]
+
+
+def set_outpost_config(
+    provider: str,
+    base_url: str | None = None,
+    auth_token: str | None = None,
+    user_email: str | None = None,
+    project_key: str | None = None,
+    database_id: str | None = None,
+    is_active: int = 1,
+    sync_policy: str = "manual",
+) -> dict:
+    """Insert or update an outpost configuration in the secure local vault."""
+    prov = provider.lower().strip()
+    with get_db() as con:
+        with con:
+            existing = con.execute(
+                "SELECT * FROM outpost_configs WHERE provider = ?", (prov,)
+            ).fetchone()
+            if existing:
+                updates = []
+                values = []
+                if base_url is not None:
+                    updates.append("base_url = ?")
+                    values.append(base_url.strip())
+                if auth_token is not None:
+                    updates.append("auth_token = ?")
+                    values.append(auth_token)
+                if user_email is not None:
+                    updates.append("user_email = ?")
+                    values.append(user_email.strip())
+                if project_key is not None:
+                    updates.append("project_key = ?")
+                    values.append(project_key.strip())
+                if database_id is not None:
+                    updates.append("database_id = ?")
+                    values.append(database_id.strip())
+                if is_active is not None:
+                    updates.append("is_active = ?")
+                    values.append(1 if is_active else 0)
+                if sync_policy is not None:
+                    updates.append("sync_policy = ?")
+                    values.append(sync_policy)
+
+                updates.append("updated_at = CURRENT_TIMESTAMP")
+                values.append(prov)
+                con.execute(
+                    f"UPDATE outpost_configs SET {', '.join(updates)} WHERE provider = ?",
+                    values,
+                )
+            else:
+                con.execute(
+                    """
+                    INSERT INTO outpost_configs (
+                        provider, base_url, auth_token, user_email,
+                        project_key, database_id, is_active, sync_policy
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        prov,
+                        base_url.strip() if base_url else None,
+                        auth_token or "",
+                        user_email.strip() if user_email else None,
+                        project_key.strip() if project_key else None,
+                        database_id.strip() if database_id else None,
+                        1 if is_active else 0,
+                        sync_policy,
+                    ),
+                )
+    return get_outpost_config(prov) or {}
+
+
+def delete_outpost_config(provider: str) -> bool:
+    """Remove an outpost configuration from the database."""
+    with get_db() as con:
+        with con:
+            cur = con.execute(
+                "DELETE FROM outpost_configs WHERE provider = ?",
+                (provider.lower().strip(),),
+            )
+            return cur.rowcount > 0
+
+
+def update_outpost_diagnostic(provider: str, last_error: str | None = None) -> None:
+    """Record health test status and timestamp."""
+    with get_db() as con:
+        with con:
+            con.execute(
+                """
+                UPDATE outpost_configs
+                SET last_tested_at = CURRENT_TIMESTAMP,
+                    last_error = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE provider = ?
+                """,
+                (last_error, provider.lower().strip()),
+            )
+
 
