@@ -47,8 +47,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Jira board sync button with live sync status toast.
 - **Task Card Jira Badges (`TaskCard.tsx`)**:
   - External issue key badge `[PROJ-102 ↗]` with deep link and labels.
-- **Artifacts Studio Cloud Export (`ArtifactsStudio.tsx`)**:
-  - "Publish to Notion" and "Export to Google Docs" integrated into the Artifacts Studio export menu.
+### 🏷️ Dynamic Workflow Columns, 1:1 Label & Issue Type Synchronization
+- **Jira 1:1 Label & Property Mirroring**:
+  - Real-time synchronization of Jira's native `labels` array (`labels: string[]`) across Kanban cards, task detail modals, and filter bars.
+  - Support for Jira issue types (Story, Bug, Task, Epic) with distinctive visual status icons and clickable issue key badges (`[PROJ-102 ↗]`).
+  - Dynamic workflow column scaffolding automatically generated from the linked Jira board's status categories (`To Do`, `In Progress`, `Code Review`, `Done`).
+  - 100% local parity: `LocalTicketAdapter` natively replicates these exact fields, schemas, and transitions for air-gapped/offline projects.
+
+### 🗄️ Database Schema Version 8 Migrations (`db.py` & `artifacts_db.py`)
+- **Dedicated Outpost Configuration Store (`outpost_configs` in `pmtool.db`)**:
+  - Secure vault schema storing provider identifiers, base URLs, PBKDF2-encrypted tokens, user emails, and project/database IDs.
+- **Offline Transaction Queue (`outpost_transactions` in `pmtool.db`)**:
+  - Transaction buffer recording pending mutations for optimistic execution and background sync retry queues.
+- **Entity Linkage Extensions**:
+  - `projects` table: added `outpost_provider`, `outpost_project_key`, `outpost_board_id`, `is_outpost_dictated`, and `last_synced_at`.
+  - `tasks` table: added `external_provider`, `external_id`, `external_url`, `external_type`, `external_labels`, `sync_status`, and `last_synced_at`.
+  - `artifacts` table (`artifacts.db`): added `external_provider`, `external_id`, `external_url`, `sync_status`, and `last_synced_at`.
+
+### 🎛️ Configurable Token Headroom & Extended Generation Limits (React + Backend)
+- **Token Headroom & Output Budgets Studio (`SettingsView.tsx`)**:
+  - Dedicated Section 4 in React Settings with range sliders and numeric step inputs for 4 execution planes:
+    - 💬 **Standard AI Chat** (`chat_max_tokens`, default 8,192, up to 32,768 tokens)
+    - 📄 **File & Document Generation** (`file_gen_max_tokens`, default 16,384, up to 65,536 tokens)
+    - 📋 **Plan Mode & Epics** (`plan_max_tokens`, default 8,192, up to 32,768 tokens)
+    - 🛠️ **Tool Calls & Summaries** (`tool_call_max_tokens`, default 16,384, up to 65,536 tokens)
+  - 1-Click Headroom Presets: `⚡ Eco (4k/8k)`, `⚖️ Balanced (8k/16k)`, and `🚀 Max (16k/32k)`.
+  - Machine-bound encrypted atomic persistence via `AppBridge.api.saveLLMConfig` and `/api/llm/config`.
+- **Intelligent Gateway Token Routing (`llm/gateway.py` & `routes.py`)**:
+  - Dynamic request classification routing output tokens based on intent (`/prd`, `/breakdown`, `/document`, `/plan`, `/search`, `/summarize`).
+  - Native Gemini API Safety Clamping: Automatically clamps generation requests to $\le 8,192$ output tokens for Google Gemini native API to prevent upstream HTTP 400 Bad Request parameter errors, while unlocking extended budgets (up to 32K/64K) for OpenAI, Ollama, and LM Studio.
+- **RAG Document Summarizer Upgrade (`tools/summarizer.py`)**:
+  - Default summary budget expanded from 8,192 to 16,384 tokens with dynamic parameter pass-through.
+- **Document Generator Headroom Awareness (`DocumentGeneratorModal.tsx` & `ChatView.tsx`)**:
+  - Added active `Extended 16K Headroom` telemetry badge to the AI Document Generator header.
+  - Updated `/summarize` command chip description to reflect 16K document synthesis.
 
 ## [2.2.0] - 2026-10-07
 
@@ -81,25 +113,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **1-Click "Save as Living Artifact" (`ChatView.tsx`)**:
   - Added quick promotion button to AI Copilot assistant markdown responses.
   - Automatically infers document title and document type, persisting the artifact directly into `artifacts.db` and displaying a toast notification.
-
-### 🎛️ Configurable Token Headroom & Extended Generation Limits (React + Backend)
-- **Token Headroom & Generation Limits Studio (`SettingsView.tsx`)**:
-  - Interactive configuration panel directly integrated into the React Desktop Settings workstation.
-  - Range sliders and numeric inputs for 4 independent execution planes:
-    - 💬 **Standard AI Chat** (`chat_max_tokens`, default 8,192, up to 32,768 tokens)
-    - 📄 **File & Document Generation** (`file_gen_max_tokens`, default 16,384, up to 65,536 tokens)
-    - 📋 **Plan Mode & Epics** (`plan_max_tokens`, default 8,192, up to 32,768 tokens)
-    - 🛠️ **Tool Calls & Summaries** (`tool_call_max_tokens`, default 16,384, up to 65,536 tokens)
-  - 1-Click Headroom Presets: `⚡ Eco (4k/8k)`, `⚖️ Balanced (8k/16k)`, and `🚀 Max (16k/32k)`.
-  - Machine-bound encrypted atomic saving via `AppBridge.api.saveLLMConfig` and `/api/llm/config`.
-- **Intelligent Gateway Token Routing (`llm/gateway.py` & `routes.py`)**:
-  - Dynamic request classification routing output tokens based on intent (`/prd`, `/breakdown`, `/document`, `/plan`, `/search`, `/summarize`).
-  - Native Gemini API Safety Clamping: Automatically clamps generation requests to $\le 8,192$ output tokens for Google Gemini native API to prevent upstream HTTP 400 parameter errors, while unlocking extended budgets (up to 32K/64K) for OpenAI, Ollama, and LM Studio.
-- **RAG Document Summarizer Upgrade (`tools/summarizer.py`)**:
-  - Default summary budget expanded from 8,192 to 16,384 tokens with dynamic parameter pass-through.
-- **Document Generator Headroom Awareness (`DocumentGeneratorModal.tsx` & `ChatView.tsx`)**:
-  - Added active `Extended 16K Headroom` telemetry badge to the AI Document Generator header.
-  - Updated `/summarize` command chip description to reflect 16K document synthesis.
 
 ## [2.1.1] - 2026-10-06
 
